@@ -13,12 +13,8 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    console.log('API Request:', config.url, 'Token:', token ? 'Present' : 'Missing');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('Authorization header added');
-    } else {
-      console.log('No token found in localStorage');
     }
     return config;
   },
@@ -32,10 +28,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.log('401 Unauthorized - removing token');
       localStorage.removeItem('token');
       // Don't redirect here - let AuthContext handle it
-      // window.location.href = '/login';
     }
     return Promise.reject(error);
   }

@@ -12,7 +12,7 @@ import {
   ArrowPathIcon,
   CpuChipIcon
 } from '@heroicons/react/24/outline';
-import { api } from '../services/api';
+import api from '../services/api';
 
 const AIAssistantPage = () => {
   const [question, setQuestion] = useState('');

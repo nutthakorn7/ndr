@@ -56,7 +56,13 @@ const LoginForm = () => {
               <input
                 id="username"
                 type="text"
-                {...register('username', { required: 'Username is required' })}
+                {...register('username', { 
+                  required: 'Username is required',
+                  pattern: {
+                    value: /^[a-zA-Z0-9_]{3,30}$/,
+                    message: 'Username must be 3-30 characters, letters, numbers, and underscores only'
+                  }
+                })}
                 className="mt-1 input-field"
                 placeholder="Enter your username"
               />
@@ -73,7 +79,13 @@ const LoginForm = () => {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  {...register('password', { required: 'Password is required' })}
+                  {...register('password', { 
+                    required: 'Password is required',
+                    minLength: {
+                      value: 8,
+                      message: 'Password must be at least 8 characters'
+                    }
+                  })}
                   className="input-field pr-10"
                   placeholder="Enter your password"
                 />

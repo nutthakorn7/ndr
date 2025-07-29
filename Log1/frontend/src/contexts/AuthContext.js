@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error accessing localStorage:', error);
-      localStorage.clear();
+      localStorage.removeItem('token');
       setIsLoading(false);
     }
 
@@ -53,7 +53,6 @@ export const AuthProvider = ({ children }) => {
     const handleStorageChange = () => {
       const token = localStorage.getItem('token');
       if (!token && isAuthenticated) {
-        console.log('Token removed from localStorage - logging out');
         setIsAuthenticated(false);
         setUser(null);
         navigate('/login');
@@ -72,7 +71,6 @@ export const AuthProvider = ({ children }) => {
     const interval = setInterval(() => {
       const token = localStorage.getItem('token');
       if (!token && isAuthenticated) {
-        console.log('Token missing during monitoring - logging out');
         setIsAuthenticated(false);
         setUser(null);
         navigate('/login');
@@ -84,9 +82,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async (redirectOnError = true) => {
         try {
-      console.log('Checking auth with token:', localStorage.getItem('token') ? 'Present' : 'Missing');
       const response = await authAPI.me();
-      console.log('Auth check successful:', response.data);
       setUser(response.data);
       setIsAuthenticated(true);
         } catch (error) {
@@ -106,7 +102,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(credentials);
       const { access_token, user } = response.data;
-      console.log('Login successful, token:', access_token ? 'Present' : 'Missing');
       
       // Ensure token is a string
       if (access_token && typeof access_token === 'string') {
@@ -132,7 +127,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      localStorage.clear();
+      localStorage.removeItem('token');
       setUser(null);
       setIsAuthenticated(false);
       navigate('/login');

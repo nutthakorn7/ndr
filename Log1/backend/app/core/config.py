@@ -2,8 +2,8 @@
 Application configuration settings.
 """
 from typing import List, Dict, Optional
-from pydantic import BaseSettings, AnyHttpUrl, validator
-from pydantic.env_settings import SettingsSourceCallable
+from pydantic_settings import BaseSettings
+from pydantic import AnyHttpUrl, validator
 import os
 import secrets
 from datetime import datetime
@@ -113,19 +113,6 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         extra = "allow"  # Allow extra fields
-
-        @classmethod
-        def customise_sources(
-            cls,
-            init_settings: SettingsSourceCallable,
-            env_settings: SettingsSourceCallable,
-            file_secret_settings: SettingsSourceCallable,
-        ) -> tuple[SettingsSourceCallable, ...]:
-            return (
-                init_settings,
-                env_settings,
-                file_secret_settings,
-            )
 
 # Create settings instance
 settings = Settings(_env_file=None, _env_file_encoding="utf-8", _env_nested_delimiter="__", _env_prefix="APP_", model_config={"extra": "allow"})
