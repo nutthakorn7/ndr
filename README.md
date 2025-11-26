@@ -53,6 +53,8 @@ Sensor enrollment/config/health is handled by the `sensor-controller` service (p
 - `POST /sensors/register` – enroll or update a sensor record (metadata/config).
 - `POST /sensors/{id}/heartbeat` – update sensor status/metrics.
 - `POST /sensors/{id}/pcap` – enqueue a signed PCAP snapshot command; sensors upload to object storage and analysts get the returned download URL.
+- `GET /sensors/{id}/pcap` – list recent PCAP requests with status, time range, size, and download links for analyst UI.
+- `POST /sensors/{id}/pcap/{requestId}/complete` – sensors acknowledge completion, updating time range, size, and final link metadata.
 - `GET /sensors/{id}/config` – fetch the config blob distributed to sensors.
 
 ## Repository Layout

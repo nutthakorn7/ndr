@@ -55,11 +55,20 @@ async function initSchema() {
       status TEXT DEFAULT 'pending',
       command_payload JSONB,
       signature TEXT,
+      start_time TIMESTAMPTZ,
+      end_time TIMESTAMPTZ,
+      size_bytes BIGINT,
+      notes TEXT,
       expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT now(),
       updated_at TIMESTAMPTZ DEFAULT now()
     )
   `);
+
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS start_time TIMESTAMPTZ');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS end_time TIMESTAMPTZ');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS size_bytes BIGINT');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS notes TEXT');
 }
 
 initSchema().then(() => logger.info('Sensor table ensured')).catch((err) => {
@@ -169,6 +178,67 @@ app.post('/sensors/:id/pcap', async (req, res) => {
       signature
     }
   });
+});
+
+app.get('/sensors/:id/pcap', async (req, res) => {
+  const sensorId = req.params.id;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+  const offset = parseInt(req.query.offset, 10) || 0;
+
+  const sensorResult = await pool.query('SELECT id FROM sensors WHERE id = $1', [sensorId]);
+  if (sensorResult.rowCount === 0) {
+    return res.status(404).json({ error: 'sensor not found' });
+  }
+
+  const requests = await pool.query(
+    `SELECT * FROM pcap_requests WHERE sensor_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+    [sensorId, limit, offset]
+  );
+
+  res.json({ sensor_id: sensorId, requests: requests.rows });
+});
+
+app.post('/sensors/:id/pcap/:requestId/complete', async (req, res) => {
+  const sensorId = req.params.id;
+  const requestId = req.params.requestId;
+  const {
+    status = 'ready',
+    start_time,
+    end_time,
+    size_bytes,
+    download_url,
+    notes
+  } = req.body || {};
+
+  const startTime = start_time ? new Date(start_time) : null;
+  const endTime = end_time ? new Date(end_time) : null;
+  let sizeBytes = null;
+  if (size_bytes !== undefined && size_bytes !== null && size_bytes !== '') {
+    const parsed = parseInt(size_bytes, 10);
+    if (!Number.isNaN(parsed)) {
+      sizeBytes = parsed;
+    }
+  }
+
+  const result = await pool.query(
+    `UPDATE pcap_requests
+     SET status = $3,
+         start_time = COALESCE($4, start_time),
+         end_time = COALESCE($5, end_time),
+         size_bytes = COALESCE($6, size_bytes),
+         download_url = COALESCE($7, download_url),
+         notes = COALESCE($8, notes),
+         updated_at = now()
+     WHERE sensor_id = $1 AND id = $2
+     RETURNING *`,
+    [sensorId, requestId, status, startTime, endTime, sizeBytes, download_url, notes]
+  );
+
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'pcap request not found' });
+  }
+
+  res.json({ request: result.rows[0] });
 });
 
 app.get('/sensors/:id/config', async (req, res) => {
