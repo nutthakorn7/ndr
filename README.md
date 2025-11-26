@@ -47,6 +47,8 @@ An on-prem security analytics stack capable of ingesting ≥6,500 events per sec
 - **Suricata Sensor** (`sensors/suricata-sensor/`): Suricata 7 + Vector appliance streaming EVE JSON flows/alerts to Kafka via TLS/SASL-aware pipeline. Build with `docker build -t ndr/suricata-sensor sensors/suricata-sensor`.
 - Additional sensor profiles (e.g., cloud taps) can reuse the same metadata contracts (tenant_id, sensor_id) to plug into the parser/normalizer pipeline.
 
+Sensor enrollment/config/health is handled by the `sensor-controller` service (port 8084).
+
 ## Repository Layout
 
 ```text
@@ -81,6 +83,7 @@ security-analytics/
 | soar-orchestrator | Python | 8083 | Executes playbooks (stub) |
 | connectors | Python/Node | varies | Integrations to EDR/NGFW/IPS for response actions |
 | web-ui | React (serve) | 3000 | Analyst dashboard consuming dashboard-api |
+| sensor-controller | Node.js/Express | 8084 | Sensor registration, config distribution, heartbeats |
 
 ---
 

@@ -163,6 +163,15 @@ services:
       - opensearch
       - clickhouse
 
+  sensor-controller:
+    build: ../services/sensor-controller
+    ports:
+      - "8084:8084"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+    depends_on:
+      - postgres
+
   # PostgreSQL for relational data
   postgres:
     image: postgres:15

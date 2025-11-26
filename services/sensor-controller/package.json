@@ -1,0 +1,17 @@
+{
+  "name": "sensor-controller",
+  "version": "1.0.0",
+  "description": "API service managing NDR sensor fleet",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "pg": "^8.11.1",
+    "pino": "^8.17.0",
+    "pino-pretty": "^10.3.1",
+    "uuid": "^9.0.1"
+  }
+}
