@@ -68,6 +68,15 @@ Core storage components: OpenSearch (hot alerts/events), ClickHouse (analytics),
 - `GET /sensors/{id}/pcap` – list requests with status, time range, size, download URL.
 - `POST /sensors/{id}/pcap/{requestId}/complete` – sensor reports completion, providing start/end times, size, final link.
 - `GET /sensors/{id}/config` – fetch config blob delivered to sensors.
+- `POST /certificates/request` – sensors submit a bootstrap token + CSR and receive a signed certificate + CA chain (used for TLS auth to Kafka/controller).
+
+Enrollment tokens live in the `sensor_enrollment_tokens` table. Insert tokens manually (or via migration) before sensors enroll:
+
+```sql
+INSERT INTO sensor_enrollment_tokens (token, sensor_id, expires_at)
+VALUES ('token-123', 'sensor-001', now() + interval '7 days');
+```
+Sensors call `/certificates/request` with that token and their CSR; tokens are single-use by default.
 
 ---
 
@@ -101,6 +110,9 @@ export JWT_SECRET="change-me"
 export ENABLE_DEMO_USERS=true
 export SENSOR_COMMAND_SECRET="sensor-cmd-secret"
 export OBJECT_STORAGE_BASE_URL="https://storage.local"
+export CA_PRIVATE_KEY_PEM="$(cat ca-key.pem)"
+export CA_CERT_PEM="$(cat ca-cert.pem)"
+export CERT_VALID_DAYS=180
 ```
 
 ### Run with Docker Compose
@@ -152,6 +164,8 @@ curl -X POST http://localhost:8080/ingest/logs \
 | `SENSOR_COMMAND_SECRET` | HMAC key for sensor controller commands | `ndr-demo-secret` |
 | `OBJECT_STORAGE_BASE_URL` | Base URL for sensor-uploaded artifacts | `https://storage.local` |
 | `CONTROLLER_URL` | (Sensors) URL of sensor-controller | unset |
+| `CA_PRIVATE_KEY_PEM` / `CA_CERT_PEM` | PEM material for signing sensor certificates (optional; random CA generated if unset) | unset |
+| `CERT_VALID_DAYS` | Days each issued certificate remains valid | `90` |
 | `ZEEK_TOPIC` / `SURICATA_TOPIC` | Kafka topics for sensor logs | `zeek-logs` / `suricata-logs` |
 | `MAX_LOG_SIZE_BYTES` | Ingestion payload limit for batch logs | `1048576` |
 

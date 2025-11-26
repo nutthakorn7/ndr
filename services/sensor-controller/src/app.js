@@ -3,6 +3,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
+const forge = require('node-forge');
 const pino = require('pino');
 
 const app = express();
@@ -17,6 +18,7 @@ const pool = new Pool({
 
 const SENSOR_COMMAND_SECRET = process.env.SENSOR_COMMAND_SECRET || 'ndr-demo-secret';
 const OBJECT_STORAGE_BASE_URL = process.env.OBJECT_STORAGE_BASE_URL || 'https://storage.local';
+const CERT_VALID_DAYS = Number(process.env.CERT_VALID_DAYS) > 0 ? Number(process.env.CERT_VALID_DAYS) : 90;
 
 const buildDownloadUrl = (objectKey) => {
   const base = OBJECT_STORAGE_BASE_URL.replace(/\/$/, '');
@@ -39,6 +41,109 @@ const stableStringify = (payload) => {
 const signCommand = (payload) => {
   const json = stableStringify(payload);
   return crypto.createHmac('sha256', SENSOR_COMMAND_SECRET).update(json).digest('hex');
+};
+
+const generateSerialNumber = () => {
+  const timestampHex = Date.now().toString(16);
+  const randomHex = Math.floor(Math.random() * 1e12).toString(16);
+  return (timestampHex + randomHex).slice(0, 32);
+};
+
+const loadCertificateAuthority = () => {
+  const caKeyPem = process.env.CA_PRIVATE_KEY_PEM;
+  const caCertPem = process.env.CA_CERT_PEM;
+
+  if (caKeyPem && caCertPem) {
+    try {
+      const key = forge.pki.privateKeyFromPem(caKeyPem);
+      const cert = forge.pki.certificateFromPem(caCertPem);
+      logger.info('Loaded CA material from environment');
+      return {
+        key,
+        cert,
+        certPem: caCertPem
+      };
+    } catch (err) {
+      logger.error({ err }, 'Failed to parse CA material from environment; generating new CA');
+    }
+  }
+
+  const keys = forge.pki.rsa.generateKeyPair(2048);
+  const cert = forge.pki.createCertificate();
+  cert.serialNumber = generateSerialNumber();
+  const notBefore = new Date();
+  const notAfter = new Date(notBefore.getTime());
+  notAfter.setFullYear(notBefore.getFullYear() + 5);
+  cert.validity.notBefore = notBefore;
+  cert.validity.notAfter = notAfter;
+  const attrs = [{ name: 'commonName', value: 'NDR Sensor CA' }];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+  cert.setExtensions([
+    { name: 'basicConstraints', cA: true },
+    { name: 'keyUsage', keyCertSign: true, digitalSignature: true, cRLSign: true },
+    { name: 'subjectKeyIdentifier' }
+  ]);
+  cert.publicKey = keys.publicKey;
+  cert.sign(keys.privateKey, forge.md.sha256.create());
+  const certPem = forge.pki.certificateToPem(cert);
+  logger.warn('Generated ephemeral CA material (set CA_PRIVATE_KEY_PEM / CA_CERT_PEM for persistence)');
+  return {
+    key: keys.privateKey,
+    cert,
+    certPem
+  };
+};
+
+const CA = loadCertificateAuthority();
+logger.info('Sensor controller CA subject:', CA.cert.subject.attributes.map((attr) => `${attr.name}=${attr.value}`).join(', '));
+
+const issueCertificateFromCSR = (csrPem) => {
+  let csr;
+  try {
+    csr = forge.pki.certificationRequestFromPem(csrPem);
+  } catch (err) {
+    throw new Error('invalid CSR: unable to parse PEM');
+  }
+
+  if (!csr.verify()) {
+    throw new Error('invalid CSR: signature verification failed');
+  }
+
+  const cert = forge.pki.createCertificate();
+  cert.serialNumber = generateSerialNumber();
+
+  const notBefore = new Date();
+  const notAfter = new Date(notBefore.getTime() + CERT_VALID_DAYS * 24 * 60 * 60 * 1000);
+  cert.validity.notBefore = notBefore;
+  cert.validity.notAfter = notAfter;
+
+  cert.setSubject(csr.subject.attributes);
+  cert.setIssuer(CA.cert.subject.attributes);
+  cert.publicKey = csr.publicKey;
+
+  const extensions = [];
+  const extRequest = csr.getAttribute({ name: 'extensionRequest' });
+  if (extRequest && Array.isArray(extRequest.extensions)) {
+    extRequest.extensions.forEach((ext) => extensions.push(ext));
+  }
+
+  if (!extensions.some((ext) => ext.name === 'basicConstraints')) {
+    extensions.push({ name: 'basicConstraints', cA: false });
+  }
+
+  if (!extensions.some((ext) => ext.name === 'keyUsage')) {
+    extensions.push({ name: 'keyUsage', digitalSignature: true, keyEncipherment: true });
+  }
+
+  cert.setExtensions(extensions);
+  cert.sign(CA.key, forge.md.sha256.create());
+
+  const certPem = forge.pki.certificateToPem(cert);
+  return {
+    cert,
+    pem: certPem
+  };
 };
 
 async function initSchema() {
@@ -72,20 +177,38 @@ async function initSchema() {
       end_time TIMESTAMPTZ,
       size_bytes BIGINT,
       notes TEXT,
-      start_time TIMESTAMPTZ,
-      end_time TIMESTAMPTZ,
-      size_bytes BIGINT,
-      notes TEXT,
       expires_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT now(),
       updated_at TIMESTAMPTZ DEFAULT now()
     )
   `);
-
   await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS start_time TIMESTAMPTZ');
   await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS end_time TIMESTAMPTZ');
   await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS size_bytes BIGINT');
   await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS notes TEXT');
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sensor_enrollment_tokens (
+      token TEXT PRIMARY KEY,
+      sensor_id TEXT,
+      expires_at TIMESTAMPTZ,
+      used BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      used_at TIMESTAMPTZ
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS issued_certificates (
+      id TEXT PRIMARY KEY,
+      sensor_id TEXT,
+      token TEXT,
+      serial TEXT,
+      certificate_pem TEXT,
+      issued_at TIMESTAMPTZ DEFAULT now(),
+      expires_at TIMESTAMPTZ
+    )
+  `);
 }
 
 initSchema().then(() => logger.info('Sensor table ensured')).catch((err) => {
@@ -146,6 +269,69 @@ app.post('/sensors/:id/heartbeat', async (req, res) => {
   }
 
   res.json({ sensor: result.rows[0] });
+});
+
+app.post('/certificates/request', async (req, res) => {
+  const { token, csr_pem: csrPem } = req.body || {};
+
+  if (!token || !csrPem) {
+    return res.status(400).json({ error: 'token and csr_pem are required' });
+  }
+
+  const tokenResult = await pool.query('SELECT * FROM sensor_enrollment_tokens WHERE token = $1', [token]);
+  if (tokenResult.rowCount === 0) {
+    return res.status(403).json({ error: 'invalid enrollment token' });
+  }
+
+  const tokenRow = tokenResult.rows[0];
+  if (tokenRow.used) {
+    return res.status(400).json({ error: 'token already used' });
+  }
+
+  if (tokenRow.expires_at && new Date(tokenRow.expires_at) < new Date()) {
+    return res.status(400).json({ error: 'token expired' });
+  }
+
+  const sensorId = tokenRow.sensor_id;
+  if (!sensorId) {
+    return res.status(400).json({ error: 'token is not associated with a sensor_id' });
+  }
+
+  try {
+    const issued = issueCertificateFromCSR(csrPem);
+    const expiresAtIso = issued.cert.validity.notAfter.toISOString();
+    const serial = issued.cert.serialNumber;
+    const certId = uuidv4();
+
+    await pool.query(
+      `INSERT INTO issued_certificates (id, sensor_id, token, serial, certificate_pem, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [certId, sensorId, token, serial, issued.pem, issued.cert.validity.notAfter]
+    );
+
+    await pool.query(
+      `UPDATE sensor_enrollment_tokens SET used = true, used_at = now() WHERE token = $1`,
+      [token]
+    );
+
+    await pool.query(
+      `INSERT INTO sensors (id, status, updated_at)
+       VALUES ($1, 'registered', now())
+       ON CONFLICT (id) DO UPDATE SET status = sensors.status`,
+      [sensorId]
+    );
+
+    res.json({
+      sensor_id: sensorId,
+      certificate: issued.pem,
+      ca_certificate: CA.certPem,
+      expires_at: expiresAtIso,
+      serial
+    });
+  } catch (error) {
+    logger.error({ error }, 'certificate enrollment failed');
+    res.status(400).json({ error: error.message });
+  }
 });
 
 app.post('/sensors/:id/pcap', async (req, res) => {
