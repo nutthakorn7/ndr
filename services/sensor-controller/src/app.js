@@ -485,6 +485,28 @@ app.post('/sensors/:id/pcap/:requestId/complete', async (req, res) => {
   res.json({ request: result.rows[0] });
 });
 
+app.get('/sensors/:id/certificates', async (req, res) => {
+  const sensorId = req.params.id;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+  const offset = parseInt(req.query.offset, 10) || 0;
+
+  const sensorResult = await pool.query('SELECT id FROM sensors WHERE id = $1', [sensorId]);
+  if (sensorResult.rowCount === 0) {
+    return res.status(404).json({ error: 'sensor not found' });
+  }
+
+  const certs = await pool.query(
+    `SELECT id, token, serial, issued_at, expires_at, certificate_pem
+     FROM issued_certificates
+     WHERE sensor_id = $1
+     ORDER BY issued_at DESC
+     LIMIT $2 OFFSET $3`,
+    [sensorId, limit, offset]
+  );
+
+  res.json({ sensor_id: sensorId, certificates: certs.rows });
+});
+
 app.get('/sensors/:id/config', async (req, res) => {
   const sensorId = req.params.id;
   const result = await pool.query('SELECT id, config, tenant_id FROM sensors WHERE id = $1', [sensorId]);

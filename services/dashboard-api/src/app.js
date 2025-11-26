@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 const app = express();
 
@@ -11,6 +12,42 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+const SENSOR_CONTROLLER_URL = (process.env.SENSOR_CONTROLLER_URL || '').replace(/\/$/, '');
+
+const fallbackSensors = [
+  {
+    id: 'sensor-branch-1',
+    name: 'Branch Office Sensor',
+    location: 'Bangkok Branch',
+    status: 'online',
+    tenant_id: 'customer-a',
+    last_heartbeat: '2025-08-15T10:20:00Z',
+    last_metrics: { cpu: 42, bytes_per_sec: 125000 }
+  },
+  {
+    id: 'sensor-dc-1',
+    name: 'Data Center Sensor',
+    location: 'Primary DC',
+    status: 'degraded',
+    tenant_id: 'customer-a',
+    last_heartbeat: '2025-08-15T10:10:00Z',
+    last_metrics: { cpu: 88, bytes_per_sec: 220000 }
+  }
+];
+
+async function controllerRequest(path, query = {}) {
+  if (!SENSOR_CONTROLLER_URL) {
+    throw new Error('sensor-controller URL not configured');
+  }
+  const qs = new URLSearchParams(query);
+  const url = `${SENSOR_CONTROLLER_URL}${path}${qs.toString() ? `?${qs.toString()}` : ''}`;
+  const resp = await fetch(url, { timeout: 8000 });
+  if (!resp.ok) {
+    throw new Error(`controller responded with ${resp.status}`);
+  }
+  return resp.json();
+}
 
 // Mock data for demo
 const mockEvents = [
@@ -198,6 +235,42 @@ app.get('/analytics/dashboard', (req, res) => {
       { ip: "192.168.1.20", count: 89 }
     ]
   });
+});
+
+app.get('/sensors', async (req, res) => {
+  try {
+    const data = await controllerRequest('/sensors', req.query);
+    res.json({ ...data, source: 'controller' });
+  } catch (error) {
+    console.error('sensor controller unavailable:', error.message);
+    res.json({ sensors: fallbackSensors, source: 'mock' });
+  }
+});
+
+app.get('/sensors/:sensorId/pcap', async (req, res) => {
+  const { sensorId } = req.params;
+  try {
+    const data = await controllerRequest(`/sensors/${sensorId}/pcap`, req.query);
+    res.json({ ...data, source: 'controller' });
+  } catch (error) {
+    res.status(502).json({
+      error: 'Unable to fetch pcap data from controller',
+      details: error.message
+    });
+  }
+});
+
+app.get('/sensors/:sensorId/certificates', async (req, res) => {
+  const { sensorId } = req.params;
+  try {
+    const data = await controllerRequest(`/sensors/${sensorId}/certificates`, req.query);
+    res.json({ ...data, source: 'controller' });
+  } catch (error) {
+    res.status(502).json({
+      error: 'Unable to fetch certificate data from controller',
+      details: error.message
+    });
+  }
 });
 
 const PORT = process.env.PORT || 8081;
