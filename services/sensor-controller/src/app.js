@@ -23,8 +23,21 @@ const buildDownloadUrl = (objectKey) => {
   return `${base}/${objectKey}`;
 };
 
+const stableStringify = (payload) => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return JSON.stringify(payload);
+  }
+  const ordered = {};
+  Object.keys(payload)
+    .sort()
+    .forEach((key) => {
+      ordered[key] = payload[key];
+    });
+  return JSON.stringify(ordered);
+};
+
 const signCommand = (payload) => {
-  const json = JSON.stringify(payload);
+  const json = stableStringify(payload);
   return crypto.createHmac('sha256', SENSOR_COMMAND_SECRET).update(json).digest('hex');
 };
 
@@ -55,6 +68,10 @@ async function initSchema() {
       status TEXT DEFAULT 'pending',
       command_payload JSONB,
       signature TEXT,
+      start_time TIMESTAMPTZ,
+      end_time TIMESTAMPTZ,
+      size_bytes BIGINT,
+      notes TEXT,
       start_time TIMESTAMPTZ,
       end_time TIMESTAMPTZ,
       size_bytes BIGINT,
@@ -178,6 +195,47 @@ app.post('/sensors/:id/pcap', async (req, res) => {
       signature
     }
   });
+});
+
+app.get('/sensors/:id/pcap/pending', async (req, res) => {
+  const sensorId = req.params.id;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 5, 50);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const pending = await client.query(
+      `SELECT id FROM pcap_requests
+       WHERE sensor_id = $1 AND status = 'pending'
+       ORDER BY created_at ASC
+       LIMIT $2
+       FOR UPDATE`,
+      [sensorId, limit]
+    );
+
+    if (pending.rowCount === 0) {
+      await client.query('COMMIT');
+      return res.json({ sensor_id: sensorId, requests: [] });
+    }
+
+    const ids = pending.rows.map((row) => row.id);
+    const updated = await client.query(
+      `UPDATE pcap_requests
+       SET status = 'in_progress', updated_at = now()
+       WHERE id = ANY($1::text[])
+       RETURNING *`,
+      [ids]
+    );
+
+    await client.query('COMMIT');
+    res.json({ sensor_id: sensorId, requests: updated.rows });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error({ error, sensor_id: sensorId }, 'Failed to fetch pending pcap requests');
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
 });
 
 app.get('/sensors/:id/pcap', async (req, res) => {

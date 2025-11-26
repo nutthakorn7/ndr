@@ -62,6 +62,10 @@ docker run -v $(pwd)/pcaps:/pcaps ndr/zeek-sensor \
 | `PCAP_RING_FILE_COUNT` | Number of ring files to keep | `20` |
 | `PCAP_RING_DIR` | Directory for ring buffer files | `/pcap/ring` |
 | `PCAP_EXPORT_DIR` | Directory for exported captures | `/pcap/exports` |
+| `CONTROLLER_URL` | Sensor-controller base URL (enables PCAP automation) | empty |
+| `CONTROLLER_TOKEN` | Optional bearer token for controller requests | empty |
+| `SENSOR_COMMAND_SECRET` | HMAC secret to verify controller commands | empty |
+| `PCAP_COMMAND_POLL_INTERVAL` | Seconds between controller polls | `60` |
 
 ### PCAP Ring & On-demand Snapshot
 
@@ -78,6 +82,16 @@ docker exec <container> /opt/sensor-tools/pcap-manager.sh capture 60 /pcap/expor
 ```
 
 Generated files appear under `/pcap/exports` (mount the path to retrieve).
+
+### Controller Integration
+
+If `CONTROLLER_URL` is set, the bundled sensor agent will poll `sensor-controller` for signed PCAP requests, execute snapshots via `pcap-manager.sh`, upload them to the provided URL (presigned PUT), and mark the request as ready. Configure:
+
+```bash
+-e CONTROLLER_URL=http://sensor-controller:8084 \
+-e SENSOR_COMMAND_SECRET="shared-hmac-secret" \
+-e CONTROLLER_TOKEN="optional-bearer-token"
+```
 
 ## Pipeline Integration
 

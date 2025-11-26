@@ -9,6 +9,7 @@ ZEEK_LOG_DIR=${ZEEK_LOG_DIR:-/opt/zeek/logs/current}
 SENSOR_ID=${SENSOR_ID:-zeek-sensor}
 PCAP_RING_ENABLED=${PCAP_RING_ENABLED:-true}
 PCAP_MANAGER=/opt/sensor-tools/pcap-manager.sh
+SENSOR_AGENT=/opt/sensor-tools/sensor-agent.py
 
 cleanup() {
   echo "[entrypoint] Caught signal, shutting down" >&2
@@ -17,6 +18,7 @@ cleanup() {
   if [[ -x "$PCAP_MANAGER" ]]; then
     "$PCAP_MANAGER" stop || true
   fi
+  pkill -f sensor-agent.py || true
 }
 
 trap cleanup SIGINT SIGTERM
@@ -29,6 +31,11 @@ echo "[entrypoint] Started Vector (PID ${VECTOR_PID})"
 
 if [[ "${PCAP_RING_ENABLED,,}" == "true" && -x "$PCAP_MANAGER" ]]; then
   CAPTURE_INTERFACE="$CAPTURE_INTERFACE" "$PCAP_MANAGER" start
+fi
+
+if [[ -n "${CONTROLLER_URL:-}" && -x "$SENSOR_AGENT" ]]; then
+  echo "[entrypoint] Starting sensor agent for controller integration"
+  python3 "$SENSOR_AGENT" &
 fi
 
 ZEEK_CMD=(zeek -C LogAscii::use_json=T LogAscii::json_timestamps=JSON::TS_ISO8601 \

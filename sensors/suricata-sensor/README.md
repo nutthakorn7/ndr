@@ -50,6 +50,10 @@ docker run -v $(pwd)/pcaps:/pcaps ndr/suricata-sensor \
 | `PCAP_RING_FILE_COUNT` | Number of files to retain | `20` |
 | `PCAP_RING_DIR` | Directory storing ring files | `/pcap/ring` |
 | `PCAP_EXPORT_DIR` | Where snapshot/capture outputs are written | `/pcap/exports` |
+| `CONTROLLER_URL` | Sensor-controller base URL | empty |
+| `CONTROLLER_TOKEN` | Optional bearer token for controller API calls | empty |
+| `SENSOR_COMMAND_SECRET` | Shared HMAC secret to verify commands | empty |
+| `PCAP_COMMAND_POLL_INTERVAL` | Seconds between controller polls | `60` |
 
 ### PCAP Ring & Snapshot
 
@@ -66,6 +70,10 @@ docker exec <container> /opt/sensor-tools/pcap-manager.sh capture 60 /pcap/expor
 ```
 
 Mount `/pcap/exports` (and `/pcap/ring` if desired) to retrieve the data.
+
+### Controller Integration
+
+Set `CONTROLLER_URL` (and optionally `CONTROLLER_TOKEN`, `SENSOR_COMMAND_SECRET`) to enable automated fulfillment of PCAP requests issued by `sensor-controller`. The sensor agent polls `GET /sensors/{id}/pcap/pending`, snapshots traffic via `pcap-manager.sh`, uploads to the provided URL, and calls the completion endpoint with metadata.
 
 ## Pipeline Integration
 1. Create Kafka topic `suricata-logs` (or override `KAFKA_TOPIC`).

@@ -64,6 +64,7 @@ Core storage components: OpenSearch (hot alerts/events), ClickHouse (analytics),
 - `POST /sensors/register` – create/update sensor metadata/config.
 - `POST /sensors/{id}/heartbeat` – update status/metrics.
 - `POST /sensors/{id}/pcap` – enqueue signed PCAP snapshot request; returns object storage URL + signature for sensor to honor.
+- `GET /sensors/{id}/pcap/pending` – sensors poll for pending requests (status auto-transitions to `in_progress`).
 - `GET /sensors/{id}/pcap` – list requests with status, time range, size, download URL.
 - `POST /sensors/{id}/pcap/{requestId}/complete` – sensor reports completion, providing start/end times, size, final link.
 - `GET /sensors/{id}/config` – fetch config blob delivered to sensors.
@@ -150,6 +151,7 @@ curl -X POST http://localhost:8080/ingest/logs \
 | `ENABLE_DEMO_USERS` | Allow demo accounts (non-prod) | `true` |
 | `SENSOR_COMMAND_SECRET` | HMAC key for sensor controller commands | `ndr-demo-secret` |
 | `OBJECT_STORAGE_BASE_URL` | Base URL for sensor-uploaded artifacts | `https://storage.local` |
+| `CONTROLLER_URL` | (Sensors) URL of sensor-controller | unset |
 | `ZEEK_TOPIC` / `SURICATA_TOPIC` | Kafka topics for sensor logs | `zeek-logs` / `suricata-logs` |
 | `MAX_LOG_SIZE_BYTES` | Ingestion payload limit for batch logs | `1048576` |
 
