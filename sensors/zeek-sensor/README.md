@@ -9,6 +9,7 @@ Network sensor image that runs Zeek, emits JSON logs, and forwards them to Kafka
 - Vector tails Zeek logs and publishes them to a configurable Kafka topic with tenant/sensor metadata.
 - Supports live capture (`-i <interface>`) or offline PCAP replay (`-r <file>`).
 - Exposes environment variables to control interface, BPF filters, TLS credentials, and tenant identifiers.
+- Built-in PCAP ring buffer with on-demand export (`pcap-manager.sh snapshot ...`).
 
 ## Build
 
@@ -56,6 +57,27 @@ docker run -v $(pwd)/pcaps:/pcaps ndr/zeek-sensor \
 | `KAFKA_{CA,CERT,KEY}_PATH` | TLS material | empty |
 | `KAFKA_SECURITY_PROTOCOL` | SASL/TLS protocol if needed | `PLAINTEXT` |
 | `KAFKA_SASL_*` | SASL credentials | empty |
+| `PCAP_RING_ENABLED` | Enable rotating PCAP capture | `true` |
+| `PCAP_RING_ROTATE_SECONDS` | Rotation interval per file | `60` |
+| `PCAP_RING_FILE_COUNT` | Number of ring files to keep | `20` |
+| `PCAP_RING_DIR` | Directory for ring buffer files | `/pcap/ring` |
+| `PCAP_EXPORT_DIR` | Directory for exported captures | `/pcap/exports` |
+
+### PCAP Ring & On-demand Snapshot
+
+The container launches `/opt/sensor-tools/pcap-manager.sh` to keep a rolling capture. To export the most recent 5 minutes into a tarball:
+
+```bash
+docker exec <container> /opt/sensor-tools/pcap-manager.sh snapshot 300 /pcap/exports/request-$(date +%s).tar.gz
+```
+
+For an active capture window (e.g., 60 seconds):
+
+```bash
+docker exec <container> /opt/sensor-tools/pcap-manager.sh capture 60 /pcap/exports/live-$(date +%s).pcap
+```
+
+Generated files appear under `/pcap/exports` (mount the path to retrieve).
 
 ## Pipeline Integration
 

@@ -46,6 +46,7 @@ An on-prem security analytics stack capable of ingesting ≥6,500 events per sec
 - **Zeek Sensor** (`sensors/zeek-sensor/`): Docker image bundling Zeek + Vector for forwarding JSON logs to Kafka. Build with `docker build -t ndr/zeek-sensor sensors/zeek-sensor` and configure via environment variables (see component README).
 - **Suricata Sensor** (`sensors/suricata-sensor/`): Suricata 7 + Vector appliance streaming EVE JSON flows/alerts to Kafka via TLS/SASL-aware pipeline. Build with `docker build -t ndr/suricata-sensor sensors/suricata-sensor`.
 - Additional sensor profiles (e.g., cloud taps) can reuse the same metadata contracts (tenant_id, sensor_id) to plug into the parser/normalizer pipeline.
+- Both sensors ship with a PCAP ring buffer utility (`/opt/sensor-tools/pcap-manager.sh`) that keeps rotating captures and supports snapshot/capture commands for rapid evidence export.
 
 Sensor enrollment/config/health is handled by the `sensor-controller` service (port 8084).
 

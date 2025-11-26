@@ -7,6 +7,7 @@ Container appliance that runs Suricata 7, tails `eve.json` with Vector, and push
 - Vector sidecar forwards logs to Kafka with `sensor_id`/`tenant_id` metadata and TLS/SASL options.
 - Supports live capture via AF_PACKET or offline PCAP replay.
 - Custom Suricata args/rulesets can be injected via env variables or bind mounts.
+- Includes a PCAP ring buffer utility for quick snapshots/export.
 
 ## Build
 ```bash
@@ -44,6 +45,27 @@ docker run -v $(pwd)/pcaps:/pcaps ndr/suricata-sensor \
 | `KAFKA_BROKERS` | Kafka bootstrap servers | `kafka:9092` |
 | `KAFKA_TOPIC` | Kafka topic for Suricata logs | `suricata-logs` |
 | TLS/SASL vars | `KAFKA_TLS_ENABLED`, `KAFKA_{CA,CERT,KEY}_PATH`, `KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_*` | optional |
+| `PCAP_RING_ENABLED` | Enable rotating PCAP capture | `true` |
+| `PCAP_RING_ROTATE_SECONDS` | Rotation interval per file | `60` |
+| `PCAP_RING_FILE_COUNT` | Number of files to retain | `20` |
+| `PCAP_RING_DIR` | Directory storing ring files | `/pcap/ring` |
+| `PCAP_EXPORT_DIR` | Where snapshot/capture outputs are written | `/pcap/exports` |
+
+### PCAP Ring & Snapshot
+
+Invoke `/opt/sensor-tools/pcap-manager.sh snapshot <seconds> <output.tar.gz>` to bundle the most recent traffic:
+
+```bash
+docker exec <container> /opt/sensor-tools/pcap-manager.sh snapshot 300 /pcap/exports/req-$(date +%s).tar.gz
+```
+
+For an active capture window:
+
+```bash
+docker exec <container> /opt/sensor-tools/pcap-manager.sh capture 60 /pcap/exports/live-$(date +%s).pcap
+```
+
+Mount `/pcap/exports` (and `/pcap/ring` if desired) to retrieve the data.
 
 ## Pipeline Integration
 1. Create Kafka topic `suricata-logs` (or override `KAFKA_TOPIC`).

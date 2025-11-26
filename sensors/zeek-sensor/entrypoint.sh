@@ -7,11 +7,16 @@ ZEEK_BPF=${ZEEK_BPF:-""}
 VECTOR_CONFIG=${VECTOR_CONFIG:-/etc/vector/vector.toml}
 ZEEK_LOG_DIR=${ZEEK_LOG_DIR:-/opt/zeek/logs/current}
 SENSOR_ID=${SENSOR_ID:-zeek-sensor}
+PCAP_RING_ENABLED=${PCAP_RING_ENABLED:-true}
+PCAP_MANAGER=/opt/sensor-tools/pcap-manager.sh
 
 cleanup() {
   echo "[entrypoint] Caught signal, shutting down" >&2
   pkill vector || true
   pkill zeek || true
+  if [[ -x "$PCAP_MANAGER" ]]; then
+    "$PCAP_MANAGER" stop || true
+  fi
 }
 
 trap cleanup SIGINT SIGTERM
@@ -21,6 +26,10 @@ vector --config "$VECTOR_CONFIG" &
 VECTOR_PID=$!
 
 echo "[entrypoint] Started Vector (PID ${VECTOR_PID})"
+
+if [[ "${PCAP_RING_ENABLED,,}" == "true" && -x "$PCAP_MANAGER" ]]; then
+  CAPTURE_INTERFACE="$CAPTURE_INTERFACE" "$PCAP_MANAGER" start
+fi
 
 ZEEK_CMD=(zeek -C LogAscii::use_json=T LogAscii::json_timestamps=JSON::TS_ISO8601 \
   LogAscii::json_timestamps_precision=JSON::TS_MILLI LogAscii::include_meta=T)

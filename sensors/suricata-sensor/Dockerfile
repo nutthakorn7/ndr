@@ -7,19 +7,20 @@ ENV SURICATA_HOME=/var/lib/suricata \
     SURICATA_YAML=/etc/suricata/suricata.yaml
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates gnupg && \
+    apt-get install -y --no-install-recommends curl ca-certificates gnupg tcpdump && \
     curl -1sLf 'https://repositories.timber.io/public/vector/cfg/setup/bash.deb.sh' | bash && \
     apt-get install -y vector=${VECTOR_VERSION} && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /etc/vector ${SURICATA_HOME}/log && \
+RUN mkdir -p /etc/vector ${SURICATA_HOME}/log /opt/sensor-tools && \
     chown -R suricata:suricata ${SURICATA_HOME}
 
 COPY suricata.yaml ${SURICATA_YAML}
 COPY vector/vector.toml /etc/vector/vector.toml
+COPY pcap-manager.sh /opt/sensor-tools/pcap-manager.sh
 COPY entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh /opt/sensor-tools/pcap-manager.sh
 
 USER suricata
 
