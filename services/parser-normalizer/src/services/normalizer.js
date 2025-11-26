@@ -32,15 +32,17 @@ class LogNormalizer {
         user: { ...(parsedLog.user && typeof parsedLog.user === 'object' ? parsedLog.user : {}) },
         process: { ...(parsedLog.process && typeof parsedLog.process === 'object' ? parsedLog.process : {}) },
         file: { ...(parsedLog.file && typeof parsedLog.file === 'object' ? parsedLog.file : {}) },
+        dns: { ...(parsedLog.dns && typeof parsedLog.dns === 'object' ? parsedLog.dns : {}) },
+        sensor: { ...(parsedLog.sensor && typeof parsedLog.sensor === 'object' ? parsedLog.sensor : {}) },
         tenant_id: parsedLog.tenant_id || 'default'
       };
 
       this.mapFields(parsedLog, normalizedLog);
-      
+      this.applyZeekMappings(parsedLog, normalizedLog);
+
       this.enrichIPData(normalizedLog);
-      
       this.categorizeEvent(normalizedLog);
-      
+
       normalizedLog.normalized_timestamp = new Date().toISOString();
       normalizedLog.original = parsedLog;
 
@@ -65,13 +67,26 @@ class LogNormalizer {
   }
 
   normalizeEvent(log) {
-    return {
+    const event = {
       type: log.event?.type || log.event_type || 'unknown',
       category: log.event?.category || this.inferCategory(log),
       action: log.event?.action || log.action,
       outcome: log.event?.outcome || log.outcome,
       severity: log.severity || 'medium'
     };
+
+    if (log.zeek_log_type) {
+      const zeekMeta = this.getZeekEventMetadata(log.zeek_log_type);
+      if (zeekMeta.type) {
+        event.type = zeekMeta.type;
+      }
+      if (zeekMeta.category) {
+        event.category = zeekMeta.category;
+      }
+      event.dataset = `zeek.${log.zeek_log_type}`;
+    }
+
+    return event;
   }
 
   mapFields(source, target) {
@@ -90,21 +105,25 @@ class LogNormalizer {
     }
 
     if (source.bytes) {
-      target.network.bytes = parseInt(source.bytes);
+      target.network.bytes = parseInt(source.bytes, 10);
+    }
+
+    if (source.sensor_id) {
+      target.sensor.id = source.sensor_id;
     }
   }
 
   setNestedField(obj, path, value) {
     const keys = path.split('.');
     let current = obj;
-    
+
     for (let i = 0; i < keys.length - 1; i++) {
       if (!current[keys[i]]) {
         current[keys[i]] = {};
       }
       current = current[keys[i]];
     }
-    
+
     current[keys[keys.length - 1]] = value;
   }
 
@@ -120,7 +139,7 @@ class LogNormalizer {
           longitude: geo.ll[1]
         };
       }
-      
+
       log.source.ip_type = ip.isPrivate(log.source.ip) ? 'private' : 'public';
     }
 
@@ -135,7 +154,7 @@ class LogNormalizer {
           longitude: geo.ll[1]
         };
       }
-      
+
       log.destination.ip_type = ip.isPrivate(log.destination.ip) ? 'private' : 'public';
     }
   }
@@ -176,9 +195,85 @@ class LogNormalizer {
     }
   }
 
+  applyZeekMappings(source, target) {
+    if (!source.zeek) {
+      return;
+    }
+
+    const zeek = source.zeek;
+
+    target.zeek = {
+      log_type: source.zeek_log_type,
+      uid: zeek.uid,
+      original_path: zeek._path
+    };
+
+    if (!target.source.ip && zeek['id.orig_h']) {
+      target.source.ip = zeek['id.orig_h'];
+    }
+    if (!target.source.port && zeek['id.orig_p']) {
+      target.source.port = parseInt(zeek['id.orig_p'], 10);
+    }
+    if (!target.destination.ip && zeek['id.resp_h']) {
+      target.destination.ip = zeek['id.resp_h'];
+    }
+    if (!target.destination.port && zeek['id.resp_p']) {
+      target.destination.port = parseInt(zeek['id.resp_p'], 10);
+    }
+
+    if (zeek.proto) {
+      target.network.transport = zeek.proto.toLowerCase();
+    }
+
+    if (zeek.service) {
+      target.network.application = zeek.service.toLowerCase();
+    }
+
+    if (zeek.duration) {
+      target.network.duration = parseFloat(zeek.duration);
+    }
+
+    if (zeek.community_id) {
+      target.network.community_id = zeek.community_id;
+    }
+
+    if (zeek.bytes && !target.network.bytes) {
+      target.network.bytes = parseInt(zeek.bytes, 10);
+    }
+
+    if (source.sensor_id) {
+      target.sensor.id = source.sensor_id;
+    }
+
+    if (source.host?.hostname) {
+      target.sensor.hostname = source.host.hostname;
+    }
+
+    if (source.zeek_log_type === 'dns') {
+      this.mapZeekDnsFields(target, zeek);
+    }
+  }
+
+  mapZeekDnsFields(target, zeek) {
+    target.network.protocol = 'dns';
+    target.dns.question = target.dns.question || {};
+    if (zeek.query) {
+      target.dns.question.name = zeek.query;
+    }
+    if (zeek.qtype_name) {
+      target.dns.question.type = zeek.qtype_name;
+    }
+    if (zeek.rcode_name) {
+      target.dns.response_code = zeek.rcode_name;
+    }
+    if (zeek.answers) {
+      target.dns.answers = Array.isArray(zeek.answers) ? zeek.answers : [zeek.answers];
+    }
+  }
+
   categorizeEvent(log) {
     const eventType = log.event?.type?.toLowerCase() || '';
-    
+
     if (eventType.includes('connection') || eventType.includes('network')) {
       log.event.category = 'network';
     } else if (eventType.includes('process') || eventType.includes('execution')) {
@@ -199,6 +294,24 @@ class LogNormalizer {
     if (log.file || log.file_path) return 'file';
     if (log.user || log.username) return 'authentication';
     return 'other';
+  }
+
+  getZeekEventMetadata(logType = '') {
+    const type = logType.toLowerCase();
+    const mapping = {
+      conn: { type: 'connection', category: 'network' },
+      dns: { type: 'dns', category: 'network' },
+      http: { type: 'http', category: 'network' },
+      ssl: { type: 'network', category: 'network' },
+      ssh: { type: 'network', category: 'network' },
+      ftp: { type: 'network', category: 'network' },
+      smtp: { type: 'network', category: 'network' },
+      smb: { type: 'network', category: 'network' },
+      rdp: { type: 'network', category: 'network' },
+      files: { type: 'file', category: 'file' }
+    };
+
+    return mapping[type] || { type: 'network', category: 'network' };
   }
 }
 

@@ -1,0 +1,33 @@
+[sources.zeek_logs]
+  type = "file"
+  include = ["/opt/zeek/logs/current/*.log"]
+  ignore_older_secs = 600
+  fingerprinting.strategy = "device-and-position"
+  multiline.timeout_ms = 1000
+
+[transforms.decode_json]
+  type = "remap"
+  inputs = ["zeek_logs"]
+  source = '''
+  . = parse_json!(.message)
+  .sensor_id = env_get("SENSOR_ID") ?? "zeek-sensor"
+  .tenant_id = env_get("TENANT_ID") ?? "default"
+  .zeek_log_type = .log ?? ._path ?? "unknown"
+  .host.hostname = env_get("SENSOR_HOSTNAME") ?? get_hostname!()
+  .@timestamp = to_timestamp!(.ts, unit: "seconds")
+  '''
+
+[sinks.kafka]
+  type = "kafka"
+  inputs = ["decode_json"]
+  bootstrap_servers = "${KAFKA_BROKERS:-kafka:9092}"
+  topic = "${KAFKA_TOPIC:-zeek-logs}"
+  encoding.codec = "json"
+  librdkafka_options."security.protocol" = "${KAFKA_SECURITY_PROTOCOL:-PLAINTEXT}"
+  librdkafka_options."sasl.mechanisms" = "${KAFKA_SASL_MECHANISM:-}"
+  librdkafka_options."sasl.username" = "${KAFKA_SASL_USERNAME:-}"
+  librdkafka_options."sasl.password" = "${KAFKA_SASL_PASSWORD:-}"
+  tls.enabled = ${KAFKA_TLS_ENABLED:-false}
+  tls.ca_file = "${KAFKA_CA_PATH:-}"
+  tls.crt_file = "${KAFKA_CERT_PATH:-}"
+  tls.key_file = "${KAFKA_KEY_PATH:-}"

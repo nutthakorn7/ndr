@@ -3,3 +3,4 @@ node_modules/
 __pycache__/
 *.pyc
 .env
+tests/test_results.json

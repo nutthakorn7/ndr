@@ -19,13 +19,15 @@ const producer = kafka.producer();
 const parser = new LogParser();
 const normalizer = new LogNormalizer();
 
-async function processMessage(message) {
+const ZEEK_TOPIC = process.env.ZEEK_TOPIC || 'zeek-logs';
+
+async function processMessage(message, topic) {
   try {
     const rawLog = JSON.parse(message.value.toString());
-    
+
     const parsedLog = await parser.parse(rawLog);
     const normalizedLog = await normalizer.normalize(parsedLog);
-    
+
     await producer.send({
       topic: 'normalized-logs',
       messages: [{
@@ -33,27 +35,29 @@ async function processMessage(message) {
         value: JSON.stringify(normalizedLog),
         headers: {
           'content-type': 'application/json',
-          'processing-stage': 'normalized'
+          'processing-stage': 'normalized',
+          'source-topic': topic
         }
       }]
     });
 
     logger.debug('Log processed successfully', {
       tenant_id: normalizedLog.tenant_id,
-      event_type: normalizedLog.event?.type
+      event_type: normalizedLog.event?.type,
+      source_topic: topic
     });
 
   } catch (error) {
     logger.error('Failed to process message:', error);
-    
+
     await producer.send({
       topic: 'dead-letter-queue',
       messages: [{
         key: 'parsing-error',
         value: message.value,
         headers: {
-          'error': error.message,
-          'original-topic': 'raw-logs'
+          error: error.message,
+          'original-topic': topic
         }
       }]
     });
@@ -64,16 +68,19 @@ async function start() {
   try {
     await consumer.connect();
     await producer.connect();
-    
+
     await consumer.subscribe({ topic: 'raw-logs' });
-    
+    await consumer.subscribe({ topic: ZEEK_TOPIC });
+
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
-        await processMessage(message);
+        await processMessage(message, topic);
       }
     });
 
-    logger.info('Parser-normalizer service started successfully');
+    logger.info('Parser-normalizer service started successfully', {
+      subscribed_topics: ['raw-logs', ZEEK_TOPIC]
+    });
 
   } catch (error) {
     logger.error('Failed to start service:', error);

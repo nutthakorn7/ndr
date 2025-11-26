@@ -41,6 +41,11 @@ An on-prem security analytics stack capable of ingesting ≥6,500 events per sec
 
 ---
 
+## Sensors
+
+- **Zeek Sensor** (`sensors/zeek-sensor/`): Docker image bundling Zeek + Vector for forwarding JSON logs to Kafka. Build with `docker build -t ndr/zeek-sensor sensors/zeek-sensor` and configure via environment variables (see component README).
+- Additional sensor profiles (e.g., Suricata, cloud taps) can reuse the same metadata contracts (tenant_id, sensor_id) to plug into the parser/normalizer pipeline.
+
 ## Repository Layout
 
 ```text

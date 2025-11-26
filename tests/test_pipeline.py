@@ -208,10 +208,12 @@ async def main():
     alerts = await test.run_test()
     
     # Optionally save alerts to file
-    with open(test.results_path, 'w') as f:
-        json.dump(alerts, f, indent=2)
-    
-    print(f"\n💾 {len(alerts)} alerts saved to test_results.json")
+    try:
+        with open(test.results_path, 'w') as f:
+            json.dump(alerts, f, indent=2)
+        print(f"\n💾 {len(alerts)} alerts saved to test_results.json")
+    except PermissionError:
+        print("\n⚠️  Unable to write test_results.json (permission denied). Skipping file output.")
 
 if __name__ == "__main__":
     asyncio.run(main())
