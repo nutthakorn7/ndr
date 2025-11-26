@@ -8,7 +8,7 @@ class LogParser {
   }
 
   initializePatterns() {
-    this.patterns.set('syslog', grok.loadDefaultSync('%{SYSLOGTIMESTAMP:timestamp} %{IPORHOST:host} %{PROG:program}(?:\\[%{POSINT:pid}\\])?: %{GREEDYDATA:message}'));
+    this.patterns.set('syslog', grok.loadDefaultSync('%{SYSLOGTIMESTAMP:timestamp} %{IPORHOST:host} %{PROG:program}(?:\[%{POSINT:pid}\])?: %{GREEDYDATA:message}'));
     this.patterns.set('apache', grok.loadDefaultSync('%{COMBINEDAPACHELOG}'));
     this.patterns.set('nginx', grok.loadDefaultSync('%{NGINXACCESS}'));
     this.patterns.set('windows-event', grok.loadDefaultSync('%{TIMESTAMP_ISO8601:timestamp} %{WORD:level} %{NUMBER:event_id} %{GREEDYDATA:message}'));
@@ -19,6 +19,10 @@ class LogParser {
     try {
       if (this.isZeekLog(rawLog)) {
         return this.parseZeek(rawLog);
+      }
+
+      if (this.isSuricataLog(rawLog)) {
+        return this.parseSuricata(rawLog);
       }
 
       let parsedLog = { ...rawLog };
@@ -94,6 +98,7 @@ class LogParser {
       log_type: 'zeek',
       zeek_log_type: zeekLogType,
       zeek: { ...rawLog },
+      event: rawLog.event || this.getZeekEventMetadata(zeekLogType),
       parsed_timestamp: new Date().toISOString()
     };
   }
@@ -115,6 +120,66 @@ class LogParser {
     }
 
     return new Date().toISOString();
+  }
+
+  isSuricataLog(rawLog) {
+    if (!rawLog || typeof rawLog !== 'object') {
+      return false;
+    }
+
+    return Boolean(
+      rawLog.source_service === 'suricata' ||
+      rawLog.event_type ||
+      rawLog.alert ||
+      rawLog.app_proto === 'http'
+    );
+  }
+
+  parseSuricata(rawLog) {
+    const eventType = (rawLog.event_type || 'alert').toLowerCase();
+    const timestamp = rawLog['@timestamp'] || rawLog.timestamp || new Date().toISOString();
+
+    return {
+      ...rawLog,
+      '@timestamp': timestamp,
+      timestamp,
+      log_type: 'suricata',
+      suricata_event_type: eventType,
+      suricata: { ...rawLog },
+      event: rawLog.event || this.getSuricataEventMetadata(eventType),
+      parsed_timestamp: new Date().toISOString()
+    };
+  }
+
+  getZeekEventMetadata(logType = '') {
+    const type = logType.toLowerCase();
+    const mapping = {
+      conn: { type: 'connection', category: 'network' },
+      dns: { type: 'dns', category: 'network' },
+      http: { type: 'http', category: 'network' },
+      ssl: { type: 'network', category: 'network' },
+      ssh: { type: 'network', category: 'network' },
+      ftp: { type: 'network', category: 'network' },
+      smtp: { type: 'network', category: 'network' },
+      smb: { type: 'network', category: 'network' },
+      rdp: { type: 'network', category: 'network' },
+      files: { type: 'file', category: 'file' }
+    };
+
+    return mapping[type] || { type: 'network', category: 'network' };
+  }
+
+  getSuricataEventMetadata(eventType = '') {
+    const type = eventType.toLowerCase();
+    const mapping = {
+      alert: { type: 'signal', category: 'network', action: 'alert', kind: 'signal', provider: 'suricata' },
+      dns: { type: 'dns', category: 'network' },
+      http: { type: 'http', category: 'network' },
+      tls: { type: 'network', category: 'network' },
+      flow: { type: 'connection', category: 'network' }
+    };
+
+    return mapping[type] || { type: 'network', category: 'network', provider: 'suricata' };
   }
 }
 

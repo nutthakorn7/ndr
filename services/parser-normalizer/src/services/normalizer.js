@@ -34,11 +34,13 @@ class LogNormalizer {
         file: { ...(parsedLog.file && typeof parsedLog.file === 'object' ? parsedLog.file : {}) },
         dns: { ...(parsedLog.dns && typeof parsedLog.dns === 'object' ? parsedLog.dns : {}) },
         sensor: { ...(parsedLog.sensor && typeof parsedLog.sensor === 'object' ? parsedLog.sensor : {}) },
+        suricata: { ...(parsedLog.suricata && typeof parsedLog.suricata === 'object' ? parsedLog.suricata : {}) },
         tenant_id: parsedLog.tenant_id || 'default'
       };
 
       this.mapFields(parsedLog, normalizedLog);
       this.applyZeekMappings(parsedLog, normalizedLog);
+      this.applySuricataMappings(parsedLog, normalizedLog);
 
       this.enrichIPData(normalizedLog);
       this.categorizeEvent(normalizedLog);
@@ -72,7 +74,8 @@ class LogNormalizer {
       category: log.event?.category || this.inferCategory(log),
       action: log.event?.action || log.action,
       outcome: log.event?.outcome || log.outcome,
-      severity: log.severity || 'medium'
+      severity: log.severity || 'medium',
+      provider: log.event?.provider
     };
 
     if (log.zeek_log_type) {
@@ -84,6 +87,17 @@ class LogNormalizer {
         event.category = zeekMeta.category;
       }
       event.dataset = `zeek.${log.zeek_log_type}`;
+      event.provider = 'zeek';
+    }
+
+    if (log.suricata_event_type) {
+      const suricataMeta = this.getSuricataEventMetadata(log.suricata_event_type);
+      event.type = suricataMeta.type || event.type;
+      event.category = suricataMeta.category || event.category;
+      event.action = suricataMeta.action || event.action;
+      event.kind = suricataMeta.kind || event.kind;
+      event.provider = 'suricata';
+      event.dataset = `suricata.${log.suricata_event_type}`;
     }
 
     return event;
@@ -271,6 +285,85 @@ class LogNormalizer {
     }
   }
 
+  applySuricataMappings(source, target) {
+    if (!source.suricata) {
+      return;
+    }
+
+    const eve = source.suricata;
+    target.suricata = { ...target.suricata, ...eve };
+
+    if (!target.source.ip && eve.src_ip) {
+      target.source.ip = eve.src_ip;
+    }
+    if (!target.source.port && eve.src_port) {
+      target.source.port = parseInt(eve.src_port, 10);
+    }
+    if (!target.destination.ip && eve.dest_ip) {
+      target.destination.ip = eve.dest_ip;
+    }
+    if (!target.destination.port && eve.dest_port) {
+      target.destination.port = parseInt(eve.dest_port, 10);
+    }
+
+    if (eve.proto) {
+      target.network.transport = eve.proto.toLowerCase();
+    }
+    if (eve.app_proto) {
+      target.network.application = eve.app_proto.toLowerCase();
+    }
+    if (eve.flow_id) {
+      target.network.flow_id = eve.flow_id;
+    }
+    if (eve.community_id) {
+      target.network.community_id = eve.community_id;
+    }
+
+    if (eve.flow) {
+      if (eve.flow.bytes_toclient && eve.flow.bytes_toserver) {
+        target.network.bytes = (parseInt(eve.flow.bytes_toclient, 10) || 0) + (parseInt(eve.flow.bytes_toserver, 10) || 0);
+      }
+      if (eve.flow.pkts_toclient && eve.flow.pkts_toserver) {
+        target.network.packets = (parseInt(eve.flow.pkts_toclient, 10) || 0) + (parseInt(eve.flow.pkts_toserver, 10) || 0);
+      }
+      if (eve.flow.state) {
+        target.network.state = eve.flow.state.toLowerCase();
+      }
+    }
+
+    if (source.suricata_event_type === 'alert' && eve.alert) {
+      target.rule = target.rule || {};
+      target.rule.name = eve.alert.signature;
+      target.rule.id = String(eve.alert.signature_id || eve.alert.sid || '');
+      target.rule.category = eve.alert.category;
+      target.event.kind = 'signal';
+      target.event.provider = 'suricata';
+      target.event.action = 'alert';
+      target.event.severity = eve.alert.severity || target.event.severity;
+    }
+
+    if (source.suricata_event_type === 'dns' && eve.dns) {
+      this.mapSuricataDnsFields(target, eve.dns);
+    }
+  }
+
+  mapSuricataDnsFields(target, dns) {
+    target.network.protocol = 'dns';
+    target.dns.question = target.dns.question || {};
+    if (dns.rrname) {
+      target.dns.question.name = dns.rrname;
+    }
+    if (dns.rrtype) {
+      target.dns.question.type = dns.rrtype;
+    }
+    if (dns.rcode) {
+      target.dns.response_code = dns.rcode;
+    }
+    if (dns.answers) {
+      target.dns.answers = Array.isArray(dns.answers) ? dns.answers.map(a => a.rrdata || a) : [dns.answers];
+    }
+  }
+
   categorizeEvent(log) {
     const eventType = log.event?.type?.toLowerCase() || '';
 
@@ -309,6 +402,19 @@ class LogNormalizer {
       smb: { type: 'network', category: 'network' },
       rdp: { type: 'network', category: 'network' },
       files: { type: 'file', category: 'file' }
+    };
+
+    return mapping[type] || { type: 'network', category: 'network' };
+  }
+
+  getSuricataEventMetadata(eventType = '') {
+    const type = eventType.toLowerCase();
+    const mapping = {
+      alert: { type: 'signal', category: 'network', action: 'alert', kind: 'signal' },
+      dns: { type: 'dns', category: 'network' },
+      http: { type: 'http', category: 'network' },
+      tls: { type: 'network', category: 'network' },
+      flow: { type: 'connection', category: 'network' }
     };
 
     return mapping[type] || { type: 'network', category: 'network' };

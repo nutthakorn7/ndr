@@ -1,0 +1,51 @@
+%YAML 1.1
+---
+logging:
+  default-log-level: notice
+  outputs:
+    - console:
+        enabled: yes
+        level: info
+    - file:
+        enabled: yes
+        level: info
+        filename: /var/lib/suricata/log/suricata.log
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/lib/suricata/log/eve.json
+      gzip: no
+      types:
+        - alert
+        - http
+        - dns
+        - tls
+        - flow
+        - stats
+        - anomaly
+      community-id: true
+      community-id-seed: 0
+
+stats:
+  enabled: yes
+  interval: 60
+
+pcap:
+  # default AF_PACKET capture
+  # override via environment variables / Suricata args if needed
+  checksum-checks: auto
+
+af-packet:
+  - interface: eth0
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    buffer-size: 512mb
+    use-mmap: yes
+    ring-size: 200000
+    block-size: 1048576
+    block-timeout: 10
+    tpacket-v3: yes
+    checksum-checks: auto

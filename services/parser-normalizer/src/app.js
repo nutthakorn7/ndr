@@ -20,6 +20,7 @@ const parser = new LogParser();
 const normalizer = new LogNormalizer();
 
 const ZEEK_TOPIC = process.env.ZEEK_TOPIC || 'zeek-logs';
+const SURICATA_TOPIC = process.env.SURICATA_TOPIC || 'suricata-logs';
 
 async function processMessage(message, topic) {
   try {
@@ -71,6 +72,7 @@ async function start() {
 
     await consumer.subscribe({ topic: 'raw-logs' });
     await consumer.subscribe({ topic: ZEEK_TOPIC });
+    await consumer.subscribe({ topic: SURICATA_TOPIC });
 
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
@@ -79,7 +81,7 @@ async function start() {
     });
 
     logger.info('Parser-normalizer service started successfully', {
-      subscribed_topics: ['raw-logs', ZEEK_TOPIC]
+      subscribed_topics: ['raw-logs', ZEEK_TOPIC, SURICATA_TOPIC]
     });
 
   } catch (error) {
