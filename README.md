@@ -49,6 +49,11 @@ An on-prem security analytics stack capable of ingesting ≥6,500 events per sec
 - Both sensors ship with a PCAP ring buffer utility (`/opt/sensor-tools/pcap-manager.sh`) that keeps rotating captures and supports snapshot/capture commands for rapid evidence export.
 
 Sensor enrollment/config/health is handled by the `sensor-controller` service (port 8084).
+### Sensor Controller API
+- `POST /sensors/register` – enroll or update a sensor record (metadata/config).
+- `POST /sensors/{id}/heartbeat` – update sensor status/metrics.
+- `POST /sensors/{id}/pcap` – enqueue a signed PCAP snapshot command; sensors upload to object storage and analysts get the returned download URL.
+- `GET /sensors/{id}/config` – fetch the config blob distributed to sensors.
 
 ## Repository Layout
 
