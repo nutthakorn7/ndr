@@ -60,6 +60,7 @@ Core storage components: OpenSearch (hot alerts/events), ClickHouse (analytics),
 - **Suricata Sensor** (`sensors/suricata-sensor/`): Suricata 7 + Vector; EVE JSON, TLS/SASL, PCAP ring.
 - `pcap-manager.sh`: shared utility to start/stop ring buffers, snapshot recent minutes, or capture specific windows (`/opt/sensor-tools/pcap-manager.sh snapshot 300 /pcap/exports/request.tar.gz`).
 - **On-prem packaging**: `infra/ansible/` contains a role + playbook (`deploy-sensors.yml`) to install Docker, push sensor env files, and launch the Zeek/Suricata containers on bare metal or VMs. See `docs/deployment/on-prem-sensors.md` for instructions.
+- **Cloud packaging**: `infra/packer/aws-sensor.pkr.hcl` builds an AMI with Docker + systemd services; `infra/terraform/aws-sensor/` shows how to deploy it alongside VPC Traffic Mirroring. Documentation lives in `docs/deployment/cloud-sensors.md`.
 
 ### Sensor Controller API (port 8084)
 - `POST /sensors/register` – create/update sensor metadata/config.
