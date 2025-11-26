@@ -1,0 +1,16 @@
+{
+  "name": "authz-service",
+  "version": "1.0.0",
+  "description": "Authentication and authorization service",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.1"
+  }
+}

@@ -1,0 +1,351 @@
+openapi: 3.0.3
+info:
+  title: Security Analytics Ingestion API
+  description: API for ingesting security logs and events
+  version: 1.0.0
+  contact:
+    name: Security Analytics Team
+servers:
+  - url: http://localhost:8080
+    description: Development server
+paths:
+  /ingest/logs:
+    post:
+      summary: Ingest a single log event
+      description: Submit a single security log event for processing
+      tags:
+        - Ingestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogEvent'
+            examples:
+              network_event:
+                summary: Network connection event
+                value:
+                  timestamp: "2025-08-15T10:00:00Z"
+                  source:
+                    ip: "192.168.1.10"
+                    port: 12345
+                  destination:
+                    ip: "8.8.8.8"
+                    port: 53
+                  event:
+                    type: "connection"
+                    category: "network"
+                    outcome: "success"
+                  network:
+                    protocol: "tcp"
+                    bytes: 1024
+                  tenant_id: "company-1"
+              process_event:
+                summary: Process execution event
+                value:
+                  timestamp: "2025-08-15T10:05:00Z"
+                  event:
+                    type: "process"
+                    category: "process"
+                    action: "create"
+                  process:
+                    name: "powershell.exe"
+                    pid: 1234
+                    command_line: "powershell.exe -ExecutionPolicy Bypass"
+                  user:
+                    name: "admin"
+                    domain: "WORKGROUP"
+                  tenant_id: "company-1"
+      responses:
+        '202':
+          description: Log accepted for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "accepted"
+                  message:
+                    type: string
+                    example: "Log queued for processing"
+        '400':
+          description: Invalid log format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+            X-RateLimit-Reset:
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ingest/logs/batch:
+    post:
+      summary: Ingest multiple log events
+      description: Submit multiple security log events in a single request
+      tags:
+        - Ingestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - logs
+              properties:
+                logs:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LogEvent'
+                  maxItems: 1000
+            example:
+              logs:
+                - timestamp: "2025-08-15T10:00:00Z"
+                  event:
+                    type: "dns"
+                    category: "network"
+                  source:
+                    ip: "192.168.1.10"
+                  destination:
+                    ip: "8.8.8.8"
+                  tenant_id: "company-1"
+                - timestamp: "2025-08-15T10:01:00Z"
+                  event:
+                    type: "file"
+                    category: "file"
+                    action: "create"
+                  file:
+                    path: "/tmp/suspicious.exe"
+                  tenant_id: "company-1"
+      responses:
+        '202':
+          description: Batch logs accepted for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "accepted"
+                  message:
+                    type: string
+                    example: "10 logs queued for processing"
+        '400':
+          description: Invalid batch format or too many logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      summary: Health check
+      description: Check service health and dependencies
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Prometheus metrics endpoint
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    LogEvent:
+      type: object
+      required:
+        - timestamp
+        - event
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Event timestamp in ISO 8601 format
+        event:
+          type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum: [connection, dns, process, file, authentication, malware, vulnerability]
+            category:
+              type: string
+              enum: [network, process, file, authentication, malware, vulnerability, other]
+            action:
+              type: string
+            outcome:
+              type: string
+              enum: [success, failure, unknown]
+            severity:
+              type: string
+              enum: [critical, high, medium, low, info]
+              default: medium
+        source:
+          $ref: '#/components/schemas/NetworkEndpoint'
+        destination:
+          $ref: '#/components/schemas/NetworkEndpoint'
+        network:
+          type: object
+          properties:
+            protocol:
+              type: string
+              enum: [tcp, udp, icmp, http, https, dns, ftp, ssh]
+            bytes:
+              type: integer
+              minimum: 0
+            packets:
+              type: integer
+              minimum: 0
+        user:
+          type: object
+          properties:
+            name:
+              type: string
+            domain:
+              type: string
+            id:
+              type: string
+        process:
+          type: object
+          properties:
+            name:
+              type: string
+            pid:
+              type: integer
+            command_line:
+              type: string
+        file:
+          type: object
+          properties:
+            path:
+              type: string
+            name:
+              type: string
+            size:
+              type: integer
+        tenant_id:
+          type: string
+          default: "default"
+        raw_log:
+          type: string
+          description: Original log message
+
+    NetworkEndpoint:
+      type: object
+      properties:
+        ip:
+          type: string
+          format: ipv4
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        hostname:
+          type: string
+        mac:
+          type: string
+          pattern: '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        service:
+          type: string
+        version:
+          type: string
+        dependencies:
+          type: object
+          properties:
+            kafka:
+              type: string
+              enum: [healthy, unhealthy, unknown]
+            redis:
+              type: string
+              enum: [healthy, unhealthy, unknown]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    RateLimitError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            retryAfter:
+              type: integer
+              description: Seconds to wait before retrying
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []

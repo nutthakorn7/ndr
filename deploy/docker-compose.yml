@@ -1,0 +1,199 @@
+version: '3.8'
+
+services:
+  # Message Bus
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  # Storage - OpenSearch
+  opensearch:
+    image: opensearchproject/opensearch:2.8.0
+    environment:
+      - cluster.name=security-analytics
+      - node.name=opensearch
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+
+  # Storage - ClickHouse for analytics
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8
+    environment:
+      CLICKHOUSE_DB: security_analytics
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin123
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  # Core Services
+  ingestion-gateway:
+    build: ../services/ingestion-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - kafka
+      - redis
+
+  parser-normalizer:
+    build: ../services/parser-normalizer
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - OPENSEARCH_URL=http://opensearch:9200
+    depends_on:
+      - kafka
+      - opensearch
+
+  threat-enricher:
+    build: ../services/threat-enricher
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - kafka
+      - redis
+
+  detection-engine:
+    build: ../services/detection-engine
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - OPENSEARCH_URL=http://opensearch:9200
+      - CLICKHOUSE_URL=http://clickhouse:8123
+    depends_on:
+      - kafka
+      - opensearch
+      - clickhouse
+
+  soar-orchestrator:
+    build: ../services/soar-orchestrator
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - OPENSEARCH_URL=http://opensearch:9200
+    depends_on:
+      - kafka
+      - opensearch
+
+  dashboard-api:
+    build: ../services/dashboard-api
+    ports:
+      - "8081:8080"
+    environment:
+      - OPENSEARCH_URL=http://opensearch:9200
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - opensearch
+      - clickhouse
+      - redis
+
+  authz-service:
+    build: ../services/authz-service
+    ports:
+      - "8082:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/authz
+    depends_on:
+      - redis
+      - postgres
+
+  asset-service:
+    build: ../services/asset-service
+    environment:
+      - OPENSEARCH_URL=http://opensearch:9200
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/assets
+    depends_on:
+      - opensearch
+      - postgres
+
+  vuln-service:
+    build: ../services/vuln-service
+    environment:
+      - OPENSEARCH_URL=http://opensearch:9200
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vulns
+    depends_on:
+      - opensearch
+      - postgres
+
+  reporting-service:
+    build: ../services/reporting-service
+    environment:
+      - OPENSEARCH_URL=http://opensearch:9200
+      - CLICKHOUSE_URL=http://clickhouse:8123
+    depends_on:
+      - opensearch
+      - clickhouse
+
+  # PostgreSQL for relational data
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: security_analytics
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+
+  # Web UI
+  web-ui:
+    build: ../ui
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8081
+      - REACT_APP_AUTH_URL=http://localhost:8082
+    depends_on:
+      - dashboard-api
+      - authz-service
+
+volumes:
+  opensearch-data:
+  clickhouse-data:
+  redis-data:
+  postgres-data:
+
+networks:
+  default:
+    name: security-analytics

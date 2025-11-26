@@ -1,0 +1,582 @@
+openapi: 3.0.3
+info:
+  title: Security Analytics Dashboard API
+  description: API for querying security events, alerts, and analytics
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+    description: Development server
+paths:
+  /events:
+    get:
+      summary: Query security events
+      description: Search and filter security events
+      tags:
+        - Events
+      parameters:
+        - name: from
+          in: query
+          description: Start time for query (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: End time for query (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: event_type
+          in: query
+          description: Filter by event type
+          schema:
+            type: string
+            enum: [connection, dns, process, file, authentication, malware, vulnerability]
+        - name: severity
+          in: query
+          description: Filter by severity
+          schema:
+            type: string
+            enum: [critical, high, medium, low, info]
+        - name: source_ip
+          in: query
+          description: Filter by source IP
+          schema:
+            type: string
+        - name: destination_ip
+          in: query
+          description: Filter by destination IP
+          schema:
+            type: string
+        - name: tenant_id
+          in: query
+          description: Tenant identifier
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of results
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: sort
+          in: query
+          description: Sort field and direction
+          schema:
+            type: string
+            enum: ['@timestamp:desc', '@timestamp:asc', 'severity:desc']
+            default: '@timestamp:desc'
+      responses:
+        '200':
+          description: List of security events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SecurityEvent'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  took:
+                    type: integer
+                    description: Query execution time in milliseconds
+
+  /alerts:
+    get:
+      summary: Query security alerts
+      description: Search and filter security alerts
+      tags:
+        - Alerts
+      parameters:
+        - name: status
+          in: query
+          description: Filter by alert status
+          schema:
+            type: string
+            enum: [open, investigating, resolved, false_positive]
+        - name: severity
+          in: query
+          description: Filter by severity
+          schema:
+            type: string
+            enum: [critical, high, medium, low, info]
+        - name: assignee
+          in: query
+          description: Filter by assignee
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Start time for query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: End time for query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of security alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SecurityAlert'
+                  total:
+                    type: integer
+
+    post:
+      summary: Create manual alert
+      description: Create a new security alert manually
+      tags:
+        - Alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+      responses:
+        '201':
+          description: Alert created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityAlert'
+
+  /alerts/{alertId}:
+    get:
+      summary: Get alert details
+      description: Retrieve detailed information about a specific alert
+      tags:
+        - Alerts
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alert details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityAlert'
+
+    patch:
+      summary: Update alert
+      description: Update alert status, assignee, or other properties
+      tags:
+        - Alerts
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertRequest'
+      responses:
+        '200':
+          description: Alert updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityAlert'
+
+  /incidents:
+    get:
+      summary: Query security incidents
+      description: Get list of security incidents
+      tags:
+        - Incidents
+      responses:
+        '200':
+          description: List of incidents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incidents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SecurityIncident'
+
+    post:
+      summary: Create incident
+      description: Create a new security incident
+      tags:
+        - Incidents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIncidentRequest'
+      responses:
+        '201':
+          description: Incident created successfully
+
+  /assets:
+    get:
+      summary: Query assets
+      description: Get list of managed assets
+      tags:
+        - Assets
+      parameters:
+        - name: asset_type
+          in: query
+          schema:
+            type: string
+            enum: [endpoint, server, network_device, mobile, iot]
+        - name: criticality
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low]
+        - name: tags
+          in: query
+          description: Comma-separated list of tags
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of assets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Asset'
+
+  /vulnerabilities:
+    get:
+      summary: Query vulnerabilities
+      description: Get list of vulnerabilities
+      tags:
+        - Vulnerabilities
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, patched, mitigated, accepted]
+        - name: cve_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of vulnerabilities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vulnerabilities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Vulnerability'
+
+  /analytics/dashboard:
+    get:
+      summary: Get dashboard analytics
+      description: Retrieve dashboard statistics and metrics
+      tags:
+        - Analytics
+      parameters:
+        - name: timeframe
+          in: query
+          schema:
+            type: string
+            enum: [1h, 24h, 7d, 30d]
+            default: 24h
+      responses:
+        '200':
+          description: Dashboard analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardAnalytics'
+
+  /reports/{reportId}/download:
+    get:
+      summary: Download report
+      description: Download a generated report in PDF or CSV format
+      tags:
+        - Reports
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [pdf, csv]
+            default: pdf
+      responses:
+        '200':
+          description: Report file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+
+components:
+  schemas:
+    SecurityEvent:
+      type: object
+      properties:
+        '@timestamp':
+          type: string
+          format: date-time
+        event:
+          type: object
+        source:
+          type: object
+        destination:
+          type: object
+        network:
+          type: object
+        user:
+          type: object
+        process:
+          type: object
+        file:
+          type: object
+        tenant_id:
+          type: string
+
+    SecurityAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        status:
+          type: string
+          enum: [open, investigating, resolved, false_positive]
+        title:
+          type: string
+        description:
+          type: string
+        rule_id:
+          type: string
+        assignee:
+          type: string
+        tenant_id:
+          type: string
+
+    CreateAlertRequest:
+      type: object
+      required:
+        - title
+        - description
+        - severity
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        rule_id:
+          type: string
+
+    UpdateAlertRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, investigating, resolved, false_positive]
+        assignee:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    SecurityIncident:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        alerts:
+          type: array
+          items:
+            type: string
+
+    CreateIncidentRequest:
+      type: object
+      required:
+        - title
+        - severity
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+        alert_ids:
+          type: array
+          items:
+            type: string
+
+    Asset:
+      type: object
+      properties:
+        id:
+          type: string
+        hostname:
+          type: string
+        ip_address:
+          type: string
+        asset_type:
+          type: string
+        os_type:
+          type: string
+        criticality:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        last_seen:
+          type: string
+          format: date-time
+
+    Vulnerability:
+      type: object
+      properties:
+        id:
+          type: string
+        cve_id:
+          type: string
+        vuln_name:
+          type: string
+        severity:
+          type: string
+        cvss_score:
+          type: number
+        discovery_time:
+          type: string
+          format: date-time
+        asset_id:
+          type: string
+        status:
+          type: string
+
+    DashboardAnalytics:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            total_events:
+              type: integer
+            open_alerts:
+              type: integer
+            critical_alerts:
+              type: integer
+            assets_count:
+              type: integer
+        trends:
+          type: object
+          properties:
+            events_over_time:
+              type: array
+              items:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+                  count:
+                    type: integer
+        top_sources:
+          type: array
+          items:
+            type: object
+            properties:
+              ip:
+                type: string
+              count:
+                type: integer
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - bearerAuth: []

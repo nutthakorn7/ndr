@@ -1,0 +1,185 @@
+name: "Ransomware Detection Response"
+description: "Automated response to ransomware detection alerts"
+version: "1.0"
+enabled: true
+
+trigger:
+  conditions:
+    - alert.rule_id: "ransomware_detection"
+    - alert.severity: ["critical", "high"]
+    - mitre.tactic: "TA0040"  # Impact
+
+variables:
+  isolation_duration: 60  # minutes
+  notification_channels: ["soc-team", "security-email"]
+  max_affected_hosts: 10
+
+steps:
+  - id: "validate_alert"
+    name: "Validate Ransomware Alert"
+    type: "validation"
+    timeout: 30
+    parameters:
+      confidence_threshold: 0.8
+      false_positive_checks:
+        - check_whitelist_process
+        - verify_file_signatures
+    on_failure: "escalate_to_analyst"
+
+  - id: "correlate_events"
+    name: "Correlate Related Events"
+    type: "correlation"
+    depends_on: ["validate_alert"]
+    timeout: 60
+    parameters:
+      time_window: "10m"
+      correlation_rules:
+        - same_user_suspicious_activity
+        - lateral_movement_detection
+        - file_encryption_patterns
+
+  - id: "identify_affected_assets"
+    name: "Identify Affected Assets"
+    type: "asset_discovery"
+    depends_on: ["correlate_events"]
+    parameters:
+      scope:
+        - source_hosts
+        - network_neighbors
+        - shared_resources
+
+  - id: "isolate_hosts"
+    name: "Isolate Affected Hosts"
+    type: "edr_action"
+    depends_on: ["identify_affected_assets"]
+    timeout: 120
+    parameters:
+      action: "isolate"
+      targets: "{{ affected_assets.endpoints }}"
+      duration: "{{ isolation_duration }}"
+      allow_analyst_override: true
+    parallel: true
+
+  - id: "block_iocs"
+    name: "Block Malicious IOCs"
+    type: "ngfw_action"
+    depends_on: ["correlate_events"]
+    timeout: 60
+    parameters:
+      action: "block"
+      ioc_types: ["ip", "domain", "hash"]
+      sources: "{{ alert.iocs }}"
+      direction: "both"
+    parallel: true
+
+  - id: "create_incident"
+    name: "Create Security Incident"
+    type: "incident_management"
+    depends_on: ["correlate_events"]
+    parameters:
+      title: "Ransomware Attack - {{ alert.title }}"
+      severity: "{{ alert.severity }}"
+      assignee: "soc-l2-team"
+      tags: ["ransomware", "automated-response"]
+      affected_assets: "{{ affected_assets }}"
+
+  - id: "notify_stakeholders"
+    name: "Notify Security Team"
+    type: "notification"
+    depends_on: ["create_incident"]
+    parameters:
+      channels: "{{ notification_channels }}"
+      message_template: |
+        🚨 RANSOMWARE ALERT 🚨
+        
+        Incident: {{ incident.id }}
+        Severity: {{ alert.severity }}
+        Affected Hosts: {{ affected_assets.count }}
+        
+        Actions Taken:
+        - {{ affected_assets.count }} hosts isolated
+        - {{ blocked_iocs.count }} IOCs blocked
+        - Incident {{ incident.id }} created
+        
+        Next Steps:
+        - Verify isolation effectiveness
+        - Begin forensic analysis
+        - Prepare recovery procedures
+      priority: "high"
+
+  - id: "backup_verification"
+    name: "Verify Backup Integrity"
+    type: "backup_check"
+    depends_on: ["isolate_hosts"]
+    timeout: 300
+    parameters:
+      backup_systems: ["primary", "secondary"]
+      check_types: ["accessibility", "integrity", "encryption"]
+      affected_systems: "{{ affected_assets }}"
+
+  - id: "disable_accounts"
+    name: "Disable Compromised Accounts"
+    type: "identity_action"
+    depends_on: ["correlate_events"]
+    condition: "{{ compromised_accounts|length > 0 }}"
+    parameters:
+      action: "disable"
+      accounts: "{{ compromised_accounts }}"
+      reason: "Potential ransomware compromise"
+      notify_users: false
+
+  - id: "collect_forensics"
+    name: "Collect Forensic Evidence"
+    type: "forensics"
+    depends_on: ["isolate_hosts"]
+    timeout: 600
+    parameters:
+      targets: "{{ affected_assets.endpoints }}"
+      evidence_types:
+        - memory_dump
+        - disk_image
+        - network_capture
+        - system_logs
+      priority: "high"
+
+  - id: "threat_intel_lookup"
+    name: "Threat Intelligence Lookup"
+    type: "threat_intel"
+    depends_on: ["correlate_events"]
+    parameters:
+      indicators: "{{ alert.iocs }}"
+      sources: ["virustotal", "misp", "internal_ti"]
+      enrich_incident: true
+
+escalation:
+  conditions:
+    - step_failure_count > 2
+    - affected_assets.count > max_affected_hosts
+    - backup_verification.status == "failed"
+  actions:
+    - notify_ciso
+    - escalate_to_ir_team
+    - activate_crisis_mode
+
+rollback:
+  enabled: true
+  conditions:
+    - manual_override
+    - false_positive_confirmed
+  steps:
+    - restore_network_access
+    - enable_disabled_accounts
+    - remove_firewall_blocks
+    - close_incident
+
+audit:
+  log_all_actions: true
+  retention_period: "365d"
+  compliance_tags: ["sox", "gdpr", "incident_response"]
+
+metadata:
+  author: "Security Team"
+  created_date: "2025-08-15"
+  last_modified: "2025-08-15"
+  mitre_tactics: ["TA0040", "TA0005", "TA0008"]
+  mitre_techniques: ["T1486", "T1490", "T1083"]

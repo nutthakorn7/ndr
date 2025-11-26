@@ -1,0 +1,304 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Security Event Schema",
+  "type": "object",
+  "required": ["@timestamp", "event", "tenant_id"],
+  "properties": {
+    "@timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp in ISO 8601 format"
+    },
+    "event": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["connection", "dns", "process", "file", "authentication", "malware", "vulnerability"]
+        },
+        "category": {
+          "type": "string",
+          "enum": ["network", "process", "file", "authentication", "malware", "vulnerability", "other"]
+        },
+        "action": {
+          "type": "string",
+          "description": "Action performed (create, delete, modify, access, etc.)"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["success", "failure", "unknown"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low", "info"],
+          "default": "medium"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "mac": {
+          "type": "string",
+          "pattern": "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+        },
+        "geo": {
+          "$ref": "#/definitions/geo"
+        },
+        "ip_type": {
+          "type": "string",
+          "enum": ["private", "public"]
+        }
+      }
+    },
+    "destination": {
+      "type": "object",
+      "properties": {
+        "ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "geo": {
+          "$ref": "#/definitions/geo"
+        },
+        "ip_type": {
+          "type": "string",
+          "enum": ["private", "public"]
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "type": "string",
+          "enum": ["tcp", "udp", "icmp", "http", "https", "dns", "ftp", "ssh"]
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "packets": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["inbound", "outbound", "internal", "external"]
+        }
+      }
+    },
+    "user": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "process": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "pid": {
+          "type": "integer"
+        },
+        "ppid": {
+          "type": "integer"
+        },
+        "command_line": {
+          "type": "string"
+        },
+        "executable": {
+          "type": "string"
+        },
+        "hash": {
+          "type": "object",
+          "properties": {
+            "md5": {
+              "type": "string"
+            },
+            "sha1": {
+              "type": "string"
+            },
+            "sha256": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "extension": {
+          "type": "string"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hash": {
+          "type": "object",
+          "properties": {
+            "md5": {
+              "type": "string"
+            },
+            "sha1": {
+              "type": "string"
+            },
+            "sha256": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "ioc": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["ip", "domain", "url", "hash", "email"]
+          },
+          "value": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "mitre": {
+      "type": "object",
+      "properties": {
+        "tactic": {
+          "type": "string",
+          "pattern": "^TA[0-9]{4}$"
+        },
+        "technique": {
+          "type": "string",
+          "pattern": "^T[0-9]{4}$"
+        },
+        "sub_technique": {
+          "type": "string",
+          "pattern": "^T[0-9]{4}\\.[0-9]{3}$"
+        }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["endpoint", "server", "network_device", "mobile", "iot"]
+        },
+        "criticality": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Multi-tenant identifier"
+    },
+    "raw_log": {
+      "type": "string",
+      "description": "Original log message"
+    },
+    "parsed_fields": {
+      "type": "object",
+      "description": "Additional parsed fields from raw log"
+    }
+  },
+  "definitions": {
+    "geo": {
+      "type": "object",
+      "properties": {
+        "country_code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 2
+        },
+        "country_name": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      }
+    }
+  }
+}

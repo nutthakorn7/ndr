@@ -113,7 +113,7 @@ security-analytics/
 
 ```bash
 git clone https://github.com/nutthakorn7/ndr.git
-cd ndr/security-analytics
+cd ndr
 ```
 
 ### Environment Variables

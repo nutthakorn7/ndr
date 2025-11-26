@@ -1,0 +1,12 @@
+{
+  "name": "security-analytics-ui",
+  "version": "1.0.0",
+  "description": "Security Analytics Platform Web UI",
+  "scripts": {
+    "start": "npx serve public -p 3000",
+    "dev": "npx serve public -p 3000"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

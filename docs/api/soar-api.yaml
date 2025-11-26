@@ -1,0 +1,391 @@
+openapi: 3.0.3
+info:
+  title: SOAR Orchestrator API
+  description: API for Security Orchestration, Automation and Response
+  version: 1.0.0
+servers:
+  - url: http://localhost:8083
+    description: Development server
+paths:
+  /playbooks:
+    get:
+      summary: List playbooks
+      description: Get list of available playbooks
+      tags:
+        - Playbooks
+      responses:
+        '200':
+          description: List of playbooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  playbooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Playbook'
+
+    post:
+      summary: Create playbook
+      description: Create a new automation playbook
+      tags:
+        - Playbooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaybookRequest'
+      responses:
+        '201':
+          description: Playbook created successfully
+
+  /playbooks/{playbookId}/execute:
+    post:
+      summary: Execute playbook
+      description: Execute a specific playbook with parameters
+      tags:
+        - Playbooks
+      parameters:
+        - name: playbookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutePlaybookRequest'
+      responses:
+        '202':
+          description: Playbook execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybookExecution'
+
+  /executions:
+    get:
+      summary: List playbook executions
+      description: Get list of playbook executions
+      tags:
+        - Executions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [running, completed, failed, cancelled]
+        - name: playbook_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of executions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  executions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PlaybookExecution'
+
+  /executions/{executionId}:
+    get:
+      summary: Get execution details
+      description: Get detailed information about a playbook execution
+      tags:
+        - Executions
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Execution details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybookExecution'
+
+  /actions/isolate:
+    post:
+      summary: Isolate host
+      description: Isolate a host from the network
+      tags:
+        - Actions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IsolateHostRequest'
+      responses:
+        '202':
+          description: Isolation action started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+
+  /actions/block-ip:
+    post:
+      summary: Block IP address
+      description: Block an IP address on firewall
+      tags:
+        - Actions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockIPRequest'
+      responses:
+        '202':
+          description: Block action started
+
+  /actions/scan:
+    post:
+      summary: Initiate scan
+      description: Start antivirus or vulnerability scan
+      tags:
+        - Actions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '202':
+          description: Scan initiated
+
+  /connectors/edr:
+    get:
+      summary: Get EDR connector status
+      description: Check EDR integration status
+      tags:
+        - Connectors
+      responses:
+        '200':
+          description: EDR connector status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorStatus'
+
+  /connectors/ngfw:
+    get:
+      summary: Get NGFW connector status
+      description: Check NGFW integration status
+      tags:
+        - Connectors
+      responses:
+        '200':
+          description: NGFW connector status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorStatus'
+
+components:
+  schemas:
+    Playbook:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        trigger_conditions:
+          type: array
+          items:
+            type: object
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaybookAction'
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    PlaybookAction:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [isolate_host, block_ip, scan_host, notify, create_ticket]
+        parameters:
+          type: object
+        timeout:
+          type: integer
+        retry_count:
+          type: integer
+
+    CreatePlaybookRequest:
+      type: object
+      required:
+        - name
+        - actions
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        trigger_conditions:
+          type: array
+          items:
+            type: object
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaybookAction'
+
+    ExecutePlaybookRequest:
+      type: object
+      properties:
+        alert_id:
+          type: string
+        incident_id:
+          type: string
+        parameters:
+          type: object
+        manual_trigger:
+          type: boolean
+          default: false
+
+    PlaybookExecution:
+      type: object
+      properties:
+        id:
+          type: string
+        playbook_id:
+          type: string
+        status:
+          type: string
+          enum: [running, completed, failed, cancelled]
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              action_id:
+                type: string
+              status:
+                type: string
+              started_at:
+                type: string
+                format: date-time
+              completed_at:
+                type: string
+                format: date-time
+              result:
+                type: object
+              error:
+                type: string
+
+    IsolateHostRequest:
+      type: object
+      required:
+        - host_id
+      properties:
+        host_id:
+          type: string
+        ip_address:
+          type: string
+        reason:
+          type: string
+        duration:
+          type: integer
+          description: Isolation duration in minutes
+
+    BlockIPRequest:
+      type: object
+      required:
+        - ip_address
+      properties:
+        ip_address:
+          type: string
+        direction:
+          type: string
+          enum: [inbound, outbound, both]
+          default: both
+        duration:
+          type: integer
+          description: Block duration in minutes
+        reason:
+          type: string
+
+    ScanRequest:
+      type: object
+      required:
+        - target
+        - scan_type
+      properties:
+        target:
+          type: string
+          description: IP address or hostname to scan
+        scan_type:
+          type: string
+          enum: [antivirus, vulnerability, full]
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+
+    ActionResponse:
+      type: object
+      properties:
+        action_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        message:
+          type: string
+
+    ConnectorStatus:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [connected, disconnected, error]
+        last_check:
+          type: string
+          format: date-time
+        version:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - bearerAuth: []

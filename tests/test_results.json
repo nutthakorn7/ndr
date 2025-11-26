@@ -1,0 +1,506 @@
+[
+  {
+    "id": "alert_suspicious_network_connection_1764155952",
+    "timestamp": "2025-11-26T18:19:12.573470",
+    "severity": "high",
+    "status": "open",
+    "title": "Suspicious Network Connection",
+    "description": "Rule suspicious_network_connection triggered by event",
+    "rule_id": "suspicious_network_connection",
+    "rule_name": "Suspicious Network Connection",
+    "detection_type": "rule",
+    "confidence": 0.8,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:00:00Z",
+        "event": {
+          "type": "connection",
+          "category": "network",
+          "action": "connect",
+          "outcome": "success"
+        },
+        "source": {
+          "ip": "192.168.1.10",
+          "port": 12345,
+          "hostname": "workstation01"
+        },
+        "destination": {
+          "ip": "8.8.4.4",
+          "port": 4444,
+          "hostname": "suspicious.org"
+        },
+        "network": {
+          "protocol": "tcp",
+          "bytes": 150000,
+          "direction": "outbound"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "TCP connection from 192.168.1.10:12345 to 8.8.4.4:4444"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0011",
+      "technique": "T1105"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.574663"
+  },
+  {
+    "id": "ml_alert_network_1764155952",
+    "timestamp": "2025-11-26T18:19:12.578099",
+    "severity": "medium",
+    "status": "open",
+    "title": "ML Anomaly Detected - Network",
+    "description": "Machine learning model detected anomalous network behavior",
+    "rule_id": "ml_network_anomaly",
+    "rule_name": "ML Network Anomaly Detection",
+    "detection_type": "ml",
+    "confidence": 0.6,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:00:00Z",
+        "event": {
+          "type": "connection",
+          "category": "network",
+          "action": "connect",
+          "outcome": "success"
+        },
+        "source": {
+          "ip": "192.168.1.10",
+          "port": 12345,
+          "hostname": "workstation01"
+        },
+        "destination": {
+          "ip": "8.8.4.4",
+          "port": 4444,
+          "hostname": "suspicious.org"
+        },
+        "network": {
+          "protocol": "tcp",
+          "bytes": 150000,
+          "direction": "outbound"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "TCP connection from 192.168.1.10:12345 to 8.8.4.4:4444"
+      }
+    ],
+    "ml_score": -0.6,
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.578782"
+  },
+  {
+    "id": "ioc_alert_1764155952",
+    "timestamp": "2025-11-26T18:19:12.582108",
+    "severity": "critical",
+    "status": "open",
+    "title": "Threat Intelligence Match - 2 IOCs",
+    "description": "Event matched 2 indicators of compromise: ip:8.8.4.4, domain:suspicious.org",
+    "rule_id": "ioc_matcher",
+    "rule_name": "Threat Intelligence IOC Matcher",
+    "detection_type": "ioc",
+    "confidence": 0.95,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:00:00Z",
+        "event": {
+          "type": "connection",
+          "category": "network",
+          "action": "connect",
+          "outcome": "success"
+        },
+        "source": {
+          "ip": "192.168.1.10",
+          "port": 12345,
+          "hostname": "workstation01"
+        },
+        "destination": {
+          "ip": "8.8.4.4",
+          "port": 4444,
+          "hostname": "suspicious.org"
+        },
+        "network": {
+          "protocol": "tcp",
+          "bytes": 150000,
+          "direction": "outbound"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "TCP connection from 192.168.1.10:12345 to 8.8.4.4:4444"
+      }
+    ],
+    "iocs": [
+      {
+        "type": "ip",
+        "value": "8.8.4.4",
+        "field": "destination.ip",
+        "confidence": 0.9,
+        "source": "threat_intelligence"
+      },
+      {
+        "type": "domain",
+        "value": "suspicious.org",
+        "field": "destination.hostname",
+        "confidence": 0.95,
+        "source": "threat_intelligence"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0011",
+      "technique": "T1071"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.582976"
+  },
+  {
+    "id": "alert_powershell_execution_1764155952",
+    "timestamp": "2025-11-26T18:19:12.585070",
+    "severity": "medium",
+    "status": "open",
+    "title": "PowerShell Execution Detected",
+    "description": "Rule powershell_execution triggered by event",
+    "rule_id": "powershell_execution",
+    "rule_name": "PowerShell Execution Detected",
+    "detection_type": "rule",
+    "confidence": 0.8,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:05:00Z",
+        "event": {
+          "type": "process",
+          "category": "process",
+          "action": "create",
+          "outcome": "success"
+        },
+        "process": {
+          "name": "powershell.exe",
+          "pid": 1234,
+          "ppid": 567,
+          "command_line": "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand aGVsbG8gd29ybGQ="
+        },
+        "user": {
+          "name": "admin",
+          "domain": "WORKGROUP"
+        },
+        "source": {
+          "hostname": "workstation01"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "Process created: powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0002",
+      "technique": "T1059",
+      "sub_technique": "T1059.001"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.585900"
+  },
+  {
+    "id": "ml_alert_process_1764155952",
+    "timestamp": "2025-11-26T18:19:12.588476",
+    "severity": "high",
+    "status": "open",
+    "title": "ML Anomaly Detected - Process",
+    "description": "Machine learning model detected anomalous process behavior",
+    "rule_id": "ml_process_anomaly",
+    "rule_name": "ML Process Anomaly Detection",
+    "detection_type": "ml",
+    "confidence": 0.7,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:05:00Z",
+        "event": {
+          "type": "process",
+          "category": "process",
+          "action": "create",
+          "outcome": "success"
+        },
+        "process": {
+          "name": "powershell.exe",
+          "pid": 1234,
+          "ppid": 567,
+          "command_line": "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand aGVsbG8gd29ybGQ="
+        },
+        "user": {
+          "name": "admin",
+          "domain": "WORKGROUP"
+        },
+        "source": {
+          "hostname": "workstation01"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "Process created: powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden"
+      }
+    ],
+    "ml_score": -0.7,
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.589221"
+  },
+  {
+    "id": "alert_file_encryption_activity_1764155952",
+    "timestamp": "2025-11-26T18:19:12.591581",
+    "severity": "critical",
+    "status": "open",
+    "title": "File Encryption Activity",
+    "description": "Rule file_encryption_activity triggered by event",
+    "rule_id": "file_encryption_activity",
+    "rule_name": "File Encryption Activity",
+    "detection_type": "rule",
+    "confidence": 0.8,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:10:00Z",
+        "event": {
+          "type": "file",
+          "category": "file",
+          "action": "create",
+          "outcome": "success"
+        },
+        "file": {
+          "path": "/tmp/important_documents.encrypted",
+          "name": "important_documents.encrypted",
+          "extension": ".encrypted",
+          "size": 75000000,
+          "hash": {
+            "md5": "5d41402abc4b2a76b9719d911017c592",
+            "sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+          }
+        },
+        "process": {
+          "name": "encrypt.exe",
+          "pid": 2345
+        },
+        "user": {
+          "name": "user1"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "File created: /tmp/important_documents.encrypted"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0040",
+      "technique": "T1486"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.592282"
+  },
+  {
+    "id": "ioc_alert_1764155952",
+    "timestamp": "2025-11-26T18:19:12.594393",
+    "severity": "critical",
+    "status": "open",
+    "title": "Threat Intelligence Match - 1 IOCs",
+    "description": "Event matched 1 indicators of compromise: hash:5d41402abc4b2a76b9719d911017c592",
+    "rule_id": "ioc_matcher",
+    "rule_name": "Threat Intelligence IOC Matcher",
+    "detection_type": "ioc",
+    "confidence": 0.98,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:10:00Z",
+        "event": {
+          "type": "file",
+          "category": "file",
+          "action": "create",
+          "outcome": "success"
+        },
+        "file": {
+          "path": "/tmp/important_documents.encrypted",
+          "name": "important_documents.encrypted",
+          "extension": ".encrypted",
+          "size": 75000000,
+          "hash": {
+            "md5": "5d41402abc4b2a76b9719d911017c592",
+            "sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+          }
+        },
+        "process": {
+          "name": "encrypt.exe",
+          "pid": 2345
+        },
+        "user": {
+          "name": "user1"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "File created: /tmp/important_documents.encrypted"
+      }
+    ],
+    "iocs": [
+      {
+        "type": "hash",
+        "value": "5d41402abc4b2a76b9719d911017c592",
+        "field": "file.hash.md5",
+        "confidence": 0.98,
+        "source": "threat_intelligence"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0011",
+      "technique": "T1071"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.594997"
+  },
+  {
+    "id": "alert_failed_authentication_1764155952",
+    "timestamp": "2025-11-26T18:19:12.596660",
+    "severity": "low",
+    "status": "open",
+    "title": "Failed Authentication Attempt",
+    "description": "Rule failed_authentication triggered by event",
+    "rule_id": "failed_authentication",
+    "rule_name": "Failed Authentication Attempt",
+    "detection_type": "rule",
+    "confidence": 0.8,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:15:00Z",
+        "event": {
+          "type": "authentication",
+          "category": "authentication",
+          "action": "login",
+          "outcome": "failure"
+        },
+        "source": {
+          "ip": "192.168.100.50",
+          "hostname": "attacker-machine"
+        },
+        "destination": {
+          "ip": "192.168.1.100",
+          "port": 3389,
+          "hostname": "server01"
+        },
+        "user": {
+          "name": "administrator"
+        },
+        "network": {
+          "protocol": "tcp"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "Authentication failed for user administrator from 192.168.100.50"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0006",
+      "technique": "T1110"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.597228"
+  },
+  {
+    "id": "ioc_alert_1764155952",
+    "timestamp": "2025-11-26T18:19:12.599019",
+    "severity": "high",
+    "status": "open",
+    "title": "Threat Intelligence Match - 1 IOCs",
+    "description": "Event matched 1 indicators of compromise: ip:192.168.100.50",
+    "rule_id": "ioc_matcher",
+    "rule_name": "Threat Intelligence IOC Matcher",
+    "detection_type": "ioc",
+    "confidence": 0.9,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:15:00Z",
+        "event": {
+          "type": "authentication",
+          "category": "authentication",
+          "action": "login",
+          "outcome": "failure"
+        },
+        "source": {
+          "ip": "192.168.100.50",
+          "hostname": "attacker-machine"
+        },
+        "destination": {
+          "ip": "192.168.1.100",
+          "port": 3389,
+          "hostname": "server01"
+        },
+        "user": {
+          "name": "administrator"
+        },
+        "network": {
+          "protocol": "tcp"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "Authentication failed for user administrator from 192.168.100.50"
+      }
+    ],
+    "iocs": [
+      {
+        "type": "ip",
+        "value": "192.168.100.50",
+        "field": "source.ip",
+        "confidence": 0.9,
+        "source": "threat_intelligence"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0011",
+      "technique": "T1071"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.599561"
+  },
+  {
+    "id": "ioc_alert_1764155952",
+    "timestamp": "2025-11-26T18:19:12.600849",
+    "severity": "medium",
+    "status": "open",
+    "title": "Threat Intelligence Match - 2 IOCs",
+    "description": "Event matched 2 indicators of compromise: process:mimikatz.exe, command:mimikatz.exe",
+    "rule_id": "ioc_matcher",
+    "rule_name": "Threat Intelligence IOC Matcher",
+    "detection_type": "ioc",
+    "confidence": 0.85,
+    "events": [
+      {
+        "timestamp": "2025-08-15T10:25:00Z",
+        "event": {
+          "type": "process",
+          "category": "process",
+          "action": "create",
+          "outcome": "success"
+        },
+        "process": {
+          "name": "mimikatz.exe",
+          "pid": 3456,
+          "command_line": "mimikatz.exe sekurlsa::logonpasswords",
+          "hash": {
+            "md5": "098f6bcd4621d373cade4e832627b4f6"
+          }
+        },
+        "user": {
+          "name": "system"
+        },
+        "file": {
+          "path": "C:\\Temp\\mimikatz.exe"
+        },
+        "tenant_id": "company-1",
+        "raw_log": "Process executed: C:\\Temp\\mimikatz.exe"
+      }
+    ],
+    "iocs": [
+      {
+        "type": "process",
+        "value": "mimikatz.exe",
+        "field": "process.name",
+        "confidence": 0.8,
+        "source": "threat_intelligence"
+      },
+      {
+        "type": "command",
+        "value": "mimikatz.exe",
+        "field": "process.command_line",
+        "confidence": 0.85,
+        "source": "threat_intelligence"
+      }
+    ],
+    "mitre": {
+      "tactic": "TA0011",
+      "technique": "T1071"
+    },
+    "tenant_id": "company-1",
+    "created_at": "2025-11-26T18:19:12.601185"
+  }
+]

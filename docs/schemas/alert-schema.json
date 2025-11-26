@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Security Alert Schema",
+  "type": "object",
+  "required": ["id", "timestamp", "severity", "title", "description", "rule_id", "tenant_id"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique alert identifier"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Alert generation timestamp"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low", "info"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "investigating", "resolved", "false_positive"],
+      "default": "open"
+    },
+    "title": {
+      "type": "string",
+      "description": "Alert title/summary"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed alert description"
+    },
+    "rule_id": {
+      "type": "string",
+      "description": "Detection rule that triggered this alert"
+    },
+    "rule_name": {
+      "type": "string",
+      "description": "Human-readable rule name"
+    },
+    "detection_type": {
+      "type": "string",
+      "enum": ["rule", "ml", "ioc", "behavioral", "correlation"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Alert confidence score"
+    },
+    "risk_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Risk score (0-100)"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "../schemas/event-schema.json"
+      },
+      "description": "Events that triggered this alert"
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "criticality": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          }
+        }
+      }
+    },
+    "mitre": {
+      "type": "object",
+      "properties": {
+        "tactics": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^TA[0-9]{4}$"
+          }
+        },
+        "techniques": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^T[0-9]{4}$"
+          }
+        },
+        "sub_techniques": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^T[0-9]{4}\\.[0-9]{3}$"
+          }
+        }
+      }
+    },
+    "iocs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "assignee": {
+      "type": "string",
+      "description": "Analyst assigned to this alert"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "acknowledged_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
