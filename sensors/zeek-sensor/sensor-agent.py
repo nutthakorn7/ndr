@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 CONTROLLER_URL = os.getenv('CONTROLLER_URL', '').rstrip('/')
@@ -59,7 +60,13 @@ def run_pcap_snapshot(duration, output_path):
 
 
 def upload_file(local_path, url):
+    parsed = urllib.parse.urlparse(url)
+    headers = {}
+    if 'X-Amz-Signature' in urllib.parse.parse_qs(parsed.query):
+        headers['Content-Length'] = str(os.path.getsize(local_path))
     cmd = ['curl', '-sS', '-X', 'PUT', '--upload-file', local_path, url]
+    for key, value in headers.items():
+        cmd.extend(['-H', f'{key}: {value}'])
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"upload failed: {result.stderr.strip()}")
