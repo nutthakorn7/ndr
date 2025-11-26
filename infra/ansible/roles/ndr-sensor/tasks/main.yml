@@ -1,0 +1,54 @@
+---
+- name: Ensure required packages are installed
+  become: yes
+  package:
+    name:
+      - docker.io
+      - python3-pip
+    state: present
+
+- name: Enable and start Docker daemon
+  become: yes
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Create sensor directories
+  become: yes
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /opt/ndr
+    - /opt/ndr/config
+    - /opt/ndr/pcap
+
+- name: Copy sensor env file
+  become: yes
+  template:
+    src: sensor.env.j2
+    dest: /opt/ndr/config/sensor.env
+    mode: '0640'
+
+- name: Deploy docker-compose manifest
+  become: yes
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/ndr/docker-compose.yml
+    mode: '0644'
+
+- name: Pull required images
+  become: yes
+  community.docker.docker_compose:
+    project_src: /opt/ndr
+    pull: yes
+
+- name: Start sensor stack
+  become: yes
+  community.docker.docker_compose:
+    project_src: /opt/ndr
+    state: present

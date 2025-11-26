@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  zeek-sensor:
+    image: nutthakorn7/zeek-sensor:latest
+    env_file:
+      - /opt/ndr/config/sensor.env
+    network_mode: host
+    volumes:
+      - /opt/ndr/pcap:/pcap
+  suricata-sensor:
+    image: nutthakorn7/suricata-sensor:latest
+    env_file:
+      - /opt/ndr/config/sensor.env
+    network_mode: host
+    volumes:
+      - /opt/ndr/pcap:/pcap
+    depends_on:
+      - zeek-sensor

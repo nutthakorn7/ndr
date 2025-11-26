@@ -1,0 +1,6 @@
+---
+- name: Deploy NDR sensors on-prem
+  hosts: sensors
+  become: yes
+  roles:
+    - ndr-sensor
