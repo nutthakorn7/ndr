@@ -1,0 +1,6 @@
+---
+- name: restart sensor stack
+  become: yes
+  community.docker.docker_compose:
+    project_src: /opt/ndr
+    restarted: yes

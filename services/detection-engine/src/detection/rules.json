@@ -1,0 +1,108 @@
+[
+    {
+        "id": "powershell_execution",
+        "name": "PowerShell Execution Detected",
+        "severity": "medium",
+        "enabled": true,
+        "conditions": {
+            "logic": "AND",
+            "expressions": [
+                {
+                    "field": "process.name",
+                    "operator": "in",
+                    "value": ["powershell.exe", "pwsh.exe"]
+                },
+                {
+                    "field": "event.type",
+                    "operator": "equals",
+                    "value": "process"
+                }
+            ]
+        },
+        "mitre": {
+            "tactic": "TA0002",
+            "technique": "T1059",
+            "sub_technique": "T1059.001"
+        }
+    },
+    {
+        "id": "suspicious_network_connection",
+        "name": "Suspicious Network Connection",
+        "severity": "high",
+        "enabled": true,
+        "conditions": {
+            "logic": "AND",
+            "expressions": [
+                {
+                    "field": "network.direction",
+                    "operator": "equals",
+                    "value": "outbound"
+                },
+                {
+                    "field": "destination.port",
+                    "operator": "in",
+                    "value": [4444, 6666, 8080, 8888]
+                },
+                {
+                    "field": "event.type",
+                    "operator": "equals",
+                    "value": "connection"
+                }
+            ]
+        },
+        "mitre": {
+            "tactic": "TA0011",
+            "technique": "T1105"
+        }
+    },
+    {
+        "id": "file_encryption_activity",
+        "name": "File Encryption Activity",
+        "severity": "critical",
+        "enabled": true,
+        "conditions": {
+            "logic": "AND",
+            "expressions": [
+                {
+                    "field": "file.extension",
+                    "operator": "in",
+                    "value": [".encrypted", ".locked", ".crypto"]
+                },
+                {
+                    "field": "event.type",
+                    "operator": "equals",
+                    "value": "file"
+                }
+            ]
+        },
+        "mitre": {
+            "tactic": "TA0040",
+            "technique": "T1486"
+        }
+    },
+    {
+        "id": "failed_authentication",
+        "name": "Failed Authentication Attempt",
+        "severity": "low",
+        "enabled": true,
+        "conditions": {
+            "logic": "AND",
+            "expressions": [
+                {
+                    "field": "event.type",
+                    "operator": "equals",
+                    "value": "authentication"
+                },
+                {
+                    "field": "event.outcome",
+                    "operator": "equals",
+                    "value": "failure"
+                }
+            ]
+        },
+        "mitre": {
+            "tactic": "TA0006",
+            "technique": "T1110"
+        }
+    }
+]

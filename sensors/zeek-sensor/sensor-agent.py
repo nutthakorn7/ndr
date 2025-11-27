@@ -19,6 +19,9 @@ CONTROLLER_TOKEN = os.getenv('CONTROLLER_TOKEN', '')
 POLL_INTERVAL = int(os.getenv('PCAP_COMMAND_POLL_INTERVAL', '60'))
 PCAP_MANAGER = os.getenv('PCAP_MANAGER', '/opt/sensor-tools/pcap-manager.sh')
 EXPORT_DIR = pathlib.Path(os.getenv('PCAP_EXPORT_DIR', '/pcap/exports'))
+UPLOAD_MAX_ATTEMPTS = int(os.getenv('PCAP_UPLOAD_MAX_ATTEMPTS', '3'))
+UPLOAD_BACKOFF_SECONDS = float(os.getenv('PCAP_UPLOAD_BACKOFF_SECONDS', '5'))
+UPLOAD_RETRY_JITTER = float(os.getenv('PCAP_UPLOAD_BACKOFF_JITTER', '0.5'))
 
 if not CONTROLLER_URL:
     print('[sensor-agent] CONTROLLER_URL not set; agent disabled', flush=True)
@@ -59,17 +62,35 @@ def run_pcap_snapshot(duration, output_path):
     return output_path
 
 
-def upload_file(local_path, url):
+
+def upload_file(local_path, url, max_attempts=UPLOAD_MAX_ATTEMPTS):
     parsed = urllib.parse.urlparse(url)
     headers = {}
     if 'X-Amz-Signature' in urllib.parse.parse_qs(parsed.query):
         headers['Content-Length'] = str(os.path.getsize(local_path))
-    cmd = ['curl', '-sS', '-X', 'PUT', '--upload-file', local_path, url]
-    for key, value in headers.items():
-        cmd.extend(['-H', f'{key}: {value}'])
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"upload failed: {result.stderr.strip()}")
+    attempt = 0
+    last_error = None
+    while attempt < max_attempts:
+        attempt += 1
+        cmd = ['curl', '-sS', '-X', 'PUT', '--upload-file', local_path, url]
+        for key, value in headers.items():
+            cmd.extend(['-H', f'{key}: {value}'])
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            return attempt
+        last_error = result.stderr.strip() or result.stdout.strip()
+        backoff = UPLOAD_BACKOFF_SECONDS * attempt + (UPLOAD_RETRY_JITTER * attempt)
+        log(f"upload attempt {attempt} failed: {last_error}; retrying in {backoff:.1f}s")
+        time.sleep(backoff)
+    raise RuntimeError(f"upload failed after {max_attempts} attempts: {last_error}")
+
+
+def file_sha256(local_path):
+    digest = hashlib.sha256()
+    with open(local_path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def complete_request(request_id, payload):
@@ -89,9 +110,11 @@ def process_request(req):
         return
 
     duration = int(payload.get('duration_seconds') or req.get('duration_seconds') or 300)
-    download_url = payload.get('download_url') or req.get('download_url')
-    if not download_url:
-        complete_request(req.get('id'), {'status': 'error', 'notes': 'missing download_url'})
+    upload_url = (payload.get('upload_url') or req.get('upload_url') or
+                  payload.get('download_url') or req.get('download_url'))
+    artifact_url = payload.get('download_url') or req.get('download_url') or upload_url
+    if not upload_url:
+        complete_request(req.get('id'), {'status': 'error', 'notes': 'missing upload_url'})
         return
 
     local_path = EXPORT_DIR / f"{req.get('id')}.tar.gz"
@@ -101,16 +124,19 @@ def process_request(req):
 
     try:
         run_pcap_snapshot(duration, local_path)
-        upload_file(str(local_path), download_url)
+        checksum = file_sha256(local_path)
+        attempts = upload_file(str(local_path), upload_url)
         size_bytes = local_path.stat().st_size
         complete_request(req.get('id'), {
             'status': 'ready',
             'start_time': start_time.isoformat() + 'Z',
             'end_time': end_time.isoformat() + 'Z',
             'size_bytes': size_bytes,
-            'download_url': download_url
+            'download_url': artifact_url,
+            'checksum_sha256': checksum,
+            'upload_attempts': attempts
         })
-        log(f"fulfilled request {req.get('id')} -> {download_url}")
+        log(f"fulfilled request {req.get('id')} -> {artifact_url}")
     except Exception as exc:
         log(f"request {req.get('id')} failed: {exc}")
         complete_request(req.get('id'), {

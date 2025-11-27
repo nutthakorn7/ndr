@@ -29,7 +29,8 @@ class PipelineTest:
         self.results_path = REPO_ROOT / 'tests/test_results.json'
         
         # Initialize detection engines for local testing
-        self.rule_engine = RuleEngine()
+        rules_path = REPO_ROOT / 'services/detection-engine/src/detection/rules.json'
+        self.rule_engine = RuleEngine(rules_path=str(rules_path))
         self.ml_detector = MLDetector()
         self.ioc_matcher = IOCMatcher()
     

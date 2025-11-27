@@ -1,7 +1,7 @@
 const { Kafka } = require('kafkajs');
 const { logger } = require('../utils/logger');
 
-const kafka = Kafka({
+const kafka = new Kafka({
   clientId: 'ingestion-gateway',
   brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(','),
   retry: {

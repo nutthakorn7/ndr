@@ -91,13 +91,15 @@ class LogParser {
     const zeekLogType = rawLog.zeek_log_type || rawLog._path || 'zeek';
     const timestamp = this.extractZeekTimestamp(rawLog);
 
+    const zeekData = rawLog.zeek || rawLog;
+    
     return {
       ...rawLog,
       '@timestamp': timestamp,
       timestamp,
       log_type: 'zeek',
       zeek_log_type: zeekLogType,
-      zeek: { ...rawLog },
+      zeek: zeekData,
       event: rawLog.event || this.getZeekEventMetadata(zeekLogType),
       parsed_timestamp: new Date().toISOString()
     };
@@ -139,13 +141,15 @@ class LogParser {
     const eventType = (rawLog.event_type || 'alert').toLowerCase();
     const timestamp = rawLog['@timestamp'] || rawLog.timestamp || new Date().toISOString();
 
+    const eveData = rawLog.suricata || rawLog;
+
     return {
       ...rawLog,
       '@timestamp': timestamp,
       timestamp,
       log_type: 'suricata',
       suricata_event_type: eventType,
-      suricata: { ...rawLog },
+      suricata: eveData,
       event: rawLog.event || this.getSuricataEventMetadata(eventType),
       parsed_timestamp: new Date().toISOString()
     };

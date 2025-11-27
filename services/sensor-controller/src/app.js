@@ -5,6 +5,11 @@ const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const forge = require('node-forge');
 const pino = require('pino');
+const { S3Client, PutObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { Kafka } = require('kafkajs');
+const EventEmitter = require('events');
 
 const app = express();
 app.use(cors());
@@ -18,11 +23,129 @@ const pool = new Pool({
 
 const SENSOR_COMMAND_SECRET = process.env.SENSOR_COMMAND_SECRET || 'ndr-demo-secret';
 const OBJECT_STORAGE_BASE_URL = process.env.OBJECT_STORAGE_BASE_URL || 'https://storage.local';
+const OBJECT_STORAGE_BUCKET = process.env.OBJECT_STORAGE_BUCKET || '';
+const OBJECT_STORAGE_REGION = process.env.OBJECT_STORAGE_REGION || process.env.AWS_REGION || 'us-east-1';
+const OBJECT_STORAGE_ENDPOINT = process.env.OBJECT_STORAGE_ENDPOINT;
+const OBJECT_STORAGE_FORCE_PATH_STYLE = (process.env.OBJECT_STORAGE_FORCE_PATH_STYLE || 'true').toLowerCase() !== 'false';
+const OBJECT_STORAGE_ACCESS_KEY_ID = process.env.OBJECT_STORAGE_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+const OBJECT_STORAGE_SECRET_ACCESS_KEY = process.env.OBJECT_STORAGE_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+const VERIFY_OBJECT_UPLOADS = (process.env.OBJECT_STORAGE_VERIFY_UPLOADS || 'true').toLowerCase() !== 'false';
 const CERT_VALID_DAYS = Number(process.env.CERT_VALID_DAYS) > 0 ? Number(process.env.CERT_VALID_DAYS) : 90;
+const KAFKA_BROKERS = (process.env.KAFKA_BROKERS || '').split(',').map((s) => s.trim()).filter(Boolean);
+const KAFKA_TOPIC = process.env.KAFKA_SENSOR_EVENTS_TOPIC || 'ndr-sensor-events';
+const SQS_QUEUE_URL = process.env.SQS_SENSOR_EVENTS_QUEUE_URL || '';
+const eventBus = new EventEmitter();
+eventBus.setMaxListeners(0);
+const sseClients = new Set();
 
 const buildDownloadUrl = (objectKey) => {
   const base = OBJECT_STORAGE_BASE_URL.replace(/\/$/, '');
   return `${base}/${objectKey}`;
+};
+
+const buildS3Client = () => {
+  if (!OBJECT_STORAGE_BUCKET) {
+    logger.warn('OBJECT_STORAGE_BUCKET not set; presigned uploads disabled');
+    return null;
+  }
+
+  const options = {
+    region: OBJECT_STORAGE_REGION
+  };
+
+  if (OBJECT_STORAGE_ENDPOINT) {
+    options.endpoint = OBJECT_STORAGE_ENDPOINT;
+  }
+
+  if (OBJECT_STORAGE_FORCE_PATH_STYLE) {
+    options.forcePathStyle = true;
+  }
+
+  if (OBJECT_STORAGE_ACCESS_KEY_ID && OBJECT_STORAGE_SECRET_ACCESS_KEY) {
+    options.credentials = {
+      accessKeyId: OBJECT_STORAGE_ACCESS_KEY_ID,
+      secretAccessKey: OBJECT_STORAGE_SECRET_ACCESS_KEY
+    };
+  }
+
+  logger.info({ bucket: OBJECT_STORAGE_BUCKET, endpoint: OBJECT_STORAGE_ENDPOINT }, 'Initialized S3 client for object storage');
+  return new S3Client(options);
+};
+
+const s3Client = buildS3Client();
+const kafkaProducer = KAFKA_BROKERS.length ? new Kafka({ brokers: KAFKA_BROKERS }).producer() : null;
+const sqsClient = SQS_QUEUE_URL ? new SQSClient({ region: process.env.AWS_REGION || 'us-east-1' }) : null;
+
+const buildStorageDescriptor = async (objectKey, expiresInSeconds) => {
+  if (!s3Client) {
+    return {
+      uploadUrl: buildDownloadUrl(objectKey),
+      downloadUrl: buildDownloadUrl(objectKey)
+    };
+  }
+
+  const uploadCommand = new PutObjectCommand({
+    Bucket: OBJECT_STORAGE_BUCKET,
+    Key: objectKey,
+    ContentType: 'application/gzip'
+  });
+  const maxExpires = 12 * 60 * 60; // AWS presign max is 7 days but limit to 12h for security
+  const expiresIn = Math.min(Math.max(expiresInSeconds, 60), maxExpires);
+  const uploadUrl = await getSignedUrl(s3Client, uploadCommand, { expiresIn });
+  return {
+    uploadUrl,
+    downloadUrl: buildDownloadUrl(objectKey)
+  };
+};
+
+const verifyUploadedArtifact = async (objectKey, expectedSize) => {
+  if (!VERIFY_OBJECT_UPLOADS || !s3Client || !OBJECT_STORAGE_BUCKET) {
+    return { status: 'skipped', notes: 'verification disabled or unavailable' };
+  }
+  try {
+    const head = await s3Client.send(new HeadObjectCommand({ Bucket: OBJECT_STORAGE_BUCKET, Key: objectKey }));
+    const actualSize = head.ContentLength || null;
+    if (typeof expectedSize === 'number' && expectedSize > 0 && actualSize !== null && actualSize !== expectedSize) {
+      return { status: 'mismatch', notes: `expected ${expectedSize} bytes, got ${actualSize}` };
+    }
+    return { status: 'verified', notes: null };
+  } catch (err) {
+    logger.error({ err, objectKey }, 'Failed to verify uploaded artifact');
+    return { status: 'error', notes: err.message };
+  }
+};
+
+const broadcastEvent = (type, payload) => {
+  eventBus.emit(type, payload);
+  relayEvent(type, payload);
+};
+
+const relayEvent = async (type, payload) => {
+  const enriched = {
+    event_type: type,
+    timestamp: new Date().toISOString(),
+    ...payload
+  };
+  if (kafkaProducer) {
+    try {
+      await kafkaProducer.send({
+        topic: KAFKA_TOPIC,
+        messages: [{ value: JSON.stringify(enriched) }]
+      });
+    } catch (err) {
+      logger.error({ err }, 'Failed to publish sensor event to Kafka');
+    }
+  }
+  if (sqsClient && SQS_QUEUE_URL) {
+    try {
+      await sqsClient.send(new SendMessageCommand({
+        QueueUrl: SQS_QUEUE_URL,
+        MessageBody: JSON.stringify(enriched)
+      }));
+    } catch (err) {
+      logger.error({ err }, 'Failed to publish sensor event to SQS');
+    }
+  }
 };
 
 const stableStringify = (payload) => {
@@ -79,12 +202,12 @@ const loadCertificateAuthority = () => {
   const attrs = [{ name: 'commonName', value: 'NDR Sensor CA' }];
   cert.setSubject(attrs);
   cert.setIssuer(attrs);
+  cert.publicKey = keys.publicKey;
   cert.setExtensions([
     { name: 'basicConstraints', cA: true },
     { name: 'keyUsage', keyCertSign: true, digitalSignature: true, cRLSign: true },
     { name: 'subjectKeyIdentifier' }
   ]);
-  cert.publicKey = keys.publicKey;
   cert.sign(keys.privateKey, forge.md.sha256.create());
   const certPem = forge.pki.certificateToPem(cert);
   logger.warn('Generated ephemeral CA material (set CA_PRIVATE_KEY_PEM / CA_CERT_PEM for persistence)');
@@ -168,6 +291,7 @@ async function initSchema() {
       id TEXT PRIMARY KEY,
       sensor_id TEXT REFERENCES sensors(id) ON DELETE CASCADE,
       duration_seconds INTEGER,
+      upload_url TEXT,
       object_key TEXT,
       download_url TEXT,
       status TEXT DEFAULT 'pending',
@@ -178,6 +302,11 @@ async function initSchema() {
       size_bytes BIGINT,
       notes TEXT,
       expires_at TIMESTAMPTZ,
+      checksum_sha256 TEXT,
+      upload_attempts INTEGER,
+      completed_at TIMESTAMPTZ,
+      verification_status TEXT,
+      verification_notes TEXT,
       created_at TIMESTAMPTZ DEFAULT now(),
       updated_at TIMESTAMPTZ DEFAULT now()
     )
@@ -186,6 +315,12 @@ async function initSchema() {
   await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS end_time TIMESTAMPTZ');
   await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS size_bytes BIGINT');
   await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS notes TEXT');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS upload_url TEXT');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS checksum_sha256 TEXT');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS upload_attempts INTEGER');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS verification_status TEXT');
+  await pool.query('ALTER TABLE pcap_requests ADD COLUMN IF NOT EXISTS verification_notes TEXT');
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS sensor_enrollment_tokens (
@@ -224,6 +359,46 @@ app.get('/health', async (req, res) => {
     res.status(503).json({ status: 'unhealthy', error: err.message });
   }
 });
+
+const sseEvents = ['pcap_update', 'sensor_health', 'sensor_alert'];
+
+const registerSseStream = (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  } else {
+    res.writeHead(200);
+  }
+  const client = { res, filter: (req.query.sensor_id || '').trim() };
+  sseClients.add(client);
+  res.write(`event: stream_status\ndata: ${JSON.stringify({ status: 'connected', timestamp: new Date().toISOString() })}\n\n`);
+
+  const sendEvent = (type, payload) => {
+    if (client.res.writable) {
+      const matchSensor = !client.filter || payload.sensor_id === client.filter;
+      if (matchSensor) {
+        client.res.write(`event: ${type}\n`);
+        client.res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      }
+    }
+  };
+
+  const handlers = sseEvents.map((eventName) => {
+    const handler = (payload) => sendEvent(eventName, payload);
+    eventBus.on(eventName, handler);
+    return { eventName, handler };
+  });
+
+  req.on('close', () => {
+    handlers.forEach(({ eventName, handler }) => eventBus.removeListener(eventName, handler));
+    sseClients.delete(client);
+  });
+};
+
+app.get('/events/stream', registerSseStream);
+app.get('/pcap/events', registerSseStream);
 
 app.get('/sensors', async (req, res) => {
   const result = await pool.query('SELECT * FROM sensors ORDER BY updated_at DESC');
@@ -267,8 +442,25 @@ app.post('/sensors/:id/heartbeat', async (req, res) => {
   if (result.rowCount === 0) {
     return res.status(404).json({ error: 'sensor not found' });
   }
+  const sensor = result.rows[0];
+  const heartbeatPayload = {
+    sensor_id: sensorId,
+    status: sensor.status,
+    last_heartbeat: sensor.last_heartbeat,
+    metrics: sensor.last_metrics || {},
+    updated_at: sensor.updated_at
+  };
+  broadcastEvent('sensor_health', heartbeatPayload);
+  if ((sensor.status || '').toLowerCase() !== 'online') {
+    broadcastEvent('sensor_alert', {
+      sensor_id: sensorId,
+      status: sensor.status,
+      last_heartbeat: sensor.last_heartbeat,
+      message: `Sensor ${sensorId} reported ${sensor.status || 'unknown'}`
+    });
+  }
 
-  res.json({ sensor: result.rows[0] });
+  res.json({ sensor });
 });
 
 app.post('/certificates/request', async (req, res) => {
@@ -348,13 +540,14 @@ app.post('/sensors/:id/pcap', async (req, res) => {
   const expiresAt = new Date(Date.now() + expiresIn * 1000);
   const requestId = uuidv4();
   const objectKey = requestedKey || `pcap/${sensorId}/${requestId}.tar.gz`;
-  const downloadUrl = buildDownloadUrl(objectKey);
+  const { uploadUrl, downloadUrl } = await buildStorageDescriptor(objectKey, expiresIn);
 
   const commandPayload = {
     action: 'pcap_snapshot',
     request_id: requestId,
     sensor_id: sensorId,
     duration_seconds: durationSeconds,
+    upload_url: uploadUrl,
     object_key: objectKey,
     download_url: downloadUrl,
     expires_at: expiresAt.toISOString()
@@ -363,16 +556,23 @@ app.post('/sensors/:id/pcap', async (req, res) => {
   const signature = signCommand(commandPayload);
 
   await pool.query(
-    `INSERT INTO pcap_requests (id, sensor_id, duration_seconds, object_key, download_url, status, command_payload, signature, expires_at)
-     VALUES ($1, $2, $3, $4, $5, 'pending', $6::jsonb, $7, $8)`,
-    [requestId, sensorId, durationSeconds, objectKey, downloadUrl, JSON.stringify(commandPayload), signature, expiresAt]
+    `INSERT INTO pcap_requests (id, sensor_id, duration_seconds, object_key, upload_url, download_url, status, command_payload, signature, expires_at, verification_status)
+     VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7::jsonb, $8, $9, 'pending')`,
+    [requestId, sensorId, durationSeconds, objectKey, uploadUrl, downloadUrl, JSON.stringify(commandPayload), signature, expiresAt]
   );
+
+  broadcastEvent('pcap_update', {
+    sensor_id: sensorId,
+    request_id: requestId,
+    status: 'pending'
+  });
 
   logger.info({ sensor_id: sensorId, request_id: requestId }, 'pcap snapshot command enqueued');
 
   res.status(202).json({
     request_id: requestId,
     sensor_id: sensorId,
+    upload_url: uploadUrl,
     download_url: downloadUrl,
     expires_at: expiresAt.toISOString(),
     status: 'pending',
@@ -428,15 +628,49 @@ app.get('/sensors/:id/pcap', async (req, res) => {
   const sensorId = req.params.id;
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
   const offset = parseInt(req.query.offset, 10) || 0;
+  const statusFilter = (req.query.status || '').toLowerCase();
+  const search = req.query.search ? req.query.search.trim() : '';
+  const createdAfter = req.query.created_after ? new Date(req.query.created_after) : null;
+  const createdBefore = req.query.created_before ? new Date(req.query.created_before) : null;
 
   const sensorResult = await pool.query('SELECT id FROM sensors WHERE id = $1', [sensorId]);
   if (sensorResult.rowCount === 0) {
     return res.status(404).json({ error: 'sensor not found' });
   }
 
+  const clauses = ['sensor_id = $1'];
+  const params = [sensorId];
+  let paramIndex = 2;
+  if (statusFilter && ['pending', 'in_progress', 'ready', 'error'].includes(statusFilter)) {
+    clauses.push(`status = $${paramIndex}`);
+    params.push(statusFilter);
+    paramIndex += 1;
+  }
+  if (search) {
+    clauses.push(`(object_key ILIKE $${paramIndex} OR download_url ILIKE $${paramIndex} OR id ILIKE $${paramIndex})`);
+    params.push(`%${search}%`);
+    paramIndex += 1;
+  }
+  if (createdAfter && !Number.isNaN(createdAfter.getTime())) {
+    clauses.push(`created_at >= $${paramIndex}`);
+    params.push(createdAfter);
+    paramIndex += 1;
+  }
+  if (createdBefore && !Number.isNaN(createdBefore.getTime())) {
+    clauses.push(`created_at <= $${paramIndex}`);
+    params.push(createdBefore);
+    paramIndex += 1;
+  }
+
+  params.push(limit);
+  params.push(offset);
+
   const requests = await pool.query(
-    `SELECT * FROM pcap_requests WHERE sensor_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-    [sensorId, limit, offset]
+    `SELECT * FROM pcap_requests
+     WHERE ${clauses.join(' AND ')}
+     ORDER BY created_at DESC
+     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    params
   );
 
   res.json({ sensor_id: sensorId, requests: requests.rows });
@@ -451,7 +685,9 @@ app.post('/sensors/:id/pcap/:requestId/complete', async (req, res) => {
     end_time,
     size_bytes,
     download_url,
-    notes
+    notes,
+    checksum_sha256,
+    upload_attempts
   } = req.body || {};
 
   const startTime = start_time ? new Date(start_time) : null;
@@ -464,6 +700,17 @@ app.post('/sensors/:id/pcap/:requestId/complete', async (req, res) => {
     }
   }
 
+  const existing = await pool.query(
+    'SELECT * FROM pcap_requests WHERE sensor_id = $1 AND id = $2',
+    [sensorId, requestId]
+  );
+
+  if (existing.rowCount === 0) {
+    return res.status(404).json({ error: 'pcap request not found' });
+  }
+
+  const nextStatus = status || existing.rows[0].status;
+
   const result = await pool.query(
     `UPDATE pcap_requests
      SET status = $3,
@@ -472,17 +719,40 @@ app.post('/sensors/:id/pcap/:requestId/complete', async (req, res) => {
          size_bytes = COALESCE($6, size_bytes),
          download_url = COALESCE($7, download_url),
          notes = COALESCE($8, notes),
+         checksum_sha256 = COALESCE($9, checksum_sha256),
+         upload_attempts = COALESCE($10, upload_attempts),
+         completed_at = CASE WHEN $3 = 'ready' THEN now() ELSE completed_at END,
          updated_at = now()
      WHERE sensor_id = $1 AND id = $2
      RETURNING *`,
-    [sensorId, requestId, status, startTime, endTime, sizeBytes, download_url, notes]
+    [sensorId, requestId, nextStatus, startTime, endTime, sizeBytes, download_url, notes, checksum_sha256, upload_attempts]
   );
 
-  if (result.rowCount === 0) {
-    return res.status(404).json({ error: 'pcap request not found' });
+  let row = result.rows[0];
+
+  if (row.status === 'ready' && existing.rows[0].object_key) {
+    const verification = await verifyUploadedArtifact(existing.rows[0].object_key, row.size_bytes);
+    const verificationUpdate = await pool.query(
+      `UPDATE pcap_requests
+       SET verification_status = $3,
+           verification_notes = $4,
+           updated_at = now()
+       WHERE sensor_id = $1 AND id = $2
+       RETURNING *`,
+      [sensorId, requestId, verification.status, verification.notes]
+    );
+    row = verificationUpdate.rows[0];
   }
 
-  res.json({ request: result.rows[0] });
+  broadcastEvent('pcap_update', {
+    sensor_id: sensorId,
+    request_id: requestId,
+    status: row.status,
+    download_url: row.download_url,
+    verification_status: row.verification_status
+  });
+
+  res.json({ request: row });
 });
 
 app.get('/sensors/:id/certificates', async (req, res) => {
@@ -525,4 +795,9 @@ app.get('/sensors/:id/config', async (req, res) => {
 const PORT = process.env.PORT || 8084;
 app.listen(PORT, () => {
   logger.info(`Sensor Controller listening on port ${PORT}`);
+  if (kafkaProducer) {
+    kafkaProducer.connect().then(() => logger.info('Kafka producer connected')).catch((err) => {
+      logger.error({ err }, 'Kafka producer connection failed');
+    });
+  }
 });

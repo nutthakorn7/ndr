@@ -1,5 +1,8 @@
 %YAML 1.1
 ---
+stream:
+  checksum-validation: no
+
 logging:
   default-log-level: notice
   outputs:
@@ -35,7 +38,7 @@ stats:
 pcap:
   # default AF_PACKET capture
   # override via environment variables / Suricata args if needed
-  checksum-checks: auto
+  checksum-checks: no
 
 af-packet:
   - interface: eth0
@@ -48,4 +51,4 @@ af-packet:
     block-size: 1048576
     block-timeout: 10
     tpacket-v3: yes
-    checksum-checks: auto
+    checksum-checks: no

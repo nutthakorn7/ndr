@@ -1,0 +1,22 @@
+name: Brute Force Response
+description: Respond to brute force attacks by blocking source IPs
+enabled: true
+
+trigger:
+  title_contains: [brute force, password spray, credential stuffing]
+  severity: [high, critical]
+
+actions:
+  - type: block_ip
+    name: Block attacker IP
+    params:
+      source: alert.source.ip
+      duration: 7200
+      integration: mock_firewall
+      
+  - type: email_notify
+    name: Notify security team
+    params:
+      recipients: [security@company.com]
+      subject: "Brute Force Attack Blocked: {alert.source.ip}"
+      template: brute_force_alert

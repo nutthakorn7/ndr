@@ -30,11 +30,15 @@ const logSchema = Joi.object({
     category: Joi.string(),
     action: Joi.string(),
     outcome: Joi.string()
-  }).required(),
+  }),
+  zeek_log_type: Joi.string(),
+  zeek: Joi.object().unknown(true),
+  suricata_event_type: Joi.string(),
+  suricata: Joi.object().unknown(true),
   message: Joi.string(),
   raw_log: Joi.string(),
   tenant_id: Joi.string().default('default')
-});
+}).or('event', 'zeek_log_type', 'suricata_event_type');
 
 router.post('/logs', rateLimiter, validateLog(logSchema), async (req, res) => {
   try {
@@ -61,7 +65,7 @@ router.post('/logs', rateLimiter, validateLog(logSchema), async (req, res) => {
 
     logger.info('Log ingested successfully', { 
       tenant_id: logData.tenant_id,
-      event_type: logData.event.type 
+      event_type: logData.event?.type || logData.zeek_log_type || logData.suricata_event_type
     });
 
     res.status(202).json({ 

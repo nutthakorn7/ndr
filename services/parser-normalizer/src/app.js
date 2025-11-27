@@ -4,7 +4,7 @@ const { logger } = require('./utils/logger');
 const { LogParser } = require('./services/parser');
 const { LogNormalizer } = require('./services/normalizer');
 
-const kafka = Kafka({
+const kafka = new Kafka({
   clientId: 'parser-normalizer',
   brokers: (process.env.KAFKA_BROKERS || 'localhost:9092').split(',')
 });
@@ -28,6 +28,17 @@ async function processMessage(message, topic) {
 
     const parsedLog = await parser.parse(rawLog);
     const normalizedLog = await normalizer.normalize(parsedLog);
+
+    try {
+      const indexName = `logs-${new Date().toISOString().split('T')[0]}`;
+      await opensearch.index({
+        index: indexName,
+        body: normalizedLog
+      });
+    } catch (error) {
+      logger.error('Failed to index log to OpenSearch:', error);
+      // Non-blocking error, continue to Kafka
+    }
 
     await producer.send({
       topic: 'normalized-logs',

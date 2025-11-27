@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Message Bus
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.5.0
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
@@ -12,10 +12,10 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9092:9092"
+      - "9093:9092"
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.5.0
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -76,6 +76,7 @@ services:
 
   parser-normalizer:
     build: ../services/parser-normalizer
+    platform: linux/amd64
     environment:
       - KAFKA_BROKERS=kafka:9092
       - OPENSEARCH_URL=http://opensearch:9200
@@ -87,10 +88,13 @@ services:
     build: ../services/threat-enricher
     environment:
       - KAFKA_BROKERS=kafka:9092
-      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OTX_API_KEY=${OTX_API_KEY:-}
     depends_on:
       - kafka
       - redis
+
 
   detection-engine:
     build: ../services/detection-engine
@@ -98,6 +102,7 @@ services:
       - KAFKA_BROKERS=kafka:9092
       - OPENSEARCH_URL=http://opensearch:9200
       - CLICKHOUSE_URL=http://clickhouse:8123
+      - SENSOR_CONTROLLER_URL=http://sensor-controller:8084
     depends_on:
       - kafka
       - opensearch
@@ -105,63 +110,85 @@ services:
 
   soar-orchestrator:
     build: ../services/soar-orchestrator
+    ports:
+      - "8086:8080"
     environment:
       - KAFKA_BROKERS=kafka:9092
-      - OPENSEARCH_URL=http://opensearch:9200
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - DRY_RUN=true
     depends_on:
       - kafka
-      - opensearch
+      - postgres
+
 
   dashboard-api:
     build: ../services/dashboard-api
     ports:
-      - "8081:8080"
+      - "8081:8081"
     environment:
       - OPENSEARCH_URL=http://opensearch:9200
       - CLICKHOUSE_URL=http://clickhouse:8123
       - REDIS_URL=redis://redis:6379
+      - SENSOR_CONTROLLER_URL=http://sensor-controller:8084
     depends_on:
       - opensearch
       - clickhouse
       - redis
 
-  authz-service:
-    build: ../services/authz-service
-    ports:
-      - "8082:8080"
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/authz
-    depends_on:
-      - redis
-      - postgres
+  # authz-service:
+  #   build: ../services/authz-service
+  #   ports:
+  #     - "8082:8080"
+  #   environment:
+  #     - REDIS_URL=redis://redis:6379
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/authz
+  #   depends_on:
+  #     - redis
+  #     - postgres
 
   asset-service:
     build: ../services/asset-service
+    ports:
+      - "8085:8080"
     environment:
-      - OPENSEARCH_URL=http://opensearch:9200
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/assets
+      - KAFKA_BROKERS=kafka:9092
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
     depends_on:
-      - opensearch
+      - kafka
       - postgres
 
-  vuln-service:
-    build: ../services/vuln-service
+  alert-correlator:
+    build: ../services/alert-correlator
     environment:
-      - OPENSEARCH_URL=http://opensearch:9200
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vulns
+      - KAFKA_BROKERS=kafka:9092
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AGGREGATION_WINDOW=300
+      - ATTACK_CHAIN_WINDOW=3600
     depends_on:
-      - opensearch
+      - kafka
       - postgres
+      - redis
 
-  reporting-service:
-    build: ../services/reporting-service
-    environment:
-      - OPENSEARCH_URL=http://opensearch:9200
-      - CLICKHOUSE_URL=http://clickhouse:8123
-    depends_on:
-      - opensearch
-      - clickhouse
+
+  # vuln-service:
+  #   build: ../services/vuln-service
+  #   environment:
+  #     - OPENSEARCH_URL=http://opensearch:9200
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vulns
+  #   depends_on:
+  #     - opensearch
+  #     - postgres
+
+  # reporting-service:
+  #   build: ../services/reporting-service
+  #   environment:
+  #     - OPENSEARCH_URL=http://opensearch:9200
+  #     - CLICKHOUSE_URL=http://clickhouse:8123
+  #   depends_on:
+  #     - opensearch
+  #     - clickhouse
 
   sensor-controller:
     build: ../services/sensor-controller
@@ -195,7 +222,7 @@ services:
       - REACT_APP_AUTH_URL=http://localhost:8082
     depends_on:
       - dashboard-api
-      - authz-service
+      # - authz-service
 
 volumes:
   opensearch-data:

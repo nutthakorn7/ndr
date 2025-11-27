@@ -1,0 +1,30 @@
+name: SMB Lateral Movement
+description: Detects lateral movement via SMB admin shares (C$, ADMIN$, IPC$)
+severity: high
+category: lateral_movement
+mitre_attack: T1021.002
+enabled: true
+
+conditions:
+  - field: zeek_log_type
+    operator: equals
+    value: smb_files
+  - field: zeek.path
+    operator: regex
+    value: "\\\\\\\\.*\\\\(C|ADMIN|IPC)\\$"
+  - field: source.ip
+    operator: not_equals
+    field_ref: destination.ip
+
+aggregation:
+  count: 3
+  window: 3600
+  group_by:
+    - source.ip
+    - destination.ip
+
+tags:
+  - smb
+  - lateral_movement
+  - admin_share
+  - ransomware

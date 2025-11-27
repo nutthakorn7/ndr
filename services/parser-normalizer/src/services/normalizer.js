@@ -48,6 +48,13 @@ class LogNormalizer {
       normalizedLog.normalized_timestamp = new Date().toISOString();
       normalizedLog.original = parsedLog;
 
+      if (normalizedLog.tls?.fingerprint || normalizedLog.ssh?.fingerprint) {
+        logger.info('Normalized encrypted traffic fingerprint:', { 
+          tls: normalizedLog.tls?.fingerprint, 
+          ssh: normalizedLog.ssh?.fingerprint 
+        });
+      }
+
       return normalizedLog;
 
     } catch (error) {
@@ -263,9 +270,95 @@ class LogNormalizer {
       target.sensor.hostname = source.host.hostname;
     }
 
+    logger.info('Processing Zeek log:', { type: source.zeek_log_type, zeek_data: zeek });
+
     if (source.zeek_log_type === 'dns') {
       this.mapZeekDnsFields(target, zeek);
+    } else if (zeekLogType === 'kerberos') {
+      this.mapZeekKerberosFields(target, zeek);
+    } else if (zeekLogType === 'ntlm') {
+      this.mapZeekNTLMFields(target, zeek);
+    } else if (zeekLogType === 'smb_files') {
+      this.mapZeekSMBFilesFields(target, zeek);
+    } else if (source.zeek_log_type === 'ssl') {
+      this.mapZeekSslFields(target, zeek);
+    } else if (source.zeek_log_type === 'ssh') {
+      this.mapZeekSshFields(target, zeek);
     }
+  }
+
+  mapZeekSslFields(target, zeek) {
+    target.tls = target.tls || {};
+    target.tls.fingerprint = target.tls.fingerprint || {};
+    
+    if (zeek.ja3) target.tls.fingerprint.ja3 = zeek.ja3;
+    if (zeek.ja3s) target.tls.fingerprint.ja3s = zeek.ja3s;
+    if (zeek.version) target.tls.version = zeek.version;
+    if (zeek.cipher) target.tls.cipher = zeek.cipher;
+    if (zeek.server_name) target.tls.server_name = zeek.server_name;
+  }
+
+  mapZeekSshFields(target, zeek) {
+    target.ssh = target.ssh || {};
+    target.ssh.fingerprint = target.ssh.fingerprint || {};
+    
+    if (zeek.hassh) target.ssh.fingerprint.hassh = zeek.hassh;
+    if (zeek.hasshServer) target.ssh.fingerprint.hassh_server = zeek.hasshServer;
+    if (zeek.client) target.ssh.client = zeek.client;
+    if (zeek.server) target.ssh.server = zeek.server;
+    if (zeek.auth_success) target.event.outcome = zeek.auth_success ? 'success' : 'failure';
+  }
+
+  mapZeekKerberosFields(target, zeek) {
+    target.zeek.kerberos = target.zeek.kerberos || {};
+    
+    if (zeek.request_type) target.zeek.request_type = zeek.request_type;
+    if (zeek.client) target.zeek.kerberos.client = zeek.client;
+    if (zeek.service) target.zeek.kerberos.service = zeek.service;
+    if (zeek.success !== undefined) target.zeek.success = zeek.success;
+    if (zeek.error_msg) target.zeek.kerberos.error_msg = zeek.error_msg;
+    
+    // Ticket information for Golden/Silver ticket detection
+    if (zeek.ticket) {
+      target.zeek.ticket = target.zeek.ticket || {};
+      if (zeek.ticket.lifetime) target.zeek.ticket.lifetime = zeek.ticket.lifetime;
+      if (zeek.ticket.enc_type) target.zeek.ticket.enc_type = zeek.ticket.enc_type;
+    }
+    
+    target.network.protocol = 'kerberos';
+  }
+
+  mapZeekNTLMFields(target, zeek) {
+    target.zeek.ntlm = target.zeek.ntlm || {};
+    
+    if (zeek.username) target.zeek.ntlm.username = zeek.username;
+    if (zeek.hostname) target.zeek.ntlm.hostname = zeek.hostname;
+    if (zeek.domain) target.zeek.ntlm.domain = zeek.domain;
+    if (zeek.server_nb_computer_name) target.zeek.server_nb_computer_name = zeek.server_nb_computer_name;
+    if (zeek.client_nb_computer_name) target.zeek.client_nb_computer_name = zeek.client_nb_computer_name;
+    if (zeek.success !== undefined) target.zeek.success = zeek.success;
+    
+    // Set user info
+    if (zeek.username) {
+      target.user.name = zeek.username;
+      if (zeek.domain) {
+        target.user.domain = zeek.domain;
+      }
+    }
+    
+    target.network.protocol = 'ntlm';
+    target.event.outcome = zeek.success ? 'success' : 'failure';
+  }
+
+  mapZeekSMBFilesFields(target, zeek) {
+    target.zeek.smb_files = target.zeek.smb_files || {};
+    
+    if (zeek.path) target.zeek.path = zeek.path;
+    if (zeek.name) target.file.name = zeek.name;
+    if (zeek.size) target.file.size = zeek.size;
+    if (zeek.action) target.zeek.smb_files.action = zeek.action;
+    
+    target.network.protocol = 'smb';
   }
 
   mapZeekDnsFields(target, zeek) {
@@ -344,7 +437,32 @@ class LogNormalizer {
 
     if (source.suricata_event_type === 'dns' && eve.dns) {
       this.mapSuricataDnsFields(target, eve.dns);
+    } else if (source.suricata_event_type === 'tls' && eve.tls) {
+      this.mapSuricataTlsFields(target, eve.tls);
+    } else if (source.suricata_event_type === 'ssh' && eve.ssh) {
+      this.mapSuricataSshFields(target, eve.ssh);
     }
+  }
+
+  mapSuricataTlsFields(target, tls) {
+    target.tls = target.tls || {};
+    target.tls.fingerprint = target.tls.fingerprint || {};
+    
+    if (tls.ja3) target.tls.fingerprint.ja3 = tls.ja3;
+    if (tls.ja3s) target.tls.fingerprint.ja3s = tls.ja3s;
+    if (tls.version) target.tls.version = tls.version;
+    if (tls.sni) target.tls.server_name = tls.sni;
+  }
+
+  mapSuricataSshFields(target, ssh) {
+    target.ssh = target.ssh || {};
+    target.ssh.fingerprint = target.ssh.fingerprint || {};
+    
+    // Suricata EVE might have 'hassh' in metadata or specific fields depending on config
+    if (ssh.hassh) target.ssh.fingerprint.hassh = ssh.hassh;
+    if (ssh.hassh_server) target.ssh.fingerprint.hassh_server = ssh.hassh_server;
+    if (ssh.client_proto_version) target.ssh.client = ssh.client_proto_version;
+    if (ssh.server_proto_version) target.ssh.server = ssh.server_proto_version;
   }
 
   mapSuricataDnsFields(target, dns) {

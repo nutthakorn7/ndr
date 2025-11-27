@@ -63,6 +63,11 @@ class IOCMatcher:
         """Find IOCs in the event data"""
         matched_iocs = []
         
+        # Debug logging
+        file_obj = event.get('file', {})
+        logger.info(f"Checking IOCs for event. File object: {file_obj}")
+
+        
         # Check IPs
         source_ip = event.get('source', {}).get('ip')
         dest_ip = event.get('destination', {}).get('ip')

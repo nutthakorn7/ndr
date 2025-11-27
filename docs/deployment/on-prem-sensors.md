@@ -9,7 +9,7 @@ This guide covers deploying the Zeek + Suricata sensor stack onto physical or vi
 - Sensor-controller URL and enrollment token (optional but recommended)
 
 ## Steps
-1. Populate `infra/ansible/inventory/hosts.ini` with your sensor hosts.
+1. Populate `infra/ansible/inventory/hosts.ini` with your sensor hosts and controller variables (example below).
 2. Export any vault secrets or environment variables for controller tokens.
 3. Run the playbook:
    ```bash
@@ -17,19 +17,28 @@ This guide covers deploying the Zeek + Suricata sensor stack onto physical or vi
    ansible-playbook -i inventory/hosts.ini deploy-sensors.yml
    ```
 
-The role installs Docker, writes `/opt/ndr/config/sensor.env`, and launches the Zeek + Suricata containers with the configured metadata.
+The role installs Docker, writes `/opt/ndr/config/sensor.env`, registers the sensor with the controller (when `controller_url` is provided), fetches controller config to `/opt/ndr/config/controller-config.json`, and launches the Zeek + Suricata containers.
+
+Example host vars:
+
+```ini
+[sensors]
+sensor-edge-01 controller_url=https://controller.ndr.local controller_api_token=TOKEN123 sensor_location="DC1"
+```
 
 ## Customization
 - Override environment variables by editing `sensor.env.j2` or setting host vars.
 - Adjust docker-compose template (`docker-compose.yml.j2`) to run only Zeek or Suricata, or to pin image tags.
 - Mount additional volumes (e.g., `/var/log`) by adding to the template.
 
-## TLS & Controller Enrollment
-If you’ve configured the sensor-controller cerificate endpoint, set these variables:
-- `controller_url`: e.g., `https://controller.example.com`
-- `controller_token`: Bearer token (if required)
-- `sensor_command_secret`: matches `SENSOR_COMMAND_SECRET` on the controller
-- `enrollment_token`: add to `sensor.env.j2` and call `/certificates/request` manually or via bootstrap script (future work: integrate into role).
+## Controller Registration & TLS
+- `controller_url` – base URL of sensor-controller; enables auto-registration + config fetch.
+- `controller_api_token` – optional Bearer token for controller API calls.
+- `sensor_metadata`, `sensor_location`, `sensor_name` – customize what gets sent to `/sensors/register`.
+- `sensor_register_with_controller` / `sensor_fetch_controller_config` – toggle behaviour per host if needed.
+- `sensor_command_secret` – stored in `sensor.env` so the agent can verify signed PCAP commands.
+
+Certificate enrollment remains manual for now; once a token/CSR flow is available you can extend the role to call `/certificates/request`.
 
 ## Manual Verification
 After deployment:

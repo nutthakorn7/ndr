@@ -17,7 +17,7 @@
     "cors": "^2.8.5",
     "compression": "^1.7.4",
     "winston": "^3.10.0",
-    "prometheus-client": "^14.2.0"
+    "prom-client": "^14.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

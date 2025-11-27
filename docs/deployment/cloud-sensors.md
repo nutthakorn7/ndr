@@ -1,48 +1,45 @@
-# Cloud Sensor Deployment
+# Cloud Sensor Packaging (AWS / Azure / GCP)
 
-This guide complements the on-prem instructions with AWS-specific packaging examples. Similar patterns apply to Azure VTAP or GCP Packet Mirroring.
+Sprint 1 now includes turnkey assets for each major cloud so customers can deploy Zeek/Suricata collectors right next to their SPAN/TAP sources.
 
-## 1. Build an AMI with Packer
+## 1. Build Images with Packer
+
+| Cloud | Template | Notes |
+| ----- | -------- | ----- |
+| AWS | `infra/packer/aws-sensor.pkr.hcl` | Builds an AMI with Docker, Zeek + Suricata unit files |
+| Azure | `infra/packer/azure-sensor.pkr.hcl` | Produces a managed image in the subscription/resource group you specify |
+| GCP | `infra/packer/gcp-sensor.pkr.hcl` | Creates an image family ready for Packet Mirroring collectors |
+
+Example AWS build:
+
 ```bash
 cd infra/packer
 packer init aws-sensor.pkr.hcl
-packer build -var aws_region=us-east-1 -var ami_name=ndr-sensor aws-sensor.pkr.hcl
+AWS_PROFILE=prod packer build -var "aws_region=us-east-1" aws-sensor.pkr.hcl
 ```
-The template installs Docker, copies a placeholder `/opt/ndr/config/sensor.env`, and creates systemd units that run the Zeek and Suricata containers. Customize `sensor.env` during provisioning or via cloud-init/user data.
 
-## 2. Deploy with Terraform (AWS)
-Use the sample in `infra/terraform/aws-sensor/` to launch the AMI and configure VPC Traffic Mirroring:
+Azure/GCP builds rely on the usual environment variables (`AZURE_SUBSCRIPTION_ID`, `AZURE_CLIENT_ID`, etc. / `GOOGLE_PROJECT`, `GOOGLE_APPLICATION_CREDENTIALS`). Each template bakes the sensor-agent, Zeek, Suricata, and base config to `/opt/ndr` with services enabled at boot.
+
+## 2. Provision Collectors with Terraform
+
+- **AWS** – `infra/terraform/aws-sensor` launches the AMI inside a subnet + security group and optionally wires AWS VPC Traffic Mirroring to the instance. Provide the Packer AMI ID plus NLB/ENI references for mirroring.
+- **Azure** – `infra/terraform/azure-sensor` stands up a VM from the managed image, NIC/NSG/public IP (optional), and an Azure Virtual Network TAP target so mirrored NICs can feed the collector.
+- **GCP** – `infra/terraform/gcp-sensor` creates a Compute Engine instance from the image family and enables VPC Packet Mirroring targeting the sensor to capture flows from specified subnets/VMs.
+
+Each module ships with a README detailing required variables and sample `terraform apply` invocations.
+
+## 3. Wire Traffic Sources
+
+- **AWS** – Attach the provided `aws_ec2_traffic_mirror_session` to ENIs from workloads to mirror, or supply your own plumbing if you already operate Traffic Mirroring.
+- **Azure** – Use `az network nic vtap-config create` (or Terraform in your VNet module) with the `virtual_network_tap_id` output to stream packets from regulator NICs.
+- **GCP** – Adjust `mirrored_subnetworks` / `mirrored_instances` in the module to scope which traffic hits the sensor.
+
+## 4. Configure Controller Enrollment
+
+After deployment, SSH or Session Manager into each sensor host to set real controller endpoints/credentials under `/opt/ndr/config/sensor.env`, then restart the `ndr-zeek` and `ndr-suricata` services:
+
 ```bash
-cd infra/terraform/aws-sensor
-terraform init
-terraform apply \
-  -var sensor_ami_id=ami-XXXXXXXX \
-  -var subnet_id=subnet-XXXX \
-  -var vpc_id=vpc-XXXX \
-  -var source_eni_id=eni-XXXX \
-  -var nlb_arn=arn:aws:elasticloadbalancing:... \
-  -var controller_cidr_blocks='["10.0.0.0/16"]'
+sudo systemctl restart ndr-zeek.service ndr-suricata.service
 ```
-The module provisions:
-- Security group allowing SSH and controller access
-- EC2 sensor instance using your AMI
-- Traffic mirror target/filter/session pointing mirrored traffic to the sensor
 
-## 3. Configure Sensor Environment
-After the instance boots, update `/opt/ndr/config/sensor.env` with your Kafka/controller details and restart services:
-```bash
-ssh ubuntu@<sensor-ip>
-sudo vi /opt/ndr/config/sensor.env
-sudo systemctl restart ndr-zeek ndr-suricata
-```
-Automate this step using cloud-init, SSM, or your preferred configuration tool.
-
-## Azure & GCP Notes
-- **Azure**: Use VTAP to mirror VNets to a NIC attached to the sensor VM. Create an Azure image (Managed Image) with the same Docker/services setup (Packer can build for Azure as well).
-- **GCP**: Packet Mirroring mirrors to a target instance; ensure the sensor instance has sufficient NIC throughput.
-
-## Certificates & Controller
-Use `/certificates/request` endpoint for TLS enrollment once the sensor is registered. Store the enrollment token securely (SSM Parameter Store or Secrets Manager).
-
-## Monitoring
-Sensors report heartbeats to the controller at `CONTROLLER_URL`. Add CloudWatch alarms/metrics around CPU, disk, and network throughput to ensure sensors keep pace with mirrored traffic.
+Once the controller heartbeat shows green you can request PCAPs directly from the dashboard.

@@ -1,0 +1,36 @@
+name: Critical Threat Containment
+description: Automatically contain and investigate critical threats
+enabled: true
+
+trigger:
+  severity: [critical]
+  categories: [malware, ransomware, intrusion]
+
+actions:
+  - type: block_ip
+    name: Block malicious IP at firewall
+    params:
+      source: alert.source.ip
+      duration: 3600
+      integration: mock_firewall
+      
+  - type: pcap_request
+    name: Capture network traffic
+    params:
+      sensor_id: alert.sensor.id
+      duration: 60
+      
+  - type: create_ticket
+    name: Create incident ticket
+    params:
+      system: jira
+      priority: P1
+      title: "Critical Alert: {alert.title}"
+      description: "{alert.description}"
+      
+  - type: email_notify
+    name: Notify SOC team
+    params:
+      recipients: [soc@company.com]
+      subject: "CRITICAL: {alert.title}"
+      template: critical_alert

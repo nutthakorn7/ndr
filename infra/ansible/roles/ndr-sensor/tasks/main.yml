@@ -33,6 +33,46 @@
     src: sensor.env.j2
     dest: /opt/ndr/config/sensor.env
     mode: '0640'
+  notify: restart sensor stack
+
+- name: Prepare controller API headers
+  set_fact:
+    controller_api_headers: "{{ controller_api_token | length > 0 | ternary({'Authorization': 'Bearer ' + controller_api_token}, {}) }}"
+  when: (controller_url | default('')) | length > 0
+
+- name: Register sensor with controller
+  uri:
+    url: "{{ controller_url }}/sensors/register"
+    method: POST
+    headers: "{{ controller_api_headers | default({}) }}"
+    body_format: json
+    body:
+      id: "{{ sensor_id | default(inventory_hostname) }}"
+      name: "{{ sensor_name }}"
+      location: "{{ sensor_location }}"
+      metadata: {{ sensor_metadata | to_json }}
+  when:
+    - (controller_url | default('')) | length > 0
+    - sensor_register_with_controller | bool
+
+- name: Fetch controller-provided config
+  uri:
+    url: "{{ controller_url }}/sensors/{{ sensor_id | default(inventory_hostname) }}/config"
+    method: GET
+    headers: "{{ controller_api_headers | default({}) }}"
+  register: controller_config_response
+  when:
+    - (controller_url | default('')) | length > 0
+    - sensor_fetch_controller_config | bool
+
+- name: Write controller config file
+  copy:
+    content: "{{ controller_config_response.json | to_nice_json }}"
+    dest: /opt/ndr/config/controller-config.json
+    mode: '0640'
+  when:
+    - controller_config_response is defined
+    - controller_config_response.json is defined
 
 - name: Deploy docker-compose manifest
   become: yes
@@ -40,6 +80,7 @@
     src: docker-compose.yml.j2
     dest: /opt/ndr/docker-compose.yml
     mode: '0644'
+  notify: restart sensor stack
 
 - name: Pull required images
   become: yes

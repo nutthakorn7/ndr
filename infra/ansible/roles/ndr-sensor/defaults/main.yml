@@ -1,0 +1,7 @@
+---
+sensor_register_with_controller: true
+sensor_fetch_controller_config: true
+sensor_metadata: {}
+sensor_name: "{{ inventory_hostname }}"
+sensor_location: "on-prem"
+controller_api_token: ""

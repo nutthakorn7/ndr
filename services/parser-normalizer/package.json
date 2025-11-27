@@ -12,7 +12,7 @@
     "kafkajs": "^2.2.4",
     "@opensearch-project/opensearch": "^2.3.1",
     "winston": "^3.10.0",
-    "grok-js": "^0.1.10",
+    "grok-js": "^3.0.0",
     "moment": "^2.29.4",
     "ip": "^1.1.8",
     "geoip-lite": "^1.4.7"

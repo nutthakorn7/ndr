@@ -28,7 +28,7 @@ sleep 15
 # Check service health
 echo "🏥 Checking service health..."
 
-services=("zookeeper:2181" "kafka:9092" "opensearch:9200" "clickhouse:8123" "redis:6379" "postgres:5432")
+services=("zookeeper:2181" "kafka:9093" "opensearch:9200" "clickhouse:8123" "redis:6379" "postgres:5432")
 
 for service in "${services[@]}"; do
     IFS=':' read -r name port <<< "$service"

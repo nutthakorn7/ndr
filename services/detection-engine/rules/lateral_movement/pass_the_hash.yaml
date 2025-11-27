@@ -1,0 +1,26 @@
+name: Pass-the-Hash Attack
+description: NTLM authentication from unusual source indicating possible credential theft
+severity: critical
+category: credential_theft
+mitre_attack: T1550.002
+enabled: true
+
+conditions:
+  - field: zeek_log_type
+    operator: equals
+    value: ntlm
+  - field: zeek.success
+    operator: equals
+    value: true
+  - field: zeek.server_nb_computer_name
+    operator: not_equals
+    field_ref: zeek.client_nb_computer_name
+  - field: source.ip_type
+    operator: equals
+    value: private
+
+tags:
+  - ntlm
+  - pass_the_hash
+  - credential_theft
+  - apt
