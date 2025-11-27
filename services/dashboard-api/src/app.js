@@ -1,14 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const { authenticate, authorize, checkPermission } = require('./middleware/auth');
 
 const app = express();
 
 // Enable CORS
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
 }));
 
 app.use(express.json());
@@ -121,7 +122,7 @@ app.get('/health', (req, res) => {
 });
 
 // Events endpoint
-app.get('/events', async (req, res) => {
+app.get('/events', authenticate, async (req, res) => {
   const { limit = 100, offset = 0, severity, event_type, from, to, q } = req.query;
   
   try {
@@ -173,7 +174,7 @@ app.get('/events', async (req, res) => {
 });
 
 // Alerts endpoint
-app.get('/alerts', (req, res) => {
+app.get('/alerts', authenticate, async (req, res) => {
   const { limit = 50, offset = 0, status, severity, from, to } = req.query;
   
   let filteredAlerts = [...mockAlerts];
@@ -383,7 +384,7 @@ const db = new Pool({
 });
 
 // Get correlated alerts with filtering
-app.get('/alerts/correlated', async (req, res) => {
+app.get('/alerts/correlated', authenticate, async (req, res) => {
   const { status, severity_min, limit = 50, offset = 0 } = req.query;
   
   try {
@@ -419,7 +420,7 @@ app.get('/alerts/correlated', async (req, res) => {
 });
 
 // Update alert status
-app.patch('/alerts/:id/status', async (req, res) => {
+app.patch('/alerts/:id/status', authenticate, authorize('Admin', 'Analyst'), async (req, res) => {
   const { id } = req.params;
   const { status, assigned_to } = req.body;
   
@@ -447,7 +448,7 @@ app.patch('/alerts/:id/status', async (req, res) => {
 });
 
 // Get attack chain for an alert
-app.get('/alerts/:id/chain', async (req, res) => {
+app.get('/alerts/:id/chain', authenticate, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -471,7 +472,7 @@ app.get('/alerts/:id/chain', async (req, res) => {
 });
 
 // Add note to alert
-app.post('/alerts/:id/notes', async (req, res) => {
+app.post('/alerts/:id/notes', authenticate, authorize('Admin', 'Analyst'), async (req, res) => {
   const { id } = req.params;
   const { note } = req.body;
   

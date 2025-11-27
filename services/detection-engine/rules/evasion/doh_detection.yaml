@@ -1,0 +1,35 @@
+name: DNS-over-HTTPS Usage Detected
+description: Client using DoH to bypass DNS monitoring
+severity: medium
+category: evasion
+mitre_attack: T1071.004
+enabled: true
+
+conditions:
+  - field: destination.ip
+    operator: in
+    value:
+      - 1.1.1.1      # Cloudflare
+      - 1.0.0.1
+      - 8.8.8.8      # Google
+      - 8.8.4.4
+      - 9.9.9.9      # Quad9
+      - 149.112.112.112
+  - field: destination.port
+    operator: equals
+    value: 443
+  - field: network.protocol
+    operator: equals
+    value: https
+
+aggregation:
+  count: 5
+  window: 300
+  group_by:
+    - source.ip
+
+tags:
+  - doh
+  - dns
+  - evasion
+  - privacy

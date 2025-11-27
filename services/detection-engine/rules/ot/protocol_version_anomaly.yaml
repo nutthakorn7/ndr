@@ -1,0 +1,24 @@
+name: OT Protocol Version Anomaly
+description: Unusual or deprecated OT protocol version detected
+severity: medium
+category: execution
+mitre_attack: T0823
+enabled: true
+
+conditions:
+  - field: zeek_log_type
+    operator: in
+    value:
+      - modbus
+      - dnp3
+  - field: zeek.protocol_version
+    operator: in
+    value:
+      - "0"
+      - "1"
+
+tags:
+  - ot
+  - ics
+  - protocol_anomaly
+  - deprecated

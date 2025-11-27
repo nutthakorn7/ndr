@@ -1,0 +1,27 @@
+name: Excessive OT Read Operations
+description: Unusually high number of read operations on industrial control system
+severity: high
+category: discovery
+mitre_attack: T0868
+enabled: true
+
+conditions:
+  - field: zeek_log_type
+    operator: in
+    value:
+      - modbus
+      - dnp3
+      - s7comm
+
+aggregation:
+  count: 100
+  window: 300
+  group_by:
+    - source.ip
+    - destination.ip
+
+tags:
+  - ot
+  - ics
+  - reconnaissance
+  - data_gathering

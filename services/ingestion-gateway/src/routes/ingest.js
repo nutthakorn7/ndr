@@ -1,9 +1,11 @@
+```javascript
 const express = require('express');
 const Joi = require('joi');
 const { logger } = require('../utils/logger');
 const kafkaProducer = require('../services/kafka');
 const { validateLog } = require('../middleware/validation');
 const { rateLimiter } = require('../middleware/rateLimiter');
+const { authenticate } = require('../middleware/auth'); // Added authentication middleware
 
 const router = express.Router();
 

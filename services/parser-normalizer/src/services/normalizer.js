@@ -274,12 +274,14 @@ class LogNormalizer {
 
     if (source.zeek_log_type === 'dns') {
       this.mapZeekDnsFields(target, zeek);
-    } else if (zeekLogType === 'kerberos') {
+    } else if (source.zeek_log_type === 'kerberos') {
       this.mapZeekKerberosFields(target, zeek);
-    } else if (zeekLogType === 'ntlm') {
+    } else if (source.zeek_log_type === 'ntlm') {
       this.mapZeekNTLMFields(target, zeek);
-    } else if (zeekLogType === 'smb_files') {
+    } else if (source.zeek_log_type === 'smb_files') {
       this.mapZeekSMBFilesFields(target, zeek);
+    } else if (['modbus', 'dnp3', 's7comm'].includes(source.zeek_log_type)) {
+      this.mapZeekOTProtocol(target, zeek, source.zeek_log_type);
     } else if (source.zeek_log_type === 'ssl') {
       this.mapZeekSslFields(target, zeek);
     } else if (source.zeek_log_type === 'ssh') {
@@ -288,14 +290,84 @@ class LogNormalizer {
   }
 
   mapZeekSslFields(target, zeek) {
-    target.tls = target.tls || {};
-    target.tls.fingerprint = target.tls.fingerprint || {};
+    target.tls = target.tls || {}target.tls.fingerprint = target.tls.fingerprint || {};
     
     if (zeek.ja3) target.tls.fingerprint.ja3 = zeek.ja3;
     if (zeek.ja3s) target.tls.fingerprint.ja3s = zeek.ja3s;
     if (zeek.version) target.tls.version = zeek.version;
     if (zeek.cipher) target.tls.cipher = zeek.cipher;
     if (zeek.server_name) target.tls.server_name = zeek.server_name;
+    
+    // SSL Certificate Validation
+    if (zeek.cert_chain || zeek.issuer || zeek.subject) {
+      target.tls.certificate_issues = this.validateSSLCertificate(zeek);
+      
+      // Store certificate details
+      target.tls.certificate = {
+        issuer: zeek.issuer,
+        subject: zeek.subject,
+        not_valid_before: zeek.not_valid_before,
+        not_valid_after: zeek.not_valid_after,
+        signature_algorithm: zeek.sig_alg
+      };
+    }
+  }
+  
+  validateSSLCertificate(zeek) {
+    const issues = [];
+    
+    // Check for self-signed certificate
+    if (zeek.issuer && zeek.subject && zeek.issuer === zeek.subject) {
+      issues.push('self_signed');
+    }
+    
+    // Check for expired certificate
+    if (zeek.not_valid_after) {
+      const notAfter = new Date(zeek.not_valid_after);
+      if (notAfter < new Date()) {
+        issues.push('expired');
+      }
+      
+      // Check for not-yet-valid certificate
+      if (zeek.not_valid_before) {
+        const notBefore = new Date(zeek.not_valid_before);
+        if (notBefore > new Date()) {
+          issues.push('not_yet_valid');
+        }
+      }
+      
+      // Check for short validity period (<90 days)
+      if (zeek.not_valid_before) {
+        const validityDays = (notAfter - new Date(zeek.not_valid_before)) / (1000 * 60 * 60 * 24);
+        if (validityDays < 90) {
+          issues.push('short_validity');
+        }
+      }
+    }
+    
+    // Check for weak signature algorithm
+    if (zeek.sig_alg) {
+      const weakAlgorithms = ['md5', 'sha1', 'md2'];
+      if (weakAlgorithms.some(alg => zeek.sig_alg.toLowerCase().includes(alg))) {
+        issues.push('weak_signature');
+      }
+    }
+    
+    // Check for certificate common name mismatch with SNI
+    if (zeek.server_name && zeek.subject) {
+      // Extract CN from subject
+      const cnMatch = zeek.subject.match(/CN=([^,]+)/);
+      if (cnMatch && cnMatch[1] !== zeek.server_name) {
+        // Allow wildcard certificates
+        const cn = cnMatch[1].replace(/^\*\./, '');
+        const sni = zeek.server_name.replace(/^[^.]+\./, '');
+        if (cn !== sni && cn !== zeek.server_name) {
+          issues.push('cn_mismatch');
+        }
+      }
+    }
+    
+    return issues.length > 0 ? issues : undefined;
   }
 
   mapZeekSshFields(target, zeek) {
@@ -354,17 +426,6 @@ class LogNormalizer {
     target.zeek.smb_files = target.zeek.smb_files || {};
     
     if (zeek.path) target.zeek.path = zeek.path;
-    if (zeek.name) target.file.name = zeek.name;
-    if (zeek.size) target.file.size = zeek.size;
-    if (zeek.action) target.zeek.smb_files.action = zeek.action;
-    
-    target.network.protocol = 'smb';
-  }
-
-  mapZeekDnsFields(target, zeek) {
-    target.network.protocol = 'dns';
-    target.dns.question = target.dns.question || {};
-    if (zeek.query) {
       target.dns.question.name = zeek.query;
     }
     if (zeek.qtype_name) {

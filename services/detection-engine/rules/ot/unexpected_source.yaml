@@ -1,0 +1,28 @@
+name: OT Communication from Unexpected Source
+description: Industrial protocol traffic from non-standard network segment
+severity: high
+category: lateral_movement
+mitre_attack: T0866
+enabled: true
+
+conditions:
+  - field: destination.port
+    operator: in
+    value:
+      - 502    # Modbus
+      - 20000  # DNP3
+      - 102    # S7Comm
+      - 47808  # BACnet
+      - 44818  # EtherNet/IP
+  - field: source.ip_type
+    operator: not_equals
+    value: ot_network
+  - field: network.protocol
+    operator: equals
+    value: tcp
+
+tags:
+  - ot
+  - ics
+  - unauthorized_access
+  - network_segmentation
