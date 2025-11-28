@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Dashboard from './pages/Dashboard';
 import './App.css';
 
+import { ToastProvider } from './components/Toast';
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,11 @@ function App() {
   }
 
   // Auth disabled - just show dashboard
-  return <Dashboard />;
+  return (
+    <ToastProvider>
+      <Dashboard />
+    </ToastProvider>
+  );
 }
 
 export default App;

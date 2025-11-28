@@ -1,43 +1,121 @@
 import { useState, useEffect } from 'react';
-import { 
-  Search, Bell, Shield, Network, Database, Lock, 
+import {
+  Search, Bell, Shield, Network, Database, Lock,
   Globe, Activity, FileText, Zap, Users, Settings,
-  AlertTriangle, TrendingUp, Server, Eye, Target
+  AlertTriangle, TrendingUp, Server, Eye, Target, Cpu, Link, Monitor
 } from 'lucide-react';
 import './Dashboard.css';
 import AlertModal from '../components/AlertModal';
 import EventSearch from '../components/EventSearch';
 import RealTimeFeed from '../components/RealTimeFeed';
+import NetworkAnalytics from '../components/NetworkAnalytics';
+import SensorManagement from '../components/SensorManagement';
+import AssetDiscovery from '../components/AssetDiscovery';
+import ThreatIntelligence from '../components/ThreatIntelligence';
+import AdvancedDetection from '../components/AdvancedDetection';
+import SSLAnalysis from '../components/SSLAnalysis';
+import SocDashboard from '../components/SocDashboard';
+import FileAnalysis from '../components/FileAnalysis';
+import DNSIntelligence from '../components/DNSIntelligence';
+import SoarIntegration from '../components/SoarIntegration';
 import api from '../utils/api';
 
+import { useToast } from '../components/Toast';
+import SettingsPanel from '../components/SettingsPanel';
+import UserProfile from '../components/UserProfile';
+
 function Dashboard() {
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
+  const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [stats, setStats] = useState({
     totalAlerts: 581,
     criticalAlerts: 12,
     totalEvents: 2347289,
     activeAssets: 342,
     sensors: 12,
-    mitigatedThreats: 67
+    mitigatedThreats: 67,
+    eps: 2400
   });
+
+  // Real-time Stats Simulation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStats(prev => {
+        const newEps = Math.floor(2200 + Math.random() * 400);
+        let newCritical = prev.criticalAlerts;
+        if (Math.random() > 0.9) {
+          const change = Math.random() > 0.5 ? 1 : -1;
+          newCritical = Math.max(0, Math.min(20, prev.criticalAlerts + change));
+        }
+        return {
+          ...prev,
+          eps: newEps,
+          criticalAlerts: newCritical,
+          totalEvents: prev.totalEvents + Math.floor(newEps * 2)
+        };
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
   
-  // Alert Modal State
   const [selectedAlertId, setSelectedAlertId] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
 
-  // Tab configuration with all features
-  const tabs = [
-    { id: 'overview', name: 'Security Posture', icon: Shield },
-    { id: 'network', name: 'Network Analytics', icon: Network },
-    { id: 'threats', name: 'Threat Intelligence', icon: Target },
-    { id: 'detection', name: 'Advanced Detection', icon: Eye },
-    { id: 'ssl', name: 'SSL/TLS Analysis', icon: Lock },
-    { id: 'files', name: 'File Analysis (YARA)', icon: FileText },
-    { id: 'dns', name: 'DNS Intelligence', icon: Globe },
-    { id: 'assets', name: 'Asset Discovery', icon: Server },
-    { id: 'soar', name: 'SOAR Automation', icon: Zap },
-    { id: 'siem', name: 'SIEM Integration', icon: Database }
+  // Navigation Configuration
+  const navigation = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      icon: Shield,
+      views: [
+        { id: 'overview', name: 'Security Posture', icon: Activity },
+        { id: 'soc', name: 'SOC Wallboard', icon: Monitor }
+      ]
+    },
+    {
+      id: 'network',
+      label: 'Network',
+      icon: Network,
+      views: [
+        { id: 'network', name: 'Traffic Analytics', icon: Activity },
+        { id: 'dns', name: 'DNS Intelligence', icon: Globe },
+        { id: 'ssl', name: 'SSL/TLS Analysis', icon: Lock }
+      ]
+    },
+    {
+      id: 'threats',
+      label: 'Threats',
+      icon: Target,
+      views: [
+        { id: 'threats', name: 'Threat Intel', icon: Target },
+        { id: 'detection', name: 'Detection Rules', icon: Eye },
+        { id: 'files', name: 'File Analysis', icon: FileText }
+      ]
+    },
+    {
+      id: 'assets',
+      label: 'Assets',
+      icon: Server,
+      views: [
+        { id: 'assets', name: 'Asset Inventory', icon: Database },
+        { id: 'sensors', name: 'Sensor Fleet', icon: Cpu }
+      ]
+    },
+    {
+      id: 'response',
+      label: 'Response',
+      icon: Zap,
+      views: [
+        { id: 'soar', name: 'Automation', icon: Zap },
+        { id: 'siem', name: 'SIEM Connectors', icon: Link }
+      ]
+    }
   ];
+
+  // Find active category based on activeTab
+  const activeCategory = navigation.find(cat => cat.views.some(v => v.id === activeTab)) || navigation[0];
 
   return (
     <div className="ndr-dashboard">
@@ -67,40 +145,71 @@ function Dashboard() {
           </div>
           <div className="nav-stat">
             <Activity className="w-4 h-4" />
-            <span>2.4k EPS</span>
+            <span>{(stats.eps / 1000).toFixed(1)}k EPS</span>
           </div>
-          <div className="nav-icon">
+          <button 
+            className="nav-icon" 
+            onClick={() => addToast('No new notifications', 'info')}
+            title="Notifications"
+          >
             <Bell className="w-5 h-5" />
-          </div>
-          <div className="nav-icon">
+          </button>
+          <button 
+            className="nav-icon" 
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+          >
             <Settings className="w-5 h-5" />
-          </div>
-          <div className="user-avatar">AD</div>
+          </button>
+          <button 
+            className="user-avatar"
+            onClick={() => setShowProfile(!showProfile)}
+            title="User Profile"
+          >
+            AD
+          </button>
         </div>
       </div>
 
-      {/* Tab Navigation */}
+      {/* Main Category Navigation */}
       <div className="ndr-tabs">
-        {tabs.map(tab => (
+        {navigation.map(cat => (
           <button 
-            key={tab.id}
-            className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            key={cat.id}
+            className={`tab-btn ${activeCategory.id === cat.id ? 'active' : ''}`}
             onClick={() => {
-              setActiveTab(tab.id);
+              // When switching category, default to the first view in that category
+              setActiveTab(cat.views[0].id);
               setShowSearch(false);
             }}
           >
-            <tab.icon className="w-4 h-4" />
-            {tab.name}
+            <cat.icon className="w-4 h-4" />
+            {cat.label}
           </button>
         ))}
       </div>
+
+      {/* Sub-Navigation (Only if category has multiple views) */}
+      {activeCategory.views.length > 1 && (
+        <div className="ndr-sub-tabs">
+          {activeCategory.views.map(view => (
+            <button
+              key={view.id}
+              className={`sub-tab-btn ${activeTab === view.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(view.id)}
+            >
+              <view.icon className="w-3 h-3" />
+              {view.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="ndr-content">
         {showSearch ? (
           <div className="view-container">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex-between">
               <h2>Event Search & Hunting</h2>
               <button className="btn-secondary" onClick={() => setShowSearch(false)}>
                 Close Search
@@ -196,7 +305,7 @@ function Dashboard() {
                   </div>
 
                   {/* Real-Time Feed & MITRE */}
-                  <div className="flex flex-col gap-6">
+                  <div className="panel-stack">
                     <RealTimeFeed />
                     
                     <div className="panel">
@@ -222,12 +331,45 @@ function Dashboard() {
               </>
             )}
 
+            {/* SOC Dashboard Tab */}
+            {activeTab === 'soc' && <SocDashboard />}
+
+            {/* Network Analytics Tab */}
+            {activeTab === 'network' && <NetworkAnalytics />}
+
+            {/* Sensor Management Tab */}
+            {activeTab === 'sensors' && <SensorManagement />}
+
+            {/* Asset Discovery Tab */}
+            {activeTab === 'assets' && <AssetDiscovery />}
+
+            {/* Threat Intelligence Tab */}
+            {activeTab === 'threats' && <ThreatIntelligence />}
+
+            {/* Advanced Detection Tab */}
+            {activeTab === 'detection' && <AdvancedDetection />}
+
+            {/* SSL Analysis Tab */}
+            {activeTab === 'ssl' && <SSLAnalysis />}
+
+            {/* File Analysis Tab */}
+            {activeTab === 'files' && <FileAnalysis />}
+
+            {/* DNS Intelligence Tab */}
+            {activeTab === 'dns' && <DNSIntelligence />}
+
+            {/* SOAR Automation Tab */}
+            {activeTab === 'soar' && <SoarIntegration view="playbooks" />}
+
+            {/* SIEM Integration Tab */}
+            {activeTab === 'siem' && <SoarIntegration view="connectors" />}
+
             {/* Other Tabs (Placeholders for now) */}
-            {activeTab !== 'overview' && (
+            {!['overview', 'soc', 'network', 'sensors', 'assets', 'threats', 'detection', 'ssl', 'files', 'dns', 'soar', 'siem'].includes(activeTab) && (
               <div className="panel">
-                <h3>{tabs.find(t => t.id === activeTab)?.name}</h3>
+                <h3>{navigation.flatMap(c => c.views).find(t => t.id === activeTab)?.name}</h3>
                 <p className="text-gray-400 mt-4">
-                  This module is connected to the backend services. 
+                  This module is connected to the backend services.
                   Data visualization for {activeTab} will be rendered here.
                 </p>
                 <div className="mt-8 p-8 border border-dashed border-gray-700 rounded-lg text-center">
@@ -257,118 +399,30 @@ function Dashboard() {
           </div>
         </div>
         <div className="status-right">
-            ].map((proto, i) => (
-              <div key={i} className="protocol-card">
-                <div className="protocol-header">
-                  <span className="protocol-name">{proto.name}</span>
-                  <span className="protocol-badge">{proto.ja3}</span>
-                </div>
-                <div className="protocol-stats">
-                  <div>{proto.count.toLocaleString()} connections</div>
-                  <div>{proto.bytes} transferred</div>
-                </div>
-                <div className="protocol-bar" style={{backgroundColor: proto.color}}></div>
-              </div>
-            ))}
-          </div>
+          <span>Version 2.4.0-beta</span>
+          <span>Latency: 12ms</span>
         </div>
       </div>
+
+      {/* Alert Modal */}
+      {selectedAlertId && (
+        <AlertModal
+          alertId={selectedAlertId}
+          onClose={() => setSelectedAlertId(null)}
+        />
+      )}
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <SettingsPanel onClose={() => setShowSettings(false)} />
+      )}
+
+      {/* User Profile Dropdown */}
+      {showProfile && (
+        <UserProfile onClose={() => setShowProfile(false)} />
+      )}
     </div>
   );
-}
-
-// Threat Intelligence View
-function ThreatIntelligenceView() {
-  return (
-    <div className="view-container">
-      <h2>Threat Intelligence - AlienVault OTX Integration</h2>
-      <div className="info-banner success">
-        <Target className="w-5 h-5" />
-        <span>Connected to AlienVault OTX - 15M+ IOCs, 9K+ pulse subscriptions</span>
-      </div>
-      
-      <div className="panel-grid">
-        <div className="panel">
-          <h3>Recent IOC Matches</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>IOC</th>
-                <th>Type</th>
-                <th>Threat</th>
-                <th>Confidence</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { ioc: '203.0.113.50', type: 'IPv4', threat: 'C2 Server', confidence: '95%' },
-                { ioc: 'malicious.example.com', type: 'Domain', threat: 'Phishing', confidence: '88%' },
-                { ioc: 'a3f4b2c1d5e6...', type: 'File Hash', threat: 'Malware', confidence: '97%' }
-              ].map((item, i) => (
-                <tr key={i}>
-                  <td className="mono">{item.ioc}</td>
-                  <td>{item.type}</td>
-                  <td><span className="threat-tag">{item.threat}</span></td>
-                  <td><span className="confidence-tag">{item.confidence}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Advanced Detection View
-function AdvancedDetectionView() {
-  return (
-    <div className="view-container">
-      <h2>Advanced Detection Capabilities</h2>
-      <div className="detection-grid">
-        {[
-          { name: 'DNS-over-HTTPS', status: 'Active', detections: 45, icon: Globe },
-          { name: 'Tor/VPN Detection', status: 'Active', detections: 23, icon: Shield },
-          { name: 'SSL Cert Validation', status: 'Active', detections: 12, icon: Lock },
-          { name: 'SSH Forwarding', status: 'Active', detections: 8, icon: Network },
-          { name: 'OT/ICS Monitoring', status: 'Active', detections: 156, icon: Server },
-          { name: 'YARA File Scan', status: 'Active', detections: 34, icon: FileText }
-        ].map((det, i) => (
-          <div key={i} className="detection-card">
-            <det.icon className="detection-icon" />
-            <div className="detection-name">{det.name}</div>
-            <div className="detection-status">{det.status}</div>
-            <div className="detection-count">{det.detections} detections today</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Other view components (simplified for brevity)
-function SSLAnalysisView() {
-  return <div className="view-container"><h2>SSL/TLS Certificate Analysis</h2><p>Certificate validation, expiration monitoring, weak crypto detection</p></div>;
-}
-
-function FileAnalysisView() {
-  return <div className="view-container"><h2>YARA File Analysis</h2><p>Malware detection with 6 YARA rule categories</p></div>;
-}
-
-function DNSIntelligenceView() {
-  return <div className="view-container"><h2>DNS Intelligence</h2><p>Domain analysis, DGA detection, tunneling identification</p></div>;
-}
-
-function AssetDiscoveryView() {
-  return <div className="view-container"><h2>Asset Discovery & Inventory</h2><p>342 active assets discovered via passive network monitoring</p></div>;
-}
-
-function SOARAutomationView() {
-  return <div className="view-container"><h2>SOAR Automation</h2><p>Automated playbooks for incident response, 67 threats mitigated automatically</p></div>;
-}
-
-function SIEMIntegrationView() {
-  return <div className="view-container"><h2>SIEM Integration</h2><p>Splunk HEC, Elastic ECS, Syslog, Webhooks - 187.3GB exported today</p></div>;
 }
 
 export default Dashboard;
