@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import Dashboard from './pages/Dashboard';
 import './App.css';
-
 import { ToastProvider } from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
+import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -31,11 +31,9 @@ function App() {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        background: '#1a1a1a',
-        color: 'white',
-        fontSize: '18px'
+        background: '#0f172a'
       }}>
-        Loading...
+        <LoadingSpinner size="large" message="Loading NDR Dashboard..." />
       </div>
     );
   }

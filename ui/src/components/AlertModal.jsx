@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { X, Shield, Clock, TrendingUp, Link, FileText, AlertTriangle, CheckCircle } from 'lucide-react';
 import api from '../utils/api';
+import LoadingSpinner from './LoadingSpinner';
 import './AlertModal.css';
 
 export default function AlertModal({ alertId, onClose }) {

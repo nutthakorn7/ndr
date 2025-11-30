@@ -3,7 +3,8 @@
  * Advanced search for security events
  */
 import { useState } from 'react';
-import { Search, Filter, Calendar, Download, RefreshCw } from 'lucide-react';
+import { Search, Filter, Download, Calendar } from 'lucide-react';
+import LoadingSpinner from './LoadingSpinner';
 import api from '../utils/api';
 import './EventSearch.css';
 
@@ -72,18 +73,21 @@ export default function EventSearch() {
           </button>
           
           <button className="btn-primary" onClick={handleSearch} disabled={loading}>
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Search'}
+            {loading ? <LoadingSpinner size="small" /> : 'Search'}
           </button>
         </div>
       </div>
 
       <div className="search-results">
-        {results.length > 0 ? (
-          <div className="results-table-wrapper">
+        {loading ? (
+          <LoadingSpinner size="medium" message="Searching events..." />
+        ) : results.length > 0 ? (
+          <div className="results-section">
             <div className="results-header">
-              <span>Found {results.length} events</span>
-              <button className="btn-text">
-                <Download className="w-4 h-4" /> Export
+              <span>Results: {results.length} events</span>
+              <button className="btn-export">
+                <Download className="w-4 h-4" />
+                Export
               </button>
             </div>
             <table className="data-table">
