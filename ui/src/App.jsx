@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard';
 import './App.css';
 
 import { ToastProvider } from './components/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -41,9 +42,11 @@ function App() {
 
   // Auth disabled - just show dashboard
   return (
-    <ToastProvider>
-      <Dashboard />
-    </ToastProvider>
+    <ErrorBoundary fallbackMessage="Dashboard encountered an error. Please refresh the page.">
+      <ToastProvider>
+        <Dashboard />
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

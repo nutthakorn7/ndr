@@ -1,0 +1,85 @@
+.error-boundary {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #0f172a;
+}
+
+.error-content {
+  max-width: 600px;
+  text-align: center;
+  background: #1e293b;
+  border: 1px solid #ef4444;
+  border-radius: 0.75rem;
+  padding: 2rem;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-content h2 {
+  color: #f1f5f9;
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.error-message {
+  color: #94a3b8;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.error-details {
+  text-align: left;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.error-details summary {
+  color: #60a5fa;
+  cursor: pointer;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.error-details summary:hover {
+  color: #3b82f6;
+}
+
+.error-stack {
+  color: #f87171;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.75rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  margin-top: 0.5rem;
+}
+
+.error-retry-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.error-retry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.error-retry-btn:active {
+  transform: translateY(0);
+}
