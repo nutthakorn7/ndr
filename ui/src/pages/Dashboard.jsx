@@ -1,28 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Search, Bell, Shield, Network, Database, Lock,
   Globe, Activity, FileText, Zap, Users, Settings,
   AlertTriangle, TrendingUp, Server, Eye, Target, Cpu, Link, Monitor
 } from 'lucide-react';
 import './Dashboard.css';
-import AlertModal from '../components/AlertModal';
-import EventSearch from '../components/EventSearch';
-import RealTimeFeed from '../components/RealTimeFeed';
-import NetworkAnalytics from '../components/NetworkAnalytics';
-import SensorManagement from '../components/SensorManagement';
-import AssetDiscovery from '../components/AssetDiscovery';
-import ThreatIntelligence from '../components/ThreatIntelligence';
-import AdvancedDetection from '../components/AdvancedDetection';
-import SSLAnalysis from '../components/SSLAnalysis';
-import SocDashboard from '../components/SocDashboard';
-import FileAnalysis from '../components/FileAnalysis';
-import DNSIntelligence from '../components/DNSIntelligence';
-import SoarIntegration from '../components/SoarIntegration';
-import api from '../utils/api';
 
+// Core components (loaded immediately)
 import { useToast } from '../components/Toast';
-import SettingsPanel from '../components/SettingsPanel';
-import UserProfile from '../components/UserProfile';
+import LoadingSpinner from '../components/LoadingSpinner';
+
+// Lazy load heavy components
+const AlertModal = lazy(() => import('../components/AlertModal'));
+const EventSearch = lazy(() => import('../components/EventSearch'));
+const RealTimeFeed = lazy(() => import('../components/RealTimeFeed'));
+const NetworkAnalytics = lazy(() => import('../components/NetworkAnalytics'));
+const SensorManagement = lazy(() => import('../components/SensorManagement'));
+const AssetDiscovery = lazy(() => import('../components/AssetDiscovery'));
+const ThreatIntelligence = lazy(() => import('../components/ThreatIntelligence'));
+const AdvancedDetection = lazy(() => import('../components/AdvancedDetection'));
+const SSLAnalysis = lazy(() => import('../components/SSLAnalysis'));
+const SocDashboard = lazy(() => import('../components/SocDashboard'));
+const FileAnalysis = lazy(() => import('../components/FileAnalysis'));
+const DNSIntelligence = lazy(() => import('../components/DNSIntelligence'));
+const SoarIntegration = lazy(() => import('../components/SoarIntegration'));
+const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
+const UserProfile = lazy(() => import('../components/UserProfile'));
+
+import api from '../utils/api';
 
 function Dashboard() {
   const { addToast } = useToast();
@@ -215,7 +220,9 @@ function Dashboard() {
                 Close Search
               </button>
             </div>
-            <EventSearch />
+            <Suspense fallback={<LoadingSpinner size="medium" message="Loading search..." />}>
+              <EventSearch />
+            </Suspense>
           </div>
         ) : (
           <div className="view-container">
@@ -306,7 +313,9 @@ function Dashboard() {
 
                   {/* Real-Time Feed & MITRE */}
                   <div className="panel-stack">
-                    <RealTimeFeed />
+                    <Suspense fallback={<LoadingSpinner size="small" />}>
+                      <RealTimeFeed />
+                    </Suspense>
                     
                     <div className="panel">
                       <h3><Target className="w-5 h-5 text-purple-400" /> MITRE ATT&CK Coverage</h3>
@@ -331,39 +340,72 @@ function Dashboard() {
               </>
             )}
 
-            {/* SOC Dashboard Tab */}
-            {activeTab === 'soc' && <SocDashboard />}
+            {/* Feature Tabs */}
+            {activeTab === 'soc' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading SOC Dashboard..." />}>
+                <SocDashboard />
+              </Suspense>
+            )}
 
-            {/* Network Analytics Tab */}
-            {activeTab === 'network' && <NetworkAnalytics />}
+            {activeTab === 'network' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading Network Analytics..." />}>
+                <NetworkAnalytics />
+              </Suspense>
+            )}
 
-            {/* Sensor Management Tab */}
-            {activeTab === 'sensors' && <SensorManagement />}
+            {activeTab === 'sensors' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading Sensors..." />}>
+                <SensorManagement />
+              </Suspense>
+            )}
 
-            {/* Asset Discovery Tab */}
-            {activeTab === 'assets' && <AssetDiscovery />}
+            {activeTab === 'assets' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading Assets..." />}>
+                <AssetDiscovery />
+              </Suspense>
+            )}
 
-            {/* Threat Intelligence Tab */}
-            {activeTab === 'threats' && <ThreatIntelligence />}
+            {activeTab === 'threats' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading Threat Intel..." />}>
+                <ThreatIntelligence />
+              </Suspense>
+            )}
 
-            {/* Advanced Detection Tab */}
-            {activeTab === 'detection' && <AdvancedDetection />}
+            {activeTab === 'detection' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading Detection Rules..." />}>
+                <AdvancedDetection />
+              </Suspense>
+            )}
 
-            {/* SSL Analysis Tab */}
-            {activeTab === 'ssl' && <SSLAnalysis />}
+            {activeTab === 'ssl' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading SSL Analysis..." />}>
+                <SSLAnalysis />
+              </Suspense>
+            )}
 
-            {/* File Analysis Tab */}
-            {activeTab === 'files' && <FileAnalysis />}
+            {activeTab === 'files' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading File Analysis..." />}>
+                <FileAnalysis />
+              </Suspense>
+            )}
 
-            {/* DNS Intelligence Tab */}
-            {activeTab === 'dns' && <DNSIntelligence />}
+            {activeTab === 'dns' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading DNS Intelligence..." />}>
+                <DNSIntelligence />
+              </Suspense>
+            )}
 
-            {/* SOAR Automation Tab */}
-            {activeTab === 'soar' && <SoarIntegration view="playbooks" />}
+            {activeTab === 'soar' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading Playbooks..." />}>
+                <SoarIntegration view="playbooks" />
+              </Suspense>
+            )}
 
-            {/* SIEM Integration Tab */}
-            {activeTab === 'siem' && <SoarIntegration view="connectors" />}
-
+            {activeTab === 'siem' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading SIEM Connectors..." />}>
+                <SoarIntegration view="connectors" />
+              </Suspense>
+            )}
             {/* Other Tabs (Placeholders for now) */}
             {!['overview', 'soc', 'network', 'sensors', 'assets', 'threats', 'detection', 'ssl', 'files', 'dns', 'soar', 'siem'].includes(activeTab) && (
               <div className="panel">
@@ -404,22 +446,22 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Alert Modal */}
+      {/* Modals & Overlays */}
       {selectedAlertId && (
-        <AlertModal
-          alertId={selectedAlertId}
-          onClose={() => setSelectedAlertId(null)}
-        />
+        <Suspense fallback={<div />}>
+          <AlertModal alertId={selectedAlertId} onClose={() => setSelectedAlertId(null)} />
+        </Suspense>
       )}
 
-      {/* Settings Panel */}
       {showSettings && (
-        <SettingsPanel onClose={() => setShowSettings(false)} />
+        <Suspense fallback={<div />}>
+          <SettingsPanel onClose={() => setShowSettings(false)} />
+        </Suspense>
       )}
-
-      {/* User Profile Dropdown */}
       {showProfile && (
-        <UserProfile onClose={() => setShowProfile(false)} />
+        <Suspense fallback={<div />}>
+          <UserProfile onClose={() => setShowProfile(false)} />
+        </Suspense>
       )}
     </div>
   );
