@@ -183,12 +183,134 @@ export default function SocDashboard() {
             <div className="panel-header">
               <h3><Globe className="w-5 h-5 text-green-400" /> Threat Origins</h3>
             </div>
-            <div className="map-placeholder">
-              <div className="map-dot" style={{top: '30%', left: '20%'}}></div>
-              <div className="map-dot" style={{top: '40%', left: '70%'}}></div>
-              <div className="map-dot pulse" style={{top: '25%', left: '60%'}}></div>
-              <div className="map-grid"></div>
-              <span>Live Threat Map Visualization</span>
+            <div className="world-map-container">
+              <svg viewBox="0 0 900 450" className="world-map-svg" preserveAspectRatio="xMidYMid meet">
+                {/* More realistic world map continents */}
+                <g className="continents">
+                  {/* North America */}
+                  <path d="M 120,100 L 140,85 L 155,80 L 165,75 L 180,70 L 195,75 L 210,80 L 220,90 L 225,105 L 230,120 L 228,135 L 220,150 L 210,165 L 200,175 L 185,180 L 170,178 L 155,172 L 145,165 L 135,155 L 128,140 L 125,125 L 122,110 Z
+                    M 160,180 L 165,185 L 172,195 L 178,205 L 180,215 L 178,225 L 172,230 L 165,228 L 158,223 L 155,215 L 154,205 L 156,195 L 158,188 Z" 
+                    fill="#1e40af" opacity="0.4" stroke="#3b82f6" strokeWidth="1.5"/>
+                  
+                  {/* South America */}
+                  <path d="M 195,230 L 205,235 L 215,245 L 220,260 L 223,280 L 223,300 L 220,320 L 215,335 L 208,345 L 198,350 L 188,348 L 180,340 L 175,328 L 172,315 L 170,300 L 168,285 L 168,270 L 170,255 L 175,243 L 182,235 L 188,232 Z" 
+                    fill="#1e40af" opacity="0.4" stroke="#3b82f6" strokeWidth="1.5"/>
+                  
+                  {/* Europe */}
+                  <path d="M 420,100 L 435,95 L 450,93 L 465,95 L 480,100 L 492,108 L 500,118 L 502,130 L 498,142 L 488,150 L 475,155 L 460,157 L 445,155 L 432,148 L 422,138 L 418,125 L 418,112 Z" 
+                    fill="#1e40af" opacity="0.4" stroke="#3b82f6" strokeWidth="1.5"/>
+                  
+                  {/* Africa */}
+                  <path d="M 440,165 L 455,162 L 470,163 L 485,168 L 500,178 L 512,195 L 520,215 L 523,235 L 522,255 L 518,275 L 510,295 L 498,310 L 483,320 L 465,323 L 448,320 L 432,310 L 420,295 L 412,278 L 408,260 L 407,242 L 410,225 L 418,208 L 428,190 L 435,178 Z" 
+                    fill="#1e40af" opacity="0.4" stroke="#3b82f6" strokeWidth="1.5"/>
+                  
+                  {/* Asia */}
+                  <path d="M 510,95 L 535,90 L 560,88 L 585,90 L 610,95 L 635,102 L 660,110 L 685,120 L 705,133 L 720,148 L 728,165 L 730,182 L 725,200 L 715,215 L 700,228 L 680,238 L 655,243 L 630,243 L 605,238 L 580,230 L 560,220 L 545,208 L 535,195 L 528,180 L 525,165 L 525,150 L 528,135 L 535,120 L 545,108 L 560,100 L 580,95 L 600,93 Z
+                    M 735,145 L 745,150 L 755,158 L 760,168 L 758,178 L 750,183 L 740,180 L 735,172 L 733,162 L 735,152 Z" 
+                    fill="#1e40af" opacity="0.4" stroke="#3b82f6" strokeWidth="1.5"/>
+                  
+                  {/* Australia */}
+                  <path d="M 680,290 L 700,288 L 720,290 L 740,295 L 755,303 L 765,315 L 768,328 L 765,340 L 755,348 L 740,352 L 720,353 L 700,350 L 685,343 L 673,333 L 668,320 L 668,308 L 672,298 Z" 
+                    fill="#1e40af" opacity="0.4" stroke="#3b82f6" strokeWidth="1.5"/>
+                  
+                  {/* Antarctica (simplified) */}
+                  <path d="M 150,390 L 250,385 L 350,387 L 450,390 L 550,388 L 650,390 L 750,392 L 750,410 L 650,415 L 550,413 L 450,415 L 350,413 L 250,415 L 150,413 Z" 
+                    fill="#1e40af" opacity="0.2" stroke="#3b82f6" strokeWidth="1"/>
+                </g>
+                
+                {/* Threat indicators with realistic locations */}
+                <g className="threat-indicators">
+                  {/* USA - Critical */}
+                  <circle cx="165" cy="130" r="5" fill="#ef4444" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite"/>
+                  </circle>
+                  <circle cx="165" cy="130" r="10" fill="none" stroke="#ef4444" strokeWidth="1.5" opacity="0.6">
+                    <animate attributeName="r" values="10;20;10" dur="2s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.6;0;0.6" dur="2s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* London/UK - High */}
+                  <circle cx="445" cy="120" r="4" fill="#f59e0b" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="3s" repeatCount="indefinite"/>
+                  </circle>
+                  <circle cx="445" cy="120" r="8" fill="none" stroke="#f59e0b" strokeWidth="1.5" opacity="0.5">
+                    <animate attributeName="r" values="8;16;8" dur="3s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.5;0;0.5" dur="3s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* China/Asia - Critical */}
+                  <circle cx="650" cy="160" r="5" fill="#ef4444" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+                  </circle>
+                  <circle cx="650" cy="160" r="10" fill="none" stroke="#ef4444" strokeWidth="1.5" opacity="0.6">
+                    <animate attributeName="r" values="10;20;10" dur="1.5s" repeatCount="indefinite"/>
+                    <animate attributeName="opacity" values="0.6;0;0.6" dur="1.5s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* Russia */}
+                  <circle cx="580" cy="110" r="3.5" fill="#f59e0b" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="2.8s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* Nigeria/Africa - Medium */}
+                  <circle cx="455" cy="240" r="3" fill="#3b82f6" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="2.5s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* Brazil - Medium */}
+                  <circle cx="200" cy="290" r="3" fill="#3b82f6" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="3.2s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* Australia - Low */}
+                  <circle cx="720" cy="320" r="3" fill="#10b981" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="3.5s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* India */}
+                  <circle cx="600" cy="195" r="3" fill="#3b82f6" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="2.7s" repeatCount="indefinite"/>
+                  </circle>
+                  
+                  {/* Japan */}
+                  <circle cx="745" cy="155" r="3.5" fill="#f59e0b" className="threat-dot">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="2.3s" repeatCount="indefinite"/>
+                  </circle>
+                </g>
+                
+                {/* Grid overlay */}
+                <defs>
+                  <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                    <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#1e293b" strokeWidth="0.5" opacity="0.2"/>
+                  </pattern>
+                  <linearGradient id="ocean" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#0f172a" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#1e293b" stopOpacity="0.5" />
+                  </linearGradient>
+                </defs>
+                <rect width="900" height="450" fill="url(#ocean)" />
+                <rect width="900" height="450" fill="url(#grid)" />
+              </svg>
+              
+              {/* Legend */}
+              <div className="map-legend">
+                <div className="legend-item">
+                  <span className="legend-dot critical"></span>
+                  <span>Critical</span>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-dot high"></span>
+                  <span>High</span>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-dot medium"></span>
+                  <span>Medium</span>
+                </div>
+                <div className="legend-item">
+                  <span className="legend-dot low"></span>
+                  <span>Low</span>
+                </div>
+              </div>
             </div>
           </div>
 
