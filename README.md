@@ -133,6 +133,13 @@ Detailed alert context with MITRE ATT&CK mapping
 - [x] Query Builder & Correlation Graph
 - [x] AI-Powered Analysis (Triage & Chat)
 
+### Phase 4: Enterprise & Cloud (🚀 Planned)
+- [ ] Cloud Deployment (AWS/Azure/GCP)
+- [ ] Multi-Tenancy Support
+- [ ] Compliance Reporting (PCI-DSS, HIPAA)
+- [ ] Advanced AI Agents (Autonomous Response)
+- [ ] SSO / SAML Integration
+
 ## 📚 Documentation
 
 - [Deployment Guide](DEPLOY_DEMO.md) - How to deploy the demo
