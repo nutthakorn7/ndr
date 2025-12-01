@@ -8,6 +8,7 @@ import {
   RefreshCw, CheckCircle, XCircle, Target, Zap
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { mockThreatFeeds, mockThreatMatches, mockThreatStats } from '../utils/mockData';
 import './ThreatIntelligence.css';
 
 export default function ThreatIntelligence() {
@@ -17,39 +18,38 @@ export default function ThreatIntelligence() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching threat intel data
+    // Fetch threat intel data from API
     const loadThreatData = async () => {
       setLoading(true);
       try {
-        await new Promise(r => setTimeout(r, 800));
+        // Try to fetch threat statistics from API
+        const threatStats = await api.getThreatStats();
         
-        // Mock Feeds
-        setFeeds([
-          { id: 1, name: 'AlienVault OTX', type: 'Community', status: 'active', iocs: 1250430, lastUpdate: '5m ago' },
-          { id: 2, name: 'Abuse.ch URLhaus', type: 'Malware', status: 'active', iocs: 45200, lastUpdate: '12m ago' },
-          { id: 3, name: 'Emerging Threats', type: 'IDS Rules', status: 'active', iocs: 8500, lastUpdate: '1h ago' },
-          { id: 4, name: 'Custom Blacklist', type: 'Internal', status: 'active', iocs: 150, lastUpdate: '2d ago' },
-          { id: 5, name: 'CISA Automated Indicator Sharing', type: 'Gov', status: 'error', iocs: 0, lastUpdate: 'Failed' },
-        ]);
-
-        // Mock Matches
-        setMatches([
-          { id: 1, ioc: '185.159.82.15', type: 'IP', source: 'AlienVault OTX', threat: 'Cobalt Strike C2', confidence: 95, asset: '192.168.1.105', time: '10m ago' },
-          { id: 2, ioc: 'update-win32-sys.com', type: 'Domain', source: 'URLhaus', threat: 'Malware Download', confidence: 88, asset: '192.168.1.15', time: '45m ago' },
-          { id: 3, ioc: '44d88612fea8a8f36de82e1278abb02f', type: 'Hash', source: 'VirusTotal', threat: 'Emotet Payload', confidence: 100, asset: '192.168.1.200', time: '2h ago' },
-          { id: 4, ioc: '103.240.24.10', type: 'IP', source: 'Emerging Threats', threat: 'Scanner', confidence: 60, asset: 'Gateway', time: '3h ago' },
-        ]);
-
-        // Mock Stats
-        setStats({
-          totalIocs: 1304280,
-          activeThreats: 12,
-          blockedConnections: 1450,
-          feedHealth: 80
-        });
-
+        if (threatStats && threatStats.total_iocs) {
+          // Use real data from API
+          setStats({
+            totalIocs: threatStats.total_iocs || 0,
+            activeThreats: threatStats.active_campaigns || 0,
+            blockedConnections: threatStats.blocked_24h || 0,
+            feedHealth: threatStats.feed_health || 0
+          });
+          
+          // For now, feeds and matches still use mock data
+          // TODO: Add dedicated endpoints when backend threat intel service is ready
+          throw new Error('Using mock data for feeds and matches');
+        } else {
+          throw new Error('Invalid threat stats response');
+        }
       } catch (error) {
-        console.error('Failed to load threat intel:', error);
+        console.warn('Threat intel API not available, using mock data:', error);
+        
+        // Simulate a small delay for mock data loading
+        await new Promise(r => setTimeout(r, 800));
+
+        // Mock Data Fallback
+        setFeeds(mockThreatFeeds);
+        setMatches(mockThreatMatches);
+        setStats(mockThreatStats);
       } finally {
         setLoading(false);
       }

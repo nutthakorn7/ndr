@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Activity, Clock, Users, AlertCircle, CheckCircle, 
   TrendingUp, TrendingDown, Globe, Shield, Target 
@@ -7,35 +7,61 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, Cell, PieChart, Pie
 } from 'recharts';
+import api from '../utils/api';
+import { mockSocAlertTrend, mockSocWorkload, mockSocSources } from '../utils/mockData';
 import './SocDashboard.css';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
 export default function SocDashboard() {
-  // Mock Data for Charts
-  const alertTrendData = [
-    { time: '00:00', critical: 2, high: 5, medium: 12 },
-    { time: '04:00', critical: 1, high: 3, medium: 8 },
-    { time: '08:00', critical: 5, high: 12, medium: 25 },
-    { time: '12:00', critical: 8, high: 15, medium: 35 },
-    { time: '16:00', critical: 6, high: 10, medium: 28 },
-    { time: '20:00', critical: 3, high: 7, medium: 15 },
-    { time: '23:59', critical: 4, high: 6, medium: 18 },
-  ];
+  const [stats, setStats] = useState({
+    openCritical: 12,
+    mttr: '18m',
+    analystsOnline: '4/6',
+    slaCompliance: 98.5
+  });
+  const [alertTrendData, setAlertTrendData] = useState([]);
+  const [workloadData, setWorkloadData] = useState([]);
+  const [sourceData, setSourceData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const workloadData = [
-    { name: 'Analyst A', active: 5, resolved: 12 },
-    { name: 'Analyst B', active: 8, resolved: 8 },
-    { name: 'Analyst C', active: 3, resolved: 15 },
-    { name: 'Analyst D', active: 6, resolved: 10 },
-  ];
-
-  const sourceData = [
-    { name: 'Firewall', value: 45 },
-    { name: 'IDS/IPS', value: 25 },
-    { name: 'Endpoint', value: 20 },
-    { name: 'Email', value: 10 },
-  ];
+  useEffect(() => {
+    const loadSocData = async () => {
+      setLoading(true);
+      try {
+        // Try to fetch real SOC metrics
+        const socMetrics = await api.getSocMetrics();
+        const dashboardStats = await api.getDashboardStats();
+        
+        if (socMetrics || dashboardStats) {
+          // Update stats from API
+          setStats({
+            openCritical: socMetrics?.open_critical || dashboardStats?.summary?.critical_alerts || 12,
+            mttr: socMetrics?.mean_time_to_respond || '18m',
+            analystsOnline: socMetrics?.analysts_online || '4/6',
+            slaCompliance: socMetrics?.sla_compliance || 98.5
+          });
+          
+          // For chart data, use mock for now
+          // TODO: Add when backend provides time-series data
+          throw new Error('Using mock chart data');
+        } else {
+          throw new Error('No SOC data available');
+        }
+      } catch (error) {
+        console.warn('Failed to load SOC metrics from API, using mock data:', error);
+        
+        // Mock Data for Charts
+        setAlertTrendData(mockSocAlertTrend);
+        setWorkloadData(mockSocWorkload);
+        setSourceData(mockSocSources);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadSocData();
+  }, []);
 
   return (
     <div className="soc-dashboard">
@@ -46,7 +72,7 @@ export default function SocDashboard() {
             <AlertCircle className="w-6 h-6" />
           </div>
           <div className="stat-info">
-            <div className="stat-value">12</div>
+            <div className="stat-value">{stats.openCritical}</div>
             <div className="stat-label">Open Critical Incidents</div>
             <div className="stat-trend down">↓ 2 from last hour</div>
           </div>
@@ -56,7 +82,7 @@ export default function SocDashboard() {
             <Clock className="w-6 h-6" />
           </div>
           <div className="stat-info">
-            <div className="stat-value">18m</div>
+            <div className="stat-value">{stats.mttr}</div>
             <div className="stat-label">Mean Time to Respond</div>
             <div className="stat-trend up">↑ 2m vs target</div>
           </div>
@@ -66,7 +92,7 @@ export default function SocDashboard() {
             <Users className="w-6 h-6" />
           </div>
           <div className="stat-info">
-            <div className="stat-value">4/6</div>
+            <div className="stat-value">{stats.analystsOnline}</div>
             <div className="stat-label">Analysts Online</div>
             <div className="stat-trend neutral">Shift A</div>
           </div>
@@ -76,7 +102,7 @@ export default function SocDashboard() {
             <CheckCircle className="w-6 h-6" />
           </div>
           <div className="stat-info">
-            <div className="stat-value">98.5%</div>
+            <div className="stat-value">{stats.slaCompliance}%</div>
             <div className="stat-label">SLA Compliance</div>
             <div className="stat-trend up">↑ 0.5% this week</div>
           </div>

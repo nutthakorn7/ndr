@@ -157,3 +157,29 @@
 .severity-badge.high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
 .severity-badge.medium { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
 .severity-badge.low { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+
+.rule-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1rem;
+}
+
+.rule-editor-textarea {
+  flex: 1;
+  background-color: #0f172a;
+  color: #e2e8f0;
+  font-family: 'Fira Code', 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+  padding: 1rem;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  resize: none;
+  line-height: 1.5;
+}
+
+.rule-editor-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}

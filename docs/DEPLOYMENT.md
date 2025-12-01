@@ -1,381 +1,99 @@
 # Deployment Guide
 
-> Complete deployment guide for Open NDR Platform
+## 🐳 Docker Deployment (Recommended)
 
-## Production Deployment
+The easiest way to deploy the NDR Dashboard and its dependencies is using Docker Compose.
 
-### System Requirements
+### Prerequisites
+- Docker Engine (v20.10+)
+- Docker Compose (v2.0+)
 
-**Minimum:**
-- 4 CPU cores
-- 8GB RAM
-- 50GB disk
-- Docker 20.10+
-- Docker Compose 2.0+
+### Quick Start
 
-**Recommended:**
-- 8+ CPU cores
-- 16GB+ RAM
-- 200GB+ SSD
-- 10Gbps network
+1. **Build and Start Services**
+   ```bash
+   docker-compose up -d --build
+   ```
 
-### 1. Pre-Deployment Checklist
+2. **Access the Application**
+   - **Dashboard UI**: [http://localhost](http://localhost)
+   - **API**: [http://localhost:8081](http://localhost:8081)
+   - **OpenSearch**: [http://localhost:9200](http://localhost:9200)
 
-- [ ] Docker &amp; Docker Compose installed
-- [ ] Sufficient disk space (200GB+)
-- [ ] Network access to sensors
-- [ ] PostgreSQL backup strategy planned
-- [ ] Log rotation configured
-- [ ] Firewall rules configured
+3. **View Logs**
+   ```bash
+   docker-compose logs -f
+   ```
 
-### 2. Clone Repository
+4. **Stop Services**
+   ```bash
+   docker-compose down
+   ```
 
-```bash
-git clone https://github.com/yourorg/open-ndr.git
-cd open-ndr
-```
+---
 
-### 3. Configure Environment
+## 🏗️ Architecture
 
-```bash
-cd deploy
-cp .env.example .env
-nano .env
-```
+The `docker-compose.yml` orchestrates the following services:
 
-**Essential Variables:**
+| Service | Internal Port | External Port | Description |
+|---------|---------------|---------------|-------------|
+| `ui` | 80, 443 | 80, 443 | React frontend (HTTPS enabled) |
+| `dashboard-api` | 8081 | 8081 | Node.js backend API |
+| `opensearch` | 9200 | 9200 | Search engine for events |
+| `postgres` | 5432 | 5432 | Relational database for alerts |
+| `redis` | 6379 | 6379 | Cache and session store |
 
-```bash
-# Kafka
-KAFKA_BROKERS=kafka:9092
+### Network Flow
+1. User accesses `http://localhost` (Nginx).
+2. Nginx redirects to `https://localhost` (Port 443).
+3. Nginx serves static assets with **Security Headers** (HSTS, CSP, etc.).
+4. API requests (`/api/*`) are proxied to `dashboard-api:8081`.
+4. WebSocket requests (`/socket.io/*`) are proxied to `dashboard-api:8081`.
+5. `dashboard-api` connects to `opensearch`, `postgres`, and `redis` internally.
+   - *Note: Database ports are no longer exposed to the host for security.*
+
+---
+
+## 🔧 Production Configuration
+
+### Security Features Enabled
+- **Network Isolation**: Databases are only accessible within the Docker network.
+- **HTTP Headers**: Nginx adds HSTS, X-Frame-Options, and Content-Security-Policy.
+- **Rate Limiting**: API limits requests to 100 per 15 minutes per IP.
+- **Helmet**: API uses Helmet middleware for additional header security.
+
+### Environment Variables
+Create a `.env` file in the root directory to override defaults:
+
+```env
+# API Configuration
+PORT=8081
+NODE_ENV=production
+
+# Database Credentials
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=secure_password_here
+POSTGRES_DB=security_analytics
 
 # OpenSearch
-OPENSEARCH_URL=http://opensearch:9200
-
-# Database
-DATABASE_URL=postgresql://postgres:CHANGE_ME@postgres:5432/security_analytics
-
-# Threat Intel (optional)
-OTX_API_KEY=your_otx_api_key
-
-# SOAR
-DRY_RUN=true  # Change to false for production automation
-
-# Alert Correlation
-AGGREGATION_WINDOW=300  # 5 minutes
-ATTACK_CHAIN_WINDOW=3600  # 1 hour
+OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
 ```
 
-### 4. Initialize Database
+### Security Notes
+- **Change Default Passwords**: The default `docker-compose.yml` uses default credentials. Change them for production.
+- **SSL/TLS**: The current Nginx config uses HTTP. For production, mount SSL certificates and update `nginx.conf` to listen on 443.
+- **Firewall**: Ensure only port 80/443 is exposed to the public internet. Database ports should be restricted.
 
-```bash
-# Start PostgreSQL
-docker-compose up -d postgres
+---
 
-# Wait for startup
-sleep 10
+## 🛠️ Troubleshooting
 
-# Initialize schema
-docker exec -it deploy-postgres-1 psql -U postgres -d security_analytics -f /docker-entrypoint-initdb.d/init-db.sql
-```
+**Container fails to start?**
+Check logs: `docker-compose logs <service_name>`
 
-### 5. Start Services
+**"Connection Refused" from UI to API?**
+Ensure Nginx proxy pass is correctly configured to point to `http://dashboard-api:8081`.
 
-```bash
-# Start infrastructure
-docker-compose up -d zookeeper kafka redis postgres opensearch clickhouse
-
-# Wait for infrastructure
-sleep 30
-
-# Start processing services
-docker-compose up -d \
-  ingestion-gateway \
-  parser-normalizer \
-  threat-enricher \
-  detection-engine \
-  alert-correlator \
-  soar-orchestrator
-
-# Wait for services
-sleep 20
-
-# Start APIs and UI
-docker-compose up -d \
-  dashboard-api \
-  sensor-controller \
-  asset-service \
-  ui
-```
-
-### 6. Verify Deployment
-
-```bash
-# Check all services
-docker-compose ps
-
-# Check health
-curl http://localhost:8081/health
-curl http://localhost:8080/health
-
-# Check OpenSearch
-curl http://localhost:9200/_cluster/health
-
-# Check Kafka topics
-docker exec deploy-kafka-1 kafka-topics.sh --list --bootstrap-server localhost:9092
-```
-
-Expected topics:
-- `raw-logs`
-- `normalized-logs`
-- `enriched-logs`
-- `alerts`
-- `security-alerts`
-- `correlated-alerts`
-
-### 7. Configure Log Shippers
-
-#### Zeek Setup
-
-```bash
-# On Zeek sensor
-# Edit /etc/zeek/node.cfg
-[logger]
-type=logger
-host=localhost
-
-# Install JSON log writer
-zeek-config --install json-logs
-
-# Restart Zeek
-zeekctl deploy
-
-# Forward logs
-tail -f /var/log/zeek/conn.log | \
-  jq -c '.' | \
-  while read line; do
-    curl -X POST http://NDR_HOST:8080/ingest \
-      -H "Content-Type: application/json" \
-      -d "$line"
-  done
-```
-
-#### Suricata Setup
-
-```bash
-# On Suricata sensor
-# Edit /etc/suricata/suricata.yaml
-outputs:
-  - eve-log:
-      enabled: yes
-      filetype: regular
-      filename: eve.json
-      types:
-        - alert
-        - http
-        - dns
-        - tls
-        - ssh
-
-# Restart Suricata
-systemctl restart suricata
-
-# Forward logs
-tail -f /var/log/suricata/eve.json | \
-  while read line; do
-    curl -X POST http://NDR_HOST:8080/ingest \
-      -H "Content-Type: application/json" \
-      -d "$line"
-  done
-```
-
-## High Availability Setup
-
-### Kafka Cluster
-
-```yaml
-# docker-compose.prod.yaml
-services:
-  kafka-1:
-    image: confluentinc/cp-kafka:7.5.0
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
-      
-  kafka-2:
-    image: confluentinc/cp-kafka:7.5.0
-    environment:
-      KAFKA_BROKER_ID: 2
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
-```
-
-### OpenSearch Cluster
-
-```yaml
-opensearch-node1:
-  image: opensearchproject/opensearch:2.9.0
-  environment:
-    - cluster.name=ndr-cluster
-    - node.name=opensearch-node1
-    - discovery.seed_hosts=opensearch-node1,opensearch-node2
-    - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
-    
-opensearch-node2:
-  image: opensearchproject/opensearch:2.9.0
-  environment:
-    - cluster.name=ndr-cluster
-    - node.name=opensearch-node2
-    - discovery.seed_hosts=opensearch-node1,opensearch-node2
-```
-
-## Security Hardening
-
-### 1. Enable TLS
-
-```yaml
-# Add TLS certificates
-services:
-  dashboard-api:
-    environment:
-      - TLS_CERT=/certs/server.crt
-      - TLS_KEY=/certs/server.key
-    volumes:
-      - ./certs:/certs:ro
-```
-
-### 2. Network Segmentation
-
-```yaml
-networks:
-  frontend:
-    driver: bridge
-  backend:
-    driver: bridge
-    internal: true
-
-services:
-  ui:
-    networks:
-      - frontend
-      
-  kafka:
-    networks:
-      - backend
-```
-
-### 3. Secrets Management
-
-```bash
-# Use Docker secrets
-echo "postgres_password" | docker secret create db_password -
-
-# Reference in compose
-services:
-  postgres:
-    secrets:
-      - db_password
-    environment:
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-```
-
-## Monitoring
-
-### Prometheus Metrics
-
-```yaml
-# Add Prometheus exporter
-services:
-  prometheus:
-    image: prom/prometheus:latest
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-      
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
-```
-
-### Health Checks
-
-```yaml
-services:
-  dashboard-api:
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-```
-
-## Backup & Recovery
-
-### Database Backup
-
-```bash
-# Daily backup
-docker exec deploy-postgres-1 pg_dump -U postgres security_analytics > backup_$(date +%Y%m%d).sql
-
-# Restore
-docker exec -i deploy-postgres-1 psql -U postgres security_analytics < backup_20250101.sql
-```
-
-### OpenSearch Snapshots
-
-```bash
-# Create snapshot repository
-curl -X PUT "localhost:9200/_snapshot/ndr_backup" -H 'Content-Type: application/json' -d'
-{
-  "type": "fs",
-  "settings": {
-    "location": "/mnt/backups/opensearch"
-  }
-}
-'
-
-# Create snapshot
-curl -X PUT "localhost:9200/_snapshot/ndr_backup/snapshot_1?wait_for_completion=true"
-```
-
-## Scaling
-
-### Horizontal Scaling
-
-```bash
-# Scale processing services
-docker-compose up -d --scale parser-normalizer=3
-docker-compose up -d --scale detection-engine=2
-docker-compose up -d --scale threat-enricher=2
-```
-
-### Partition Tuning
-
-```bash
-# Increase Kafka partitions
-docker exec deploy-kafka-1 kafka-topics.sh \
-  --bootstrap-server localhost:9092 \
-  --alter --topic normalized-logs \
-  --partitions 6
-```
-
-## Troubleshooting
-
-See [RUNBOOK.md](RUNBOOK.md) for common issues and solutions.
-
-## Upgrading
-
-```bash
-# Pull latest
-git pull origin main
-
-# Rebuild services
-docker-compose build
-
-# Rolling update (one service at a time)
-docker-compose up -d --no-deps parser-normalizer
-docker-compose up -d --no-deps detection-engine
-```
+**OpenSearch exits with code 137?**
+This usually means OOM (Out of Memory). Increase Docker memory limit or adjust `OPENSEARCH_JAVA_OPTS`.

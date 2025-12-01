@@ -2,59 +2,201 @@
  * Event Search Interface
  * Advanced search for security events
  */
-import { useState } from 'react';
-import { Search, Filter, Download, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Filter, Download, Calendar, Save } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import LoadingSpinner from './LoadingSpinner';
 import api from '../utils/api';
 import './EventSearch.css';
 
 export default function EventSearch() {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [timeRange, setTimeRange] = useState('24h');
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [newSearchName, setNewSearchName] = useState('');
+  const [chartData, setChartData] = useState([]);
 
-  const handleSearch = async (e) => {
-    e?.preventDefault();
-    if (!query.trim()) return;
+  useEffect(() => {
+    loadSavedSearches();
+  }, []);
 
-    setLoading(true);
+  const loadSavedSearches = async () => {
     try {
-      // In a real app, this would call the search API
-      // const data = await api.searchEvents({ query, range: timeRange });
-      
-      // Mock simulation for UI demonstration
-      await new Promise(r => setTimeout(r, 800));
-      const mockResults = Array(10).fill(0).map((_, i) => ({
-        id: `evt-${Date.now()}-${i}`,
-        timestamp: new Date().toISOString(),
-        source_ip: `192.168.1.${100 + i}`,
-        dest_ip: `10.0.0.${50 + i}`,
-        protocol: ['TCP', 'UDP', 'HTTP', 'DNS'][Math.floor(Math.random() * 4)],
-        event_type: 'network_connection',
-        details: `Connection to external host on port ${80 + i}`
-      }));
-      setResults(mockResults);
+      const searches = await api.getSavedSearches();
+      setSavedSearches(searches || []);
     } catch (error) {
-      console.error('Search failed:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load saved searches:', error);
     }
   };
+
+  const handleSaveSearch = async () => {
+    if (!newSearchName.trim()) return;
+    try {
+      await api.saveSearch({
+        name: newSearchName,
+        query: mode === 'raw' ? { q: query } : { structuredQuery: clauses },
+        visualization_type: 'histogram'
+      });
+      setNewSearchName('');
+      setShowSaveModal(false);
+      loadSavedSearches();
+    } catch (error) {
+      console.error('Failed to save search:', error);
+    }
+  };
+
+  const loadSearch = (search) => {
+    if (search.query.q) {
+      setMode('raw');
+      setQuery(search.query.q);
+    } else if (search.query.structuredQuery) {
+      setMode('builder');
+      setClauses(search.query.structuredQuery);
+    }
+    // Trigger search automatically
+    setTimeout(handleSearch, 100);
+  };
+
+  // Prepare chart data from results
+  useEffect(() => {
+    if (results.length > 0) {
+      // Simple client-side aggregation by hour/minute
+      const buckets = {};
+      results.forEach(evt => {
+        const time = new Date(evt.timestamp);
+        const key = time.setMinutes(0, 0, 0); // Aggregate by hour
+        buckets[key] = (buckets[key] || 0) + 1;
+      });
+      
+      const data = Object.keys(buckets).map(key => ({
+        time: new Date(parseInt(key)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        count: buckets[key]
+      })).sort((a, b) => a.time.localeCompare(b.time)); // Sort by time string (rough approximation)
+      
+      setChartData(data);
+    }
+  }, [results]);
 
   return (
     <div className="event-search-container">
       <div className="search-header">
-        <div className="search-input-wrapper">
-          <Search className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search events (e.g. ip=192.168.1.1 OR protocol=HTTP)..." 
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          />
+        <div className="header-top-row">
+          <div className="search-mode-toggle">
+            <button 
+              className={`mode-btn ${mode === 'builder' ? 'active' : ''}`}
+              onClick={() => setMode('builder')}
+            >
+              Visual Builder
+            </button>
+            <button 
+              className={`mode-btn ${mode === 'raw' ? 'active' : ''}`}
+              onClick={() => setMode('raw')}
+            >
+              Raw Query
+            </button>
+          </div>
+          
+          <div className="saved-searches-controls">
+            <select 
+              className="saved-search-select"
+              onChange={(e) => {
+                const search = savedSearches.find(s => s.id === parseInt(e.target.value));
+                if (search) loadSearch(search);
+              }}
+              defaultValue=""
+            >
+              <option value="" disabled>Load Saved Search...</option>
+              {savedSearches.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <button className="btn-secondary" onClick={() => setShowSaveModal(true)}>
+              <Save className="w-4 h-4" /> Save
+            </button>
+          </div>
         </div>
+
+        {showSaveModal && (
+          <div className="save-search-modal">
+            <input 
+              type="text" 
+              placeholder="Search Name..." 
+              value={newSearchName}
+              onChange={(e) => setNewSearchName(e.target.value)}
+              className="save-input"
+            />
+            <button className="btn-primary" onClick={handleSaveSearch}>Save</button>
+            <button className="btn-secondary" onClick={() => setShowSaveModal(false)}>Cancel</button>
+          </div>
+        )}
+
+        {mode === 'raw' ? (
+          <div className="search-input-wrapper">
+            <Search className="search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search events (e.g. ip=192.168.1.1 OR protocol=HTTP)..." 
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+          </div>
+        ) : (
+          <div className="query-builder">
+            {clauses.map((clause, index) => (
+              <div key={clause.id} className="query-clause">
+                {index > 0 && (
+                  <select 
+                    value={clause.logic}
+                    onChange={(e) => updateClause(clause.id, 'logic', e.target.value)}
+                    className="logic-select"
+                  >
+                    <option value="AND">AND</option>
+                    <option value="OR">OR</option>
+                  </select>
+                )}
+                <select 
+                  value={clause.field}
+                  onChange={(e) => updateClause(clause.id, 'field', e.target.value)}
+                  className="field-select"
+                >
+                  <option value="source.ip">Source IP</option>
+                  <option value="destination.ip">Dest IP</option>
+                  <option value="destination.port">Dest Port</option>
+                  <option value="network.protocol">Protocol</option>
+                  <option value="event.severity">Severity</option>
+                  <option value="event.category">Category</option>
+                </select>
+                <select 
+                  value={clause.operator}
+                  onChange={(e) => updateClause(clause.id, 'operator', e.target.value)}
+                  className="operator-select"
+                >
+                  <option value="is">is</option>
+                  <option value="is_not">is not</option>
+                  <option value="contains">contains</option>
+                  <option value="exists">exists</option>
+                </select>
+                <input 
+                  type="text"
+                  value={clause.value}
+                  onChange={(e) => updateClause(clause.id, 'value', e.target.value)}
+                  placeholder="Value..."
+                  className="value-input"
+                />
+                <button 
+                  onClick={() => removeClause(clause.id)}
+                  className="remove-clause-btn"
+                  disabled={clauses.length === 1}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button onClick={addClause} className="add-clause-btn">
+              + Add Condition
+            </button>
+          </div>
+        )}
         
         <div className="search-controls">
           <select 
@@ -68,10 +210,6 @@ export default function EventSearch() {
             <option value="30d">Last 30 Days</option>
           </select>
           
-          <button className="btn-icon" title="Filter">
-            <Filter className="w-4 h-4" />
-          </button>
-          
           <button className="btn-primary" onClick={handleSearch} disabled={loading}>
             {loading ? <LoadingSpinner size="small" /> : 'Search'}
           </button>
@@ -83,6 +221,24 @@ export default function EventSearch() {
           <LoadingSpinner size="medium" message="Searching events..." />
         ) : results.length > 0 ? (
           <div className="results-section">
+            {/* Visualization */}
+            <div className="results-chart">
+              <h3>Event Volume</h3>
+              <div style={{ width: '100%', height: 200 }}>
+                <ResponsiveContainer>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="time" stroke="#94a3b8" />
+                    <YAxis stroke="#94a3b8" />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
+                    />
+                    <Bar dataKey="count" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
             <div className="results-header">
               <span>Results: {results.length} events</span>
               <button className="btn-export">

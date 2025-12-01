@@ -44,6 +44,31 @@ function Dashboard() {
     eps: 2400
   });
 
+  // Fetch real dashboard stats from API
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const data = await api.getDashboardStats();
+        if (data && data.summary) {
+          setStats(prev => ({
+            ...prev,
+            totalAlerts: data.summary.open_alerts || prev.totalAlerts,
+            criticalAlerts: data.summary.critical_alerts || prev.criticalAlerts,
+            totalEvents: data.summary.total_events || prev.totalEvents,
+            activeAssets: data.summary.assets_count || prev.activeAssets
+          }));
+        }
+      } catch (error) {
+        console.warn('Failed to fetch dashboard stats, using mock data', error);
+      }
+    };
+
+    fetchDashboardData();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Real-time Stats Simulation
   useEffect(() => {
     const interval = setInterval(() => {

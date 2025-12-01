@@ -3,9 +3,10 @@
  * Shows detailed alert information with correlated events
  */
 import { useState, useEffect } from 'react';
-import { X, Shield, Clock, TrendingUp, Link, FileText, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Shield, Clock, TrendingUp, Link, FileText, AlertTriangle, CheckCircle, Download } from 'lucide-react';
 import api from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
+import AttackChainGraph from './AttackChainGraph';
 import './AlertModal.css';
 
 export default function AlertModal({ alertId, onClose }) {
@@ -13,7 +14,10 @@ export default function AlertModal({ alertId, onClose }) {
   const [chain, setChain] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
-  const [notes, setNotes] = useState('');
+  const [newNote, setNewNote] = useState('');
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
 
   useEffect(() => {
     const fetchAlertData = async () => {
@@ -22,11 +26,11 @@ export default function AlertModal({ alertId, onClose }) {
         // Try to fetch from API first
         const [alertData, chainData] = await Promise.all([
           api.getAlertById(alertId),
-          api.getCorrelatedAlerts(alertId).catch(() => ({ chain: [] }))
+          api.getCorrelatedAlerts(alertId).catch(() => ({ alerts: [] })) // Changed chain to alerts
         ]);
         
         setAlert(alertData);
-        setChain(chainData.chain || []);
+        setChain(chainData?.alerts || []); // Changed chain to alerts
       } catch (error) {
         console.warn('Failed to load alert from API, using mock data:', error);
         // Fallback to mock data for demo purposes
@@ -80,16 +84,61 @@ export default function AlertModal({ alertId, onClose }) {
   };
 
   const handleAddNote = async () => {
-    if (!notes.trim()) return;
+    if (!newNote.trim()) return;
     
     try {
-      await api.addAlertNote(alertId, notes);
-      setNotes('');
+      await api.addAlertNote(alertId, newNote);
+      setNewNote('');
       // Refresh alert data
       const updated = await api.getAlertById(alertId);
       setAlert(updated);
     } catch (error) {
       console.error('Failed to add note:', error);
+    }
+  };
+
+  const handleAiTriage = async () => {
+    setAiLoading(true);
+    try {
+      const result = await api.triageAlert(alertId, alert);
+      setAiAnalysis(result);
+    } catch (error) {
+      console.error('AI Triage failed:', error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    setReportLoading(true);
+    try {
+      const report = await api.generateReport(alertId, alert);
+      // Create a blob and download it
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `incident-report-${alertId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Report generation failed:', error);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleDownloadPcap = async () => {
+    try {
+      // In a real implementation, we would request a PCAP extract for the alert timeframe
+      // For now, we attempt to download a file associated with this alert
+      const filename = `alert-${alertId}.pcap`;
+      const url = await api.downloadPcap(filename);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Failed to download PCAP:', error);
     }
   };
 
@@ -154,18 +203,24 @@ export default function AlertModal({ alertId, onClose }) {
             Details
           </button>
           <button 
-            className={`tab ${activeTab === 'chain' ? 'active' : ''}`}
+            className={`tab-btn ${activeTab === 'chain' ? 'active' : ''}`}
             onClick={() => setActiveTab('chain')}
           >
-            <Link className="w-4 h-4" />
-            Attack Chain ({chain.length})
+            <Link className="w-4 h-4" /> Attack Chain
           </button>
           <button 
-            className={`tab ${activeTab === 'notes' ? 'active' : ''}`}
+            className={`tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ai')}
+          >
+            <div className="flex items-center gap-2">
+              <span>🤖</span> AI Analysis
+            </div>
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'notes' ? 'active' : ''}`}
             onClick={() => setActiveTab('notes')}
           >
-            <FileText className="w-4 h-4" />
-            Notes ({alert.notes?.length || 0})
+            <FileText className="w-4 h-4" /> Notes ({alert.notes?.length || 0})
           </button>
         </div>
 
@@ -242,26 +297,31 @@ export default function AlertModal({ alertId, onClose }) {
                   <p>No correlated alerts found</p>
                 </div>
               ) : (
-                <div className="timeline">
-                  {chain.map((item, idx) => (
-                    <div key={idx} className="timeline-item">
-                      <div className="timeline-marker"></div>
-                      <div className="timeline-content">
-                        <div className="timeline-header">
-                          <span className={`severity-badge ${item.severity}`}>
-                            {item.severity}
-                          </span>
-                          <span className="timeline-time">
-                            {new Date(item.timestamp).toLocaleString()}
-                          </span>
+                <div className="chain-graph-container">
+                  <AttackChainGraph chain={chain} />
+                  
+                  <div className="timeline mt-6">
+                    <h3>Event Timeline</h3>
+                    {chain.map((item, idx) => (
+                      <div key={idx} className="timeline-item">
+                        <div className="timeline-marker"></div>
+                        <div className="timeline-content">
+                          <div className="timeline-header">
+                            <span className={`severity-badge ${item.severity}`}>
+                              {item.severity}
+                            </span>
+                            <span className="timeline-time">
+                              {new Date(item.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <h4>{item.title || item.rule_name}</h4>
+                          <p className="timeline-meta">
+                            {item.src_ip} → {item.dst_ip} ({item.protocol})
+                          </p>
                         </div>
-                        <h4>{item.title || item.rule_name}</h4>
-                        <p className="timeline-meta">
-                          {item.src_ip} → {item.dst_ip} ({item.protocol})
-                        </p>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -303,12 +363,70 @@ export default function AlertModal({ alertId, onClose }) {
               </div>
             </div>
           )}
+
+          {activeTab === 'ai' && (
+            <div className="ai-analysis-view">
+              <div className="ai-header">
+                <div className="ai-avatar">
+                  <div className="avatar-circle">AI</div>
+                </div>
+                <div className="ai-intro">
+                  <h4>AI Security Analyst</h4>
+                  <p>Automated triage and threat assessment</p>
+                </div>
+                <button 
+                  className="btn-primary btn-sm ml-auto"
+                  onClick={() => handleAiTriage()}
+                  disabled={aiLoading}
+                >
+                  {aiLoading ? <LoadingSpinner size="small" /> : 'Run Analysis'}
+                </button>
+              </div>
+
+              {aiAnalysis ? (
+                <div className="ai-result fade-in">
+                  <div className={`ai-verdict ${aiAnalysis.severity_assessment?.toLowerCase()}`}>
+                    <span className="verdict-label">Assessment:</span>
+                    <span className="verdict-value">{aiAnalysis.severity_assessment}</span>
+                    <span className="confidence-score">
+                      Confidence: {(aiAnalysis.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <div className="ai-content">
+                    <h5>Analysis</h5>
+                    <p dangerouslySetInnerHTML={{ __html: aiAnalysis.analysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                    
+                    {aiAnalysis.recommended_actions && (
+                      <div className="ai-actions">
+                        <h5>Recommended Actions</h5>
+                        <ul>
+                          {aiAnalysis.recommended_actions.map((action, i) => (
+                            <li key={i}>{action}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="ai-placeholder">
+                  <div className="placeholder-icon">🤖</div>
+                  <p>Click "Run Analysis" to have the AI agent triage this alert.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose}>
             Close
+          </button>
+          <button className="btn-secondary" onClick={handleDownloadPcap}>
+            <Download className="w-4 h-4" />
+            Download PCAP
           </button>
           <button className="btn-danger">
             <AlertTriangle className="w-4 h-4" />

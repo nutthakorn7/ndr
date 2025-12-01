@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   X, User, Key, Shield, Bell, Monitor, Save, 
-  RefreshCw, Plus, Trash2, CheckCircle 
+  RefreshCw, Plus, Trash2, CheckCircle, AlertTriangle
 } from 'lucide-react';
 import { useToast } from './Toast';
 import './SettingsPanel.css';
@@ -88,6 +88,12 @@ export default function SettingsPanel({ onClose }) {
               onClick={() => setActiveTab('notifications')}
             >
               <Bell className="w-4 h-4" /> Notifications
+            </button>
+            <button 
+              className={`nav-item ${activeTab === 'debug' ? 'active' : ''}`}
+              onClick={() => setActiveTab('debug')}
+            >
+              <AlertTriangle className="w-4 h-4" /> Debug
             </button>
           </nav>
           <div className="settings-footer">
@@ -244,6 +250,44 @@ export default function SettingsPanel({ onClose }) {
               <div className="empty-state">
                 <Shield className="w-12 h-12 text-gray-700 mb-4" />
                 <p>This configuration section is under development.</p>
+              </div>
+            )}
+
+            {activeTab === 'debug' && (
+              <div className="form-section">
+                <div className="debug-warning">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                  <p>These tools are for testing error handling and debugging purposes only.</p>
+                </div>
+                
+                <div className="form-group">
+                  <label>Error Boundary Test</label>
+                  <p className="text-sm text-gray-400 mb-2">
+                    Clicking this button will throw a JavaScript error to test the global Error Boundary.
+                  </p>
+                  <button 
+                    className="btn-danger"
+                    onClick={() => {
+                      // This will be caught by ErrorBoundary
+                      throw new Error('Manual test error triggered from Settings');
+                    }}
+                  >
+                    <AlertTriangle className="w-4 h-4" /> Trigger Crash
+                  </button>
+                </div>
+
+                <div className="form-group">
+                  <label>API Error Simulation</label>
+                  <p className="text-sm text-gray-400 mb-2">
+                    Force next API request to fail (simulates 500 Server Error).
+                  </p>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => addToast('API Error Simulation enabled for next request', 'warning')}
+                  >
+                    <RefreshCw className="w-4 h-4" /> Simulate API Failure
+                  </button>
+                </div>
               </div>
             )}
           </div>

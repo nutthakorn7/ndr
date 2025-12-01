@@ -4,6 +4,7 @@ import './App.css';
 import { ToastProvider } from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoadingSpinner from './components/LoadingSpinner';
+import AiChatWidget from './components/AiChatWidget';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -43,6 +44,7 @@ function App() {
     <ErrorBoundary fallbackMessage="Dashboard encountered an error. Please refresh the page.">
       <ToastProvider>
         <Dashboard />
+        <AiChatWidget />
       </ToastProvider>
     </ErrorBoundary>
   );

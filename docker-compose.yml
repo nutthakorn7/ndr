@@ -1,0 +1,171 @@
+version: '3.8'
+
+services:
+  # Frontend
+  ui:
+    build: ./ui
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - dashboard-api
+    restart: always
+
+  # Backend API
+  dashboard-api:
+    build: ./services/dashboard-api
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - OPENSEARCH_URL=http://opensearch:9200
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - SENSOR_CONTROLLER_URL=http://sensor-controller:8084
+      - PCAP_SERVICE_URL=http://host.docker.internal:8089
+      - AI_SERVICE_URL=http://ai-service:8090
+      - JWT_SECRET=ndr-super-secret-key
+    depends_on:
+      - opensearch
+      - postgres
+      - redis
+      - sensor-controller
+    restart: always
+
+  sensor-controller:
+    build: ./services/sensor-controller
+    ports:
+      - "8084:8084" # Exposed for external sensors to register
+    environment:
+      - PORT=8084
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - SENSOR_COMMAND_SECRET=ndr-demo-secret
+      - KAFKA_BROKERS= # Optional: Add Kafka if needed
+    volumes:
+      - suricata-rules:/var/lib/suricata/rules
+    depends_on:
+      - postgres
+    restart: always
+
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "8087:8087"
+    environment:
+      - PORT=8087
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - JWT_SECRET=ndr-demo-secret
+    depends_on:
+      - postgres
+    restart: always
+
+  asset-service:
+    build: ./services/asset-service
+    ports:
+      - "8088:8088"
+    environment:
+      - PORT=8088
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - KAFKA_BROKERS= # Optional
+    depends_on:
+      - postgres
+    restart: always
+
+  soar-orchestrator:
+    build: ./services/soar-orchestrator
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - KAFKA_BROKERS= # Optional
+      - DRY_RUN=true
+    depends_on:
+      - postgres
+    restart: always
+
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    network_mode: "host" # Linux only. On Mac/Windows, this sees VM traffic only.
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+      - NET_RAW
+    volumes:
+      - suricata-logs:/var/log/suricata
+      - suricata-rules:/var/lib/suricata/rules
+      - ./config/suricata:/etc/suricata
+    command: -i eth0
+    restart: always
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat-oss:7.12.1
+    container_name: filebeat
+    user: root
+    volumes:
+      - suricata-logs:/var/log/suricata:ro
+      - ./config/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    depends_on:
+      - opensearch
+      - suricata
+    restart: always
+
+  pcap-service:
+    build: ./services/pcap-service
+    container_name: pcap-service
+    network_mode: "host" # Needs to see the same traffic as Suricata
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - pcap-data:/var/lib/pcap
+    environment:
+      - PORT=8089
+      - INTERFACE=eth0
+    restart: always
+
+  ai-service:
+    build: ./services/ai-service
+    container_name: ai-service
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT=8090
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    restart: always
+
+  # Databases & Infrastructure
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true 
+    # Ports removed for security - internal only
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=security_analytics
+    # Ports removed for security - internal only
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    # Ports removed for security - internal only
+
+volumes:
+  opensearch-data:
+  postgres-data:
+  suricata-logs:
+  suricata-rules:
+  pcap-data:

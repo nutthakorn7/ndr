@@ -8,6 +8,7 @@ import {
   Monitor, Printer, Wifi, Shield, AlertCircle,
   ChevronRight, Clock, Globe
 } from 'lucide-react';
+import api from '../utils/api';
 import './AssetDiscovery.css';
 
 export default function AssetDiscovery() {
@@ -16,13 +17,57 @@ export default function AssetDiscovery() {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = useState({ total: 0, new24h: 0, highRisk: 0 });
 
   useEffect(() => {
-    // Simulate fetching asset data
+    // Fetch asset data from asset-service API
     const loadAssets = async () => {
       setLoading(true);
       try {
-        await new Promise(r => setTimeout(r, 800));
+        // Try to fetch real assets from asset-service
+        const [assetsResponse, statsResponse] = await Promise.all([
+          api.getAssets({ limit: 100 }),
+          api.getAssetStats().catch(() => null)
+        ]);
+        
+        if (assetsResponse && assetsResponse.assets) {
+          // Transform API response to component format
+          const transformedAssets = assetsResponse.assets.map(asset => ({
+            id: asset.id,
+            ip: asset.ip_address || 'N/A',
+            mac: asset.mac_address || 'N/A',
+            hostname: asset.hostname || asset.ip_address || 'Unknown',
+            type: mapAssetType(asset.asset_type),
+            os: asset.os_type || 'Unknown OS',
+            vendor: asset.vendor || 'Unknown',
+            firstSeen: asset.first_seen || asset.created_at,
+            lastSeen: formatLastSeen(asset.last_seen),
+            riskScore: calculateRiskScore(asset),
+            openPorts: asset.open_ports || [],
+            tags: asset.tags || []
+          }));
+          
+          setAssets(transformedAssets);
+          
+          // Update stats from API or calculate from data
+          if (statsResponse) {
+            setStats({
+              total: statsResponse.total_assets || transformedAssets.length,
+              new24h: statsResponse.new_24h || 0,
+              highRisk: statsResponse.high_risk || transformedAssets.filter(a => a.riskScore >= 50).length
+            });
+          } else {
+            setStats({
+              total: transformedAssets.length,
+              new24h: 0,
+              highRisk: transformedAssets.filter(a => a.riskScore >= 50).length
+            });
+          }
+        } else {
+          throw new Error('Invalid asset response');
+        }
+      } catch (error) {
+        console.warn('Failed to load assets from API, using mock data:', error);
         
         const mockAssets = [
           { 
@@ -97,11 +142,60 @@ export default function AssetDiscovery() {
           }
         ];
         setAssets(mockAssets);
-      } catch (error) {
-        console.error('Failed to load assets:', error);
+        setStats({
+          total: mockAssets.length,
+          new24h: 3,
+          highRisk: mockAssets.filter(a => a.riskScore >= 50).length
+        });
       } finally {
         setLoading(false);
       }
+    };
+
+    // Helper function to map asset types
+    const mapAssetType = (type) => {
+      const typeMap = {
+        endpoint: 'workstation',
+        server: 'server',
+        laptop: 'laptop',
+        mobile: 'mobile',
+        iot: 'iot',
+        printer: 'printer',
+        network: 'network'
+      };
+      return typeMap[type?.toLowerCase()] || 'workstation';
+    };
+
+    // Helper function to format last seen
+    const formatLastSeen = (lastSeenDate) => {
+      if (!lastSeenDate) return 'Unknown';
+      const date = new Date(lastSeenDate);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+      return `${Math.floor(diffMins / 1440)}d ago`;
+    };
+
+    // Helper function to calculate risk score
+    const calculateRiskScore = (asset) => {
+      // Simple risk calculation based on criticality and open ports
+      let score = 0;
+      
+      if (asset.criticality === 'high') score += 40;
+      else if (asset.criticality === 'medium') score += 25;
+      else if (asset.criticality === 'critical') score += 60;
+      
+      // Add points for open ports
+      const portCount = asset.open_ports?.length || 0;
+      if (portCount > 10) score += 30;
+      else if (portCount > 5) score += 15;
+      else if (portCount > 0) score += 5;
+      
+      return Math.min(100, score);
     };
 
     loadAssets();
@@ -148,7 +242,7 @@ export default function AssetDiscovery() {
             <Server className="w-6 h-6" />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{assets.length}</div>
+            <div className="stat-value">{stats.total}</div>
             <div className="stat-label">Total Assets</div>
           </div>
         </div>
@@ -157,7 +251,7 @@ export default function AssetDiscovery() {
             <Clock className="w-6 h-6" />
           </div>
           <div className="stat-info">
-            <div className="stat-value">3</div>
+            <div className="stat-value">{stats.new24h}</div>
             <div className="stat-label">New (24h)</div>
           </div>
         </div>
@@ -166,7 +260,7 @@ export default function AssetDiscovery() {
             <AlertCircle className="w-6 h-6" />
           </div>
           <div className="stat-info">
-            <div className="stat-value">2</div>
+            <div className="stat-value">{stats.highRisk}</div>
             <div className="stat-label">High Risk</div>
           </div>
         </div>

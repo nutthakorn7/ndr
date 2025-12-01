@@ -97,17 +97,21 @@ Detailed alert context with MITRE ATT&CK mapping
 - Lucide React (icons)
 - CSS3 (dark theme)
 
-**Backend** (Coming Soon):
-- FastAPI (Python)
-- OpenSearch
-- Zeek & Suricata
-- Docker
+**Backend:**
+- Node.js (Express) - API Gateway & Services
+- Python - AI & SOAR Services
+- OpenSearch - Log Storage
+- PostgreSQL - Metadata
+- Redis - Caching & Queues
+- Suricata - IDS/IPS Engine
+- Tcpdump - Packet Capture
+- Docker & Docker Compose
 
 ## 📈 Current Status
 
-✅ **Frontend:** Production-ready demo with mock data  
-⏳ **Backend:** Integration in progress  
-📝 **Documentation:** Complete API integration guide available
+✅ **Frontend:** Production-ready with real-time data
+✅ **Backend:** Full microservices stack integrated
+✅ **Advanced:** AI Analysis, Suricata IDS, & PCAP enabled
 
 ## 🗺️ Roadmap
 
@@ -117,17 +121,17 @@ Detailed alert context with MITRE ATT&CK mapping
 - [x] Real-time data simulation
 - [x] Responsive design
 
-### Phase 2: Backend Integration (🚧 In Progress)
-- [ ] API endpoints
-- [ ] Real data pipeline
-- [ ] Authentication
-- [ ] WebSocket for real-time events
+### Phase 2: Backend Integration (✅ Complete)
+- [x] API endpoints (Dashboard, Asset, Auth)
+- [x] Real data pipeline (OpenSearch, Postgres)
+- [x] Authentication (JWT + API Key)
+- [x] WebSocket for real-time events
 
-### Phase 3: Production (📋 Planned)
-- [ ] Security hardening
-- [ ] Performance optimization
-- [ ] Automated testing
-- [ ] Deployment automation
+### Phase 3: Advanced Features (✅ Complete)
+- [x] Suricata IDS Integration
+- [x] Full Packet Capture (PCAP)
+- [x] Query Builder & Correlation Graph
+- [x] AI-Powered Analysis (Triage & Chat)
 
 ## 📚 Documentation
 

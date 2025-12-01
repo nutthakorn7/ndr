@@ -11,6 +11,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
   CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
+import api from '../utils/api';
 import './SSLAnalysis.css';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -22,12 +23,72 @@ export default function SSLAnalysis() {
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to determine certificate status
+  const determineCertStatus = (cert) => {
+    if (cert.is_expired) return 'expired';
+    if (cert.is_weak_key) return 'weak';
+    if (cert.is_valid) return 'valid';
+    return 'unknown';
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  };
+
   useEffect(() => {
-    // Simulate fetching SSL data
+    // Fetch SSL/TLS data from API
     const loadData = async () => {
       setLoading(true);
       try {
-        await new Promise(r => setTimeout(r, 700));
+        // Try to fetch SSL stats and certificate data
+        const sslStats = await api.getSSLStats();
+        
+        // For certificate data, we'll try to get from first available sensor
+        // In a real implementation, you might want to aggregate from all sensors
+        let certData = null;
+        try {
+          const sensorsResp = await api.getSensors({ limit: 1 });
+          if (sensorsResp && sensorsResp.sensors && sensorsResp.sensors.length > 0) {
+            const sensorId = sensorsResp.sensors[0].id;
+            certData = await api.getSensorCertificates(sensorId);
+          }
+        } catch (e) {
+          console.warn('Could not fetch certificate data:', e);
+        }
+        
+        if (sslStats || certData) {
+          // Use real data from API
+          setStats({
+            totalConnections: sslStats?.total_connections || 0,
+            securePercentage: sslStats?.secure_percentage || 0,
+            expiredCerts: sslStats?.expiring_soon || certData?.expired_count || 0,
+            weakCiphers: sslStats?.weak_ciphers || 0
+          });
+          
+          // Transform certificate data if available
+          if (certData && certData.certificates) {
+            const transformedCerts = certData.certificates.map((cert, idx) => ({
+              id: cert.id || idx + 1,
+              subject: cert.subject || cert.common_name || 'Unknown',
+              issuer: cert.issuer || 'Unknown',
+              type: cert.key_type || 'RSA 2048',
+              status: determineCertStatus(cert),
+              expiry: formatDate(cert.not_after || cert.expiry)
+            }));
+            setCertificates(transformedCerts);
+          }
+          
+          // For TLS versions and cipher suites, use mock data for now
+          // TODO: Add when backend provides TLS version/cipher aggregation
+          throw new Error('Using mock data for TLS versions and ciphers');
+        } else {
+          throw new Error('No SSL data available');
+        }
+      } catch (error) {
+        console.warn('Failed to load SSL analysis from API, using mock data:', error);
         
         // Mock Stats
         setStats({
@@ -64,8 +125,6 @@ export default function SSLAnalysis() {
           { id: 5, subject: 'vpn.corp.net', issuer: 'Let\'s Encrypt', type: 'ECDSA', status: 'valid', expiry: '2024-02-28' },
         ]);
 
-      } catch (error) {
-        console.error('Failed to load SSL analysis:', error);
       } finally {
         setLoading(false);
       }

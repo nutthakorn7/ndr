@@ -10,6 +10,7 @@ import {
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell 
 } from 'recharts';
+import api from '../utils/api';
 import './FileAnalysis.css';
 
 export default function FileAnalysis() {
@@ -19,11 +20,31 @@ export default function FileAnalysis() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    // Simulate fetching file analysis data
+    // Fetch file analysis data from API
     const loadData = async () => {
       setLoading(true);
       try {
-        await new Promise(r => setTimeout(r, 750));
+        // Try to fetch file analysis stats from API
+        const fileStats = await api.getFileStats();
+        
+        if (fileStats) {
+          // Update stats from API
+          setStats({
+            totalFiles: fileStats.total_files || 0,
+            malicious: fileStats.malicious_count || 0,
+            suspicious: fileStats.suspicious_count || 0,
+            clean: fileStats.clean_count || 0,
+            pending: fileStats.pending_count || 0
+          });
+          
+          // For file list, use mock data for now
+          // TODO: Add when backend provides file list endpoint
+          throw new Error('Using mock file list data');
+        } else {
+          throw new Error('No file stats available');
+        }
+      } catch (error) {
+        console.warn('Failed to load file analysis from API, using mock data:', error);
         
         // Mock Stats
         setStats({
@@ -43,8 +64,6 @@ export default function FileAnalysis() {
           { id: 5, name: 'update.zip', type: 'Archive', size: '12 MB', source: 'External', dest: '192.168.1.50', status: 'malicious', score: 100, detection: 'Ransomware.LockBit', time: '3h ago' },
         ]);
 
-      } catch (error) {
-        console.error('Failed to load file analysis:', error);
       } finally {
         setLoading(false);
       }

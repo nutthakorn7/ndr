@@ -7,6 +7,7 @@ import {
   Server, Activity, Cpu, HardDrive, Wifi, 
   CheckCircle, AlertTriangle, XCircle, RefreshCw, Terminal
 } from 'lucide-react';
+import api from '../utils/api';
 import './SensorManagement.css';
 
 export default function SensorManagement() {
@@ -15,11 +16,63 @@ export default function SensorManagement() {
   const [selectedSensor, setSelectedSensor] = useState(null);
 
   useEffect(() => {
-    // Simulate fetching sensor data
+    // Helper function for uptime formatting
+    const formatUptime = (lastHeartbeat) => {
+      if (!lastHeartbeat) return '-';
+      // Example: Convert lastHeartbeat (timestamp or date string) to uptime string
+      // This is a placeholder, actual implementation might vary based on API response
+      const now = new Date();
+      const heartbeatDate = new Date(lastHeartbeat);
+      const diffMs = now.getTime() - heartbeatDate.getTime();
+      if (diffMs < 0) return '0d 0h 0m'; // Future heartbeat, should not happen
+      
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      return `${days}d ${hours}h ${minutes}m`;
+    };
+
+    // Helper function for traffic formatting
+    const formatTraffic = (bytesPerSec) => {
+      if (typeof bytesPerSec !== 'number' || bytesPerSec < 0) return '0 Mbps';
+      // Convert bytes/sec to Mbps
+      const mbps = (bytesPerSec * 8) / (1000 * 1000);
+      return `${mbps.toFixed(2)} Mbps`;
+    };
+
+    // Fetch sensor data from API
     const loadSensors = async () => {
       setLoading(true);
       try {
-        await new Promise(r => setTimeout(r, 800));
+        // Try to fetch real sensor data
+        const response = await api.getSensors();
+        
+        if (response && response.sensors) {
+          // Transform API response to component format
+          const transformedSensors = response.sensors.map(sensor => ({
+            id: sensor.id,
+            name: sensor.name,
+            location: sensor.location || 'Unknown',
+            status: sensor.status,
+            ip: sensor.ip_address || sensor.ip || 'N/A',
+            uptime: formatUptime(sensor.last_heartbeat),
+            cpu: sensor.last_metrics?.cpu || 0,
+            ram: sensor.last_metrics?.ram || 0,
+            disk: sensor.last_metrics?.disk || 0,
+            interface: sensor.interface || 'eth0',
+            traffic: formatTraffic(sensor.last_metrics?.bytes_per_sec),
+            version: sensor.version || '2.4.0'
+          }));
+          setSensors(transformedSensors);
+          if (transformedSensors.length > 0) {
+            setSelectedSensor(transformedSensors[0]);
+          }
+        } else {
+          throw new Error('Invalid sensor response');
+        }
+      } catch (error) {
+        console.warn('Failed to load sensors from API, using mock data:', error);
         
         const mockSensors = [
           { 
@@ -95,8 +148,6 @@ export default function SensorManagement() {
         ];
         setSensors(mockSensors);
         setSelectedSensor(mockSensors[0]);
-      } catch (error) {
-        console.error('Failed to load sensors:', error);
       } finally {
         setLoading(false);
       }

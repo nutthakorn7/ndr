@@ -792,6 +792,51 @@ app.get('/sensors/:id/config', async (req, res) => {
   });
 });
 
+// Suricata Rule Management
+const fs = require('fs');
+const path = require('path');
+const RULES_PATH = '/var/lib/suricata/rules/suricata.rules';
+
+app.get('/rules', async (req, res) => {
+  try {
+    if (fs.existsSync(RULES_PATH)) {
+      const content = fs.readFileSync(RULES_PATH, 'utf8');
+      res.json({ rules: content });
+    } else {
+      res.json({ rules: '' });
+    }
+  } catch (err) {
+    logger.error({ err }, 'Failed to read rules');
+    res.status(500).json({ error: 'Failed to read rules' });
+  }
+});
+
+app.post('/rules', async (req, res) => {
+  const { rules } = req.body;
+  if (typeof rules !== 'string') {
+    return res.status(400).json({ error: 'rules content required' });
+  }
+  
+  try {
+    // Ensure directory exists
+    const dir = path.dirname(RULES_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    fs.writeFileSync(RULES_PATH, rules, 'utf8');
+    logger.info('Updated Suricata rules');
+    
+    // In a real setup, we would trigger a Suricata reload here
+    // e.g. broadcastEvent('command', { cmd: 'reload-rules' })
+    
+    res.json({ status: 'updated', size: rules.length });
+  } catch (err) {
+    logger.error({ err }, 'Failed to write rules');
+    res.status(500).json({ error: 'Failed to write rules' });
+  }
+});
+
 const PORT = process.env.PORT || 8084;
 app.listen(PORT, () => {
   logger.info(`Sensor Controller listening on port ${PORT}`);

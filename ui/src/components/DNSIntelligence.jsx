@@ -11,6 +11,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, Cell
 } from 'recharts';
+import { 
+  mockDNSQueries, mockDNSTunneling, mockDNSQueryTypes, mockDNSVolume, mockDNSStats 
+} from '../utils/mockData';
 import './DNSIntelligence.css';
 
 export default function DNSIntelligence() {
@@ -20,38 +23,39 @@ export default function DNSIntelligence() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching DNS data
+    // Fetch DNS intelligence data from API
     const loadData = async () => {
       setLoading(true);
       try {
-        await new Promise(r => setTimeout(r, 650));
+        // Try to fetch DNS statistics from API
+        const dnsStats = await api.getDNSStats();
+        
+        if (dnsStats) {
+          // Update stats from API
+          setStats({
+            totalQueries: dnsStats.total_queries || 0,
+            blockedQueries: dnsStats.blocked_queries || 0,
+            dgaDomains: dnsStats.dga_domains || 0,
+            tunnelingAlerts: dnsStats.tunneling_alerts || 0
+          });
+          
+          // For query list and tunneling events, use mock data for now
+          // TODO: Add when backend provides DNS query history endpoint
+          throw new Error('Using mock data for queries and tunneling events');
+        } else {
+          throw new Error('No DNS stats available');
+        }
+      } catch (error) {
+        console.warn('Failed to load DNS intelligence from API, using mock data:', error);
         
         // Mock Stats
-        setStats({
-          totalQueries: 845290,
-          blockedQueries: 1240,
-          dgaDomains: 15,
-          tunnelingAlerts: 3
-        });
+        setStats(mockDNSStats);
 
         // Mock Recent Queries (Suspicious/Interesting)
-        setQueries([
-          { id: 1, domain: 'x8374.bad-site.com', type: 'A', client: '192.168.1.105', status: 'blocked', category: 'Malware', time: '2s ago' },
-          { id: 2, domain: 'google.com', type: 'A', client: '192.168.1.112', status: 'allowed', category: 'Search', time: '5s ago' },
-          { id: 3, domain: 'a.root-servers.net', type: 'AAAA', client: '192.168.1.200', status: 'allowed', category: 'Infrastructure', time: '8s ago' },
-          { id: 4, domain: 'uwq82.dga-gen.org', type: 'TXT', client: '192.168.1.15', status: 'flagged', category: 'DGA', time: '12s ago' },
-          { id: 5, domain: 'api.slack.com', type: 'CNAME', client: '192.168.1.50', status: 'allowed', category: 'Business', time: '15s ago' },
-        ]);
+        setQueries(mockDNSQueries);
 
         // Mock Tunneling Events
-        setTunnelingEvents([
-          { id: 1, domain: 'tunnel.exfil.io', method: 'TXT Records', volume: '45 MB', client: '192.168.1.105', confidence: 98, time: '10m ago' },
-          { id: 2, domain: 'c2.covert.net', method: 'Null/Private', volume: '12 KB', client: '192.168.1.15', confidence: 85, time: '1h ago' },
-          { id: 3, domain: 'long-subdomain.bad.com', method: 'Long Labels', volume: '2 MB', client: '192.168.1.200', confidence: 70, time: '3h ago' },
-        ]);
-
-      } catch (error) {
-        console.error('Failed to load DNS intelligence:', error);
+        setTunnelingEvents(mockDNSTunneling);
       } finally {
         setLoading(false);
       }
@@ -61,23 +65,10 @@ export default function DNSIntelligence() {
   }, []);
 
   // Chart Data: Query Types
-  const queryTypes = [
-    { name: 'A', count: 45000 },
-    { name: 'AAAA', count: 12000 },
-    { name: 'CNAME', count: 25000 },
-    { name: 'TXT', count: 5000 },
-    { name: 'MX', count: 2000 },
-    { name: 'PTR', count: 8000 },
-    { name: 'SRV', count: 1500 },
-  ];
+  const queryTypes = mockDNSQueryTypes;
 
   // Chart Data: Volume over time
-  const volumeData = [
-    { time: '00:00', qps: 120 }, { time: '04:00', qps: 80 },
-    { time: '08:00', qps: 450 }, { time: '12:00', qps: 600 },
-    { time: '16:00', qps: 550 }, { time: '20:00', qps: 300 },
-    { time: '24:00', qps: 150 },
-  ];
+  const volumeData = mockDNSVolume;
 
   if (loading) return <div className="loading-state">Analyzing DNS traffic...</div>;
 

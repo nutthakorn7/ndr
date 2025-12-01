@@ -1,46 +1,120 @@
 /**
  * Real-Time Event Feed
- * Live streaming of security events
+ * Live streaming of security events via WebSockets
  */
 import { useState, useEffect, useRef } from 'react';
-import { Activity, Pause, Play, Zap } from 'lucide-react';
+import { Activity, Pause, Play, Zap, Wifi, WifiOff } from 'lucide-react';
+import { io } from 'socket.io-client';
 import './RealTimeFeed.css';
+
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
 
 export default function RealTimeFeed() {
   const [events, setEvents] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
   const [stats, setStats] = useState({ eps: 0, total: 0 });
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
   const scrollRef = useRef(null);
+  const lastFetchTime = useRef(Date.now());
+  const socketRef = useRef(null);
 
   useEffect(() => {
-    // Simulate WebSocket connection
-    const interval = setInterval(() => {
+    // Initialize Socket.IO connection
+    const socket = io(SOCKET_URL, {
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+    
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket server');
+      setIsConnected(true);
+      setConnectionError(false);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket server');
+      setIsConnected(false);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.warn('WebSocket connection error:', err);
+      setConnectionError(true);
+      setIsConnected(false);
+    });
+
+    socket.on('alert', (alert) => {
       if (isPaused) return;
 
       const newEvent = {
-        id: Date.now(),
-        timestamp: new Date(),
-        type: ['DNS', 'HTTP', 'TLS', 'SSH', 'SMB'][Math.floor(Math.random() * 5)],
-        src: `192.168.1.${Math.floor(Math.random() * 255)}`,
-        dst: `10.0.0.${Math.floor(Math.random() * 255)}`,
-        info: 'Traffic detected',
-        severity: Math.random() > 0.9 ? 'high' : 'info'
+        id: alert.id,
+        timestamp: new Date(alert.timestamp),
+        type: alert.severity?.toUpperCase() || 'INFO',
+        src: alert.source_ip || 'N/A',
+        dst: alert.destination_ip || 'N/A',
+        info: alert.title || alert.description || 'Alert detected',
+        severity: mapSeverity(alert.severity)
       };
 
       setEvents(prev => {
-        const updated = [newEvent, ...prev].slice(0, 50); // Keep last 50
-        return updated;
+        const combined = [newEvent, ...prev];
+        return combined.slice(0, 50);
       });
 
+      // Update EPS
+      const now = Date.now();
+      const timeDiff = (now - lastFetchTime.current) / 1000;
+      // Simple moving average for EPS
+      const currentEps = timeDiff > 0 ? 1 / timeDiff : 0;
+      lastFetchTime.current = now;
+
       setStats(prev => ({
-        eps: Math.floor(Math.random() * 50) + 10,
+        eps: Math.round(currentEps * 10) / 10, // 1 decimal place
         total: prev.total + 1
       }));
+    });
 
-    }, 1000); // 1 event per second simulation
+    return () => {
+      socket.disconnect();
+    };
+  }, [isPaused]);
+
+  // Fallback: Generate mock events if connection fails
+  useEffect(() => {
+    let interval;
+    
+    if (connectionError && !isPaused) {
+      interval = setInterval(() => {
+        const newEvent = {
+          id: `mock-${Date.now()}`,
+          timestamp: new Date(),
+          type: ['DNS', 'HTTP', 'TLS', 'SSH', 'SMB'][Math.floor(Math.random() * 5)],
+          src: `192.168.1.${Math.floor(Math.random() * 255)}`,
+          dst: `10.0.0.${Math.floor(Math.random() * 255)}`,
+          info: 'Traffic detected (mock fallback)',
+          severity: Math.random() > 0.9 ? 'high' : 'info'
+        };
+
+        setEvents(prev => [newEvent, ...prev].slice(0, 50));
+        setStats(prev => ({
+          eps: Math.floor(Math.random() * 50) + 10,
+          total: prev.total + 1
+        }));
+      }, 2000);
+    }
 
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [connectionError, isPaused]);
+
+  // Map alert severity to feed severity
+  const mapSeverity = (severity) => {
+    if (!severity) return 'info';
+    const sev = severity.toLowerCase();
+    if (sev === 'critical' || sev === 'high') return 'high';
+    return 'info';
+  };
 
   return (
     <div className="feed-container">
@@ -48,10 +122,18 @@ export default function RealTimeFeed() {
         <div className="feed-title">
           <Activity className="w-4 h-4 text-green-400" />
           <h3>Live Event Stream</h3>
-          <span className="live-indicator">LIVE</span>
+          {isConnected ? (
+            <span className="live-indicator flex items-center gap-1">
+              <Wifi className="w-3 h-3" /> LIVE
+            </span>
+          ) : (
+            <span className="live-indicator offline flex items-center gap-1 text-yellow-500">
+              <WifiOff className="w-3 h-3" /> {connectionError ? 'OFFLINE (Mock)' : 'CONNECTING'}
+            </span>
+          )}
         </div>
         <div className="feed-controls">
-          <span className="feed-stat">{stats.eps} EPS</span>
+          <span className="feed-stat">{Math.round(stats.eps)} EPS</span>
           <button 
             className="btn-icon-sm" 
             onClick={() => setIsPaused(!isPaused)}

@@ -8,6 +8,7 @@ import {
   CheckCircle, XCircle, Clock, ArrowRight, Shield,
   RefreshCw, Link, Terminal
 } from 'lucide-react';
+import api from '../utils/api';
 import './SoarIntegration.css';
 
 export default function SoarIntegration({ view = 'playbooks' }) {
@@ -21,12 +22,78 @@ export default function SoarIntegration({ view = 'playbooks' }) {
     setActiveView(view);
   }, [view]);
 
+  const formatLastRun = (timestamp) => {
+    if (!timestamp) return '-';
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diffMs = now.getTime() - date.getTime();
+    const diffSec = Math.round(diffMs / 1000);
+    const diffMin = Math.round(diffSec / 60);
+    const diffHr = Math.round(diffMin / 60);
+    const diffDay = Math.round(diffHr / 24);
+
+    if (diffSec < 60) return `${diffSec}s ago`;
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffDay < 7) return `${diffDay}d ago`;
+    return date.toLocaleDateString();
+  };
+
   useEffect(() => {
-    // Simulate fetching SOAR/SIEM data
+    // Fetch SOAR/SIEM data from API
     const loadData = async () => {
       setLoading(true);
       try {
-        await new Promise(r => setTimeout(r, 800));
+        // Try to fetch real SOAR playbooks and executions from API
+        const [playbooksResponse, executionsResponse] = await Promise.all([
+          api.getPlaybooks(),
+          api.getPlaybookExecutions({ limit: 10 })
+        ]);
+        
+        if (playbooksResponse && Array.isArray(playbooksResponse) && playbooksResponse.length > 0) {
+          // Transform playbooks from API
+          const transformedPlaybooks = playbooksResponse.map(pb => ({
+            id: pb.id,
+            name: pb.name || pb.title,
+            trigger: pb.trigger || 'Manual',
+            status: pb.enabled ? 'active' : 'manual',
+            runs: pb.execution_count || 0,
+            successRate: pb.success_rate || 100,
+            lastRun: formatLastRun(pb.last_execution)
+          }));
+          setPlaybooks(transformedPlaybooks);
+        }
+        
+        if (executionsResponse && Array.isArray(executionsResponse) && executionsResponse.length > 0) {
+          // Transform execution history from API
+          const transformedHistory = executionsResponse.map(exec => ({
+            id: exec.id,
+            playbook: exec.playbook_name || 'Unknown',
+            target: exec.target || exec.alert_id || 'N/A',
+            status: exec.status === 'completed' ? 'success' : exec.status === 'failed' ? 'failed' : 'running',
+            time: formatLastRun(exec.started_at),
+            duration: exec.duration || '-'
+          }));
+          setHistory(transformedHistory);
+        }
+        
+        // For connectors, still using mock data
+        // TODO: Add when backend provides connector status endpoint
+        if ((!playbooksResponse || playbooksResponse.length === 0) && (!executionsResponse || executionsResponse.length === 0)) {
+          throw new Error('No SOAR data available from API');
+        }
+
+        // If API calls were successful, but maybe some data was empty, still set connectors mock
+        setConnectors([
+          { id: 1, name: 'Splunk Enterprise', type: 'SIEM', status: 'connected', latency: '45ms', events: '1.2M/hr' },
+          { id: 2, name: 'Elasticsearch (ELK)', type: 'SIEM', status: 'connected', latency: '12ms', events: '850k/hr' },
+          { id: 3, name: 'ServiceNow', type: 'ITSM', status: 'error', latency: '-', events: '0/hr' },
+          { id: 4, name: 'Palo Alto Firewall', type: 'Firewall', status: 'connected', latency: '22ms', events: 'Action Only' },
+          { id: 5, name: 'Slack Webhook', type: 'Notification', status: 'connected', latency: '150ms', events: 'Alerts Only' },
+        ]);
+
+      } catch (error) {
+        console.warn('Failed to load SOAR data from API, using mock data:', error);
         
         // Mock Playbooks
         setPlaybooks([
@@ -53,9 +120,6 @@ export default function SoarIntegration({ view = 'playbooks' }) {
           { id: 103, playbook: 'Send Slack Notification', target: '#security-ops', status: 'success', time: '15m ago', duration: '0.5s' },
           { id: 104, playbook: 'Isolate Host', target: 'WORKSTATION-04', status: 'failed', time: '2h ago', duration: '5s' },
         ]);
-
-      } catch (error) {
-        console.error('Failed to load SOAR data:', error);
       } finally {
         setLoading(false);
       }

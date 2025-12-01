@@ -1,0 +1,18 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/suricata/eve.json
+  json.keys_under_root: true
+  json.add_error_key: true
+  fields:
+    event.dataset: suricata.eve
+
+output.elasticsearch:
+  hosts: ["opensearch:9200"]
+  index: "logs-%{+yyyy.MM.dd}"
+  # If using HTTPS/Auth, configure here. For now, OpenSearch is unsecured internal.
+
+setup.template.name: "logs"
+setup.template.pattern: "logs-*"
+setup.ilm.enabled: false
