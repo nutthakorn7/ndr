@@ -7,79 +7,107 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use rand::prelude::*;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use linfa::prelude::*;
+use linfa_clustering::KMeans;
+use ndarray::{Array2, ArrayView1, array};
+use rand::prelude::*;
+use rand_distr::{Normal, Distribution};
 
 #[derive(Clone)]
 struct AppState {
-    model: Arc<Mutex<DummyModel>>,
+    model: Arc<Mutex<AnomalyModel>>,
 }
 
-struct DummyModel {
-    is_loaded: bool,
-    // Simple cluster centers for our dummy model
-    // The Python code generated data around +2 and -2.
-    centers: Vec<Vec<f64>>,
+struct AnomalyModel {
+    centroids: Option<Array2<f64>>,
     threshold: f64,
 }
 
-impl DummyModel {
+impl AnomalyModel {
     fn new() -> Self {
         Self {
-            is_loaded: false,
-            centers: vec![],
+            centroids: None,
             threshold: 0.0,
         }
     }
 
     fn train(&mut self) {
-        // Simulate training by setting up the clusters as per the Python script's logic
-        // Python: X_train = np.r_[X_train + 2, X_train - 2]
-        // So we have centers roughly at +2.0 and -2.0 for all 5 dimensions.
-        self.centers = vec![
-            vec![2.0; 5],
-            vec![-2.0; 5],
-        ];
-        // Define a threshold. In Python IsolationForest, it's complex, but here we can just say
-        // if distance > X, it's an anomaly.
-        // 0.3 * randn means spread is small. 
-        // Distance from 2.0 for a point at 2.0 is 0.
-        // Let's pick a reasonable threshold.
-        self.threshold = 1.5; 
-        self.is_loaded = true;
-        tracing::info!("Dummy model trained and saved (in-memory).");
+        tracing::info!("Starting model training with K-Means...");
+        
+        // Generate synthetic "normal" traffic data
+        // We simulate 5 features: bytes_sent, bytes_recv, pkts_sent, pkts_recv, duration
+        // We'll generate 2 clusters of "normal" behavior.
+        // Cluster 1: Small flows (e.g., DNS, HTTP keepalive)
+        // Cluster 2: Medium flows (e.g., standard web browsing)
+        
+        let n_samples = 200;
+        let mut data = Vec::with_capacity(n_samples * 5);
+        let mut rng = rand::thread_rng();
+        
+        // Cluster 1: Small flows (log-scaled values around 1.0)
+        let normal1 = Normal::new(1.0, 0.2).unwrap();
+        for _ in 0..n_samples/2 {
+            for _ in 0..5 {
+                data.push(normal1.sample(&mut rng));
+            }
+        }
+
+        // Cluster 2: Medium flows (log-scaled values around 3.0)
+        let normal2 = Normal::new(3.0, 0.5).unwrap();
+        for _ in 0..n_samples/2 {
+            for _ in 0..5 {
+                data.push(normal2.sample(&mut rng));
+            }
+        }
+
+        // Create ndarray
+        let dataset_array = Array2::from_shape_vec((n_samples, 5), data).unwrap();
+        let dataset = Dataset::from(dataset_array);
+
+        // Train K-Means with 2 clusters
+        let model = KMeans::params(2)
+            .max_n_iterations(100)
+            .tolerance(1e-5)
+            .fit(&dataset)
+            .expect("KMeans training failed");
+
+        self.centroids = Some(model.centroids().clone());
+        
+        // Set threshold based on max distance in training set (plus some margin)
+        // In a real system, we'd calculate the 99th percentile distance.
+        // Here we'll just pick a reasonable heuristic for log-scaled data.
+        // If a point is > 2.0 units away from nearest centroid in log-space, it's likely anomalous.
+        self.threshold = 2.0; 
+        
+        tracing::info!("Model trained successfully. Centroids: {:?}", self.centroids.as_ref().unwrap());
     }
 
     fn predict(&self, features: &[f64]) -> (i32, bool, f64) {
-        if !self.is_loaded {
-            return (0, false, 0.0); // Should be handled by caller
+        if self.centroids.is_none() {
+            return (0, false, 0.0);
         }
 
-        // Calculate distance to nearest center
+        let centroids = self.centroids.as_ref().unwrap();
+        let point = ArrayView1::from(features);
+
+        // Find distance to nearest centroid
         let mut min_dist = f64::MAX;
-        for center in &self.centers {
-            let dist: f64 = features.iter().zip(center.iter())
-                .map(|(a, b)| (a - b).powi(2))
-                .sum::<f64>()
-                .sqrt();
+        for centroid in centroids.outer_iter() {
+            let dist = (&point - &centroid).mapv(|x| x.powi(2)).sum().sqrt();
             if dist < min_dist {
                 min_dist = dist;
             }
         }
 
-        // Python IsolationForest: -1 for anomaly, 1 for normal.
-        // Decision function: lower = more anomalous.
-        // Here, higher distance = more anomalous.
-        // Let's map distance to a score.
-        // If dist > threshold -> Anomaly (-1)
-        
         let is_anomaly = min_dist > self.threshold;
         let prediction = if is_anomaly { -1 } else { 1 };
         
-        // Confidence/Score: In Python, decision_function returns a score.
-        // We can just return -min_dist as a proxy for "score" (lower = more anomalous).
-        let score = -min_dist;
+        // Score: Higher distance = higher anomaly score.
+        // We return negative distance as "confidence" of normality, or just distance as anomaly score.
+        // Let's return distance as the score.
+        let score = min_dist;
 
         (prediction, is_anomaly, score)
     }
@@ -96,9 +124,9 @@ struct FlowData {
 
 #[derive(Serialize)]
 struct Prediction {
-    anomaly_score: i32,
+    anomaly_score: f64,
     is_anomaly: bool,
-    confidence: f64,
+    prediction: i32,
 }
 
 #[tokio::main]
@@ -110,9 +138,9 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let model = Arc::new(Mutex::new(DummyModel::new()));
+    let model = Arc::new(Mutex::new(AnomalyModel::new()));
     
-    // Initial "training"
+    // Initial training
     {
         let mut m = model.lock().unwrap();
         m.train();
@@ -139,7 +167,7 @@ async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
     let model = state.model.lock().unwrap();
     Json(serde_json::json!({
         "status": "healthy",
-        "model_loaded": model.is_loaded
+        "model_loaded": model.centroids.is_some()
     }))
 }
 
@@ -149,40 +177,26 @@ async fn analyze_flow(
 ) -> Result<Json<Prediction>, (StatusCode, String)> {
     let model = state.model.lock().unwrap();
     
-    if !model.is_loaded {
+    if model.centroids.is_none() {
         return Err((StatusCode::SERVICE_UNAVAILABLE, "Model not loaded".to_string()));
     }
 
-    // Normalize/Preprocess features if needed. 
-    // The Python script didn't seem to do explicit scaling on the input, 
-    // but the training data was small (around +/- 2).
-    // Real flow data might be huge (bytes ~ 1000s).
-    // The Python script was a dummy, so it likely expected inputs to be in that small range 
-    // OR it was just completely broken for real data.
-    // Given the task is to migrate "essentials", and this is a "dummy" model,
-    // we will assume the input features need to be scaled or we just use them as is 
-    // if the user's test data matches the dummy training data.
-    // For robustness, let's log if values are huge.
-    
+    // Preprocessing: Log scaling (log1p)
+    // This matches the training data distribution assumption
     let features = vec![
-        flow.bytes_sent as f64,
-        flow.bytes_received as f64,
-        flow.packets_sent as f64,
-        flow.packets_received as f64,
-        flow.duration,
+        (flow.bytes_sent as f64).ln_1p(),
+        (flow.bytes_received as f64).ln_1p(),
+        (flow.packets_sent as f64).ln_1p(),
+        (flow.packets_received as f64).ln_1p(),
+        flow.duration.ln_1p(),
     ];
 
-    // Simple log scaling to bring real network data (0-10000+) closer to our dummy model range (0-5)
-    // This makes the dummy model slightly more usable for "real-ish" inputs.
-    // log10(1 + x)
-    let scaled_features: Vec<f64> = features.iter().map(|x| (x + 1.0).log10()).collect();
-
-    let (anomaly_score, is_anomaly, confidence) = model.predict(&scaled_features);
+    let (prediction, is_anomaly, anomaly_score) = model.predict(&features);
 
     Ok(Json(Prediction {
         anomaly_score,
         is_anomaly,
-        confidence,
+        prediction,
     }))
 }
 

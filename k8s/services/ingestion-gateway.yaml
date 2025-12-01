@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingestion-gateway
+  namespace: default
+  labels:
+    app: ingestion-gateway
+spec:
+  ports:
+  - port: 8080
+    name: http
+  selector:
+    app: ingestion-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingestion-gateway
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: ingestion-gateway
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ingestion-gateway
+    spec:
+      containers:
+      - name: ingestion-gateway
+        image: ndr/rust-ingestion-gateway:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8080"
+        ports:
+        - containerPort: 8080
+          name: http

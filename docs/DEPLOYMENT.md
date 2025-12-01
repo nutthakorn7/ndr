@@ -39,7 +39,7 @@ The `docker-compose.yml` orchestrates the following services:
 | Service | Internal Port | External Port | Description |
 |---------|---------------|---------------|-------------|
 | `ui` | 80, 443 | 80, 443 | React frontend (HTTPS enabled) |
-| `dashboard-api` | 8081 | 8081 | Node.js backend API |
+| `dashboard-api` | 8081 | 8081 | Rust backend API |
 | `opensearch` | 9200 | 9200 | Search engine for events |
 | `postgres` | 5432 | 5432 | Relational database for alerts |
 | `redis` | 6379 | 6379 | Cache and session store |
@@ -68,8 +68,9 @@ Create a `.env` file in the root directory to override defaults:
 
 ```env
 # API Configuration
+# API Configuration
 PORT=8081
-NODE_ENV=production
+RUST_LOG=info
 
 # Database Credentials
 POSTGRES_USER=admin

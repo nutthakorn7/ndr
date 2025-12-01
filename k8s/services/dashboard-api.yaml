@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-api
+  namespace: default
+  labels:
+    app: dashboard-api
+spec:
+  ports:
+  - port: 8081
+    name: http
+  selector:
+    app: dashboard-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-api
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: dashboard-api
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dashboard-api
+    spec:
+      containers:
+      - name: dashboard-api
+        image: ndr/rust-dashboard-api:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8081"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ndr-secrets
+              key: jwt-secret
+        ports:
+        - containerPort: 8081
+          name: http

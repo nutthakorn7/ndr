@@ -69,7 +69,7 @@ npm run dev
 │         Backend Services (Coming)           │
 │  ┌──────────┐ ┌──────────┐ ┌─────────────┐ │
 │  │Dashboard │ │  Zeek    │ │ Suricata    │ │
-│  │   API    │ │ Analysis │ │  IDS/IPS    │ │
+│  │ API (Rust) │ │ Analysis │ │  IDS/IPS    │ │
 │  └──────────┘ └──────────┘ └─────────────┘ │
 └─────────────────────────────────────────────┘
 ```
@@ -98,8 +98,7 @@ Detailed alert context with MITRE ATT&CK mapping
 - CSS3 (dark theme)
 
 **Backend:**
-- Node.js (Express) - API Gateway & Services
-- Python - AI & SOAR Services
+- Rust (Axum, Tokio) - High-performance Microservices
 - OpenSearch - Log Storage
 - PostgreSQL - Metadata
 - Redis - Caching & Queues

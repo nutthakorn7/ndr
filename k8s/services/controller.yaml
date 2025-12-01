@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rust-controller
+  namespace: default
+  labels:
+    app: rust-controller
+spec:
+  ports:
+  - port: 8084
+    name: http
+  selector:
+    app: rust-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-controller
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: rust-controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rust-controller
+    spec:
+      containers:
+      - name: rust-controller
+        image: ndr/rust-controller:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8084"
+        ports:
+        - containerPort: 8084
+          name: http
