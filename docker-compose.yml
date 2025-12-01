@@ -14,73 +14,127 @@ services:
     restart: always
 
   # Backend API
+  # Backend API
+  # dashboard-api:
+  #   build: ./services/dashboard-api
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     - PORT=8081
+  #     - OPENSEARCH_URL=http://opensearch:9200
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+  #     - SENSOR_CONTROLLER_URL=http://sensor-controller:8084
+  #     - PCAP_SERVICE_URL=http://host.docker.internal:8089
+  #     - AI_SERVICE_URL=http://ai-service:8090
+  #     - JWT_SECRET=ndr-super-secret-key
+  #   depends_on:
+  #     - opensearch
+  #     - postgres
+  #     - redis
+  #     - sensor-controller
+  #   restart: always
+
   dashboard-api:
-    build: ./services/dashboard-api
+    build: ./services/rust-dashboard-api
     ports:
       - "8081:8081"
     environment:
       - PORT=8081
       - OPENSEARCH_URL=http://opensearch:9200
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-      - SENSOR_CONTROLLER_URL=http://sensor-controller:8084
-      - PCAP_SERVICE_URL=http://host.docker.internal:8089
+      - SENSOR_CONTROLLER_URL=http://rust-controller:8084
       - AI_SERVICE_URL=http://ai-service:8090
-      - JWT_SECRET=ndr-super-secret-key
     depends_on:
       - opensearch
       - postgres
-      - redis
-      - sensor-controller
+      - rust-controller
     restart: always
 
-  sensor-controller:
-    build: ./services/sensor-controller
+  # sensor-controller:
+  #   build: ./services/sensor-controller
+  #   ports:
+  #     - "8084:8084" # Exposed for external sensors to register
+  #   environment:
+  #     - PORT=8084
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+  #     - SENSOR_COMMAND_SECRET=ndr-demo-secret
+  #     - KAFKA_BROKERS= # Optional: Add Kafka if needed
+  #   volumes:
+  #     - suricata-rules:/var/lib/suricata/rules
+  #   depends_on:
+  #     - postgres
+  #   restart: always
+
+  rust-controller:
+    build: ./services/rust-controller
     ports:
-      - "8084:8084" # Exposed for external sensors to register
+      - "8084:8084"
     environment:
       - PORT=8084
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-      - SENSOR_COMMAND_SECRET=ndr-demo-secret
-      - KAFKA_BROKERS= # Optional: Add Kafka if needed
-    volumes:
-      - suricata-rules:/var/lib/suricata/rules
+      - RUST_LOG=info
     depends_on:
       - postgres
     restart: always
 
+  # auth-service:
+  #   build: ./services/auth-service
+  #   ports:
+  #     - "8087:8087"
+  #   environment:
+  #     - PORT=8087
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+  #     - JWT_SECRET=ndr-demo-secret
+  #   depends_on:
+  #     - postgres
+  #   restart: always
+
   auth-service:
-    build: ./services/auth-service
+    build: ./services/rust-auth-service
     ports:
       - "8087:8087"
     environment:
       - PORT=8087
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
       - JWT_SECRET=ndr-demo-secret
+      - ADMIN_EMAIL=admin@ndr.local
+      - ADMIN_PASSWORD=admin
     depends_on:
       - postgres
     restart: always
+
+  # asset-service:
+  #   build: ./services/asset-service
+  #   environment:
+  #     - PORT=8080
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+  #     - KAFKA_BROKERS=kafka:9092
+  #   depends_on:
+  #     - postgres
+  #     - kafka
+  #   restart: always
 
   asset-service:
-    build: ./services/asset-service
-    ports:
-      - "8088:8088"
+    build: ./services/rust-asset-service
     environment:
-      - PORT=8088
+      - PORT=8080
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-      - KAFKA_BROKERS= # Optional
+      - KAFKA_BROKERS=kafka:9092
+      - RUST_LOG=info
     depends_on:
       - postgres
+      - kafka
     restart: always
 
-  soar-orchestrator:
-    build: ./services/soar-orchestrator
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-      - KAFKA_BROKERS= # Optional
-      - DRY_RUN=true
-    depends_on:
-      - postgres
-    restart: always
+  # soar-orchestrator:
+  #   build: ./services/soar-orchestrator
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+  #     - KAFKA_BROKERS= # Optional
+  #     - DRY_RUN=true
+  #   depends_on:
+  #     - postgres
+  #   restart: always
 
   suricata:
     image: jasonish/suricata:latest
@@ -109,28 +163,160 @@ services:
       - suricata
     restart: always
 
-  pcap-service:
-    build: ./services/pcap-service
-    container_name: pcap-service
-    network_mode: "host" # Needs to see the same traffic as Suricata
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    volumes:
-      - pcap-data:/var/lib/pcap
-    environment:
-      - PORT=8089
-      - INTERFACE=eth0
-    restart: always
+  # pcap-service:
+  #   build: ./services/pcap-service
+  #   container_name: pcap-service
+  #   network_mode: "host" # Needs to see the same traffic as Suricata
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - NET_RAW
+  #   volumes:
+  #     - pcap-data:/var/lib/pcap
+  #   environment:
+  #     - PORT=8089
+  #     - INTERFACE=eth0
+  #   restart: always
 
   ai-service:
-    build: ./services/ai-service
+    build: ./services/rust-ai-service
     container_name: ai-service
     ports:
       - "8090:8090"
     environment:
       - PORT=8090
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RUST_LOG=info
+    restart: always
+
+  ingestion-gateway:
+    build: ./services/rust-ingestion-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_TOPIC=raw-logs
+      - RUST_LOG=info
+    depends_on:
+      - kafka
+    restart: always
+
+  # parser-normalizer:
+  #   build: ./services/parser-normalizer
+  #   environment:
+  #     - KAFKA_BROKERS=kafka:9092
+  #     - OPENSEARCH_URL=http://opensearch:9200
+  #     - ZEEK_TOPIC=zeek-logs
+  #     - SURICATA_TOPIC=suricata-logs
+  #   depends_on:
+  #     - kafka
+  #     - opensearch
+  #   restart: always
+
+  parser-normalizer:
+    build: ./services/rust-parser-normalizer
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - ZEEK_TOPIC=zeek-logs
+      - SURICATA_TOPIC=suricata-logs
+      - RUST_LOG=info
+    depends_on:
+      - kafka
+    restart: always
+
+  # alert-correlator:
+  #   build: ./services/alert-correlator
+  #   environment:
+  #     - KAFKA_BROKERS=kafka:9092
+  #     - REDIS_URL=redis://redis:6379
+  #     - DATABASE_URL=postgres://user:password@postgres:5432/ndr
+  #   depends_on:
+  #     - kafka
+  #     - redis
+  #     - postgres
+
+  rust-alert-correlator:
+    build: ./services/rust-alert-correlator
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://user:password@postgres:5432/ndr
+      - RUST_LOG=info
+    depends_on:
+      - kafka
+      - redis
+      - postgres
+
+  # siem-exporter:
+  #   build: ./services/siem-exporter
+  #   environment:
+  #     - KAFKA_BROKERS=kafka:9092
+  #     - SPLUNK_ENABLED=false
+  #     - ELASTIC_ENABLED=false
+  #     - WEBHOOK_1_ENABLED=true
+  #     - WEBHOOK_1_URL=http://host.docker.internal:9000/webhook
+  #   depends_on:
+  #     - kafka
+  #   restart: always
+
+  siem-exporter:
+    build: ./services/rust-siem-exporter
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - SPLUNK_ENABLED=false
+      - ELASTIC_ENABLED=false
+      - WEBHOOK_1_ENABLED=true
+      - WEBHOOK_1_URL=http://host.docker.internal:9000/webhook
+      - RUST_LOG=info
+    depends_on:
+      - kafka
+    restart: always
+
+  rust-yara-scanner:
+    build: ./services/rust-yara-scanner
+    volumes:
+      - ./data/extracted_files:/data/extracted_files
+      - ./services/yara-scanner/rules:/app/rules
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - WATCH_DIR=/data/extracted_files
+      - RULES_PATH=/app/rules
+      - RUST_LOG=info
+    depends_on:
+      - kafka
+
+  rust-sensor:
+    build: ./services/rust-sensor
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # network_mode: "host" # Temporarily disabled for Mac verification
+    environment:
+      - RUST_LOG=info
+      - KAFKA_BROKERS=kafka:29092
+    restart: always
+
+  rust-pcap-service:
+    build: ./services/rust-pcap-service
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    network_mode: "host" # Needed for packet capture
+    volumes:
+      - pcap-data:/data/pcap
+    environment:
+      - PCAP_DIR=/data/pcap
+      - CAPTURE_INTERFACE=eth0
+      - PORT=8088
+      - RUST_LOG=info
+    restart: always
+  rust-soar-orchestrator:
+    build: ./services/rust-soar-orchestrator
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - WEBHOOK_URL=http://host.docker.internal:9000/webhook
+      - RUST_LOG=info
+    depends_on:
+      - kafka
     restart: always
 
   # Databases & Infrastructure
@@ -162,6 +348,28 @@ services:
   redis:
     image: redis:7-alpine
     # Ports removed for security - internal only
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    restart: always
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9094:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://host.docker.internal:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    restart: always
 
 volumes:
   opensearch-data:

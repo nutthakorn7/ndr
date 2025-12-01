@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/ndr/', // GitHub Pages base path
+  base: '/', // Local deployment base path
   build: {
     rollupOptions: {
       output: {

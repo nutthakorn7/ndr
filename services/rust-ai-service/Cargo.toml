@@ -1,0 +1,19 @@
+[package]
+name = "rust-ai-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rand = "0.8"
+anyhow = "1.0"
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+# Using a simple statistical approach for the "dummy" model to avoid heavy compilation of ML crates for this demo,
+# as the original Python code was also just training a dummy model on random data.
+# We will implement a basic Isolation Forest-like heuristic or simple statistical outlier detection.
