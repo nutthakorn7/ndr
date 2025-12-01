@@ -38,7 +38,6 @@ export default function FileAnalysis() {
           });
           
           // For file list, use mock data for now
-          // TODO: Add when backend provides file list endpoint
           throw new Error('Using mock file list data');
         } else {
           throw new Error('No file stats available');

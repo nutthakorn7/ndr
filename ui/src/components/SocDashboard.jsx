@@ -43,7 +43,6 @@ export default function SocDashboard() {
           });
           
           // For chart data, use mock for now
-          // TODO: Add when backend provides time-series data
           throw new Error('Using mock chart data');
         } else {
           throw new Error('No SOC data available');

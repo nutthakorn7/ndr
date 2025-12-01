@@ -40,7 +40,6 @@ export default function DNSIntelligence() {
           });
           
           // For query list and tunneling events, use mock data for now
-          // TODO: Add when backend provides DNS query history endpoint
           throw new Error('Using mock data for queries and tunneling events');
         } else {
           throw new Error('No DNS stats available');

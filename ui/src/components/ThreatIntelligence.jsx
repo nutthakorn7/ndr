@@ -35,7 +35,6 @@ export default function ThreatIntelligence() {
           });
           
           // For now, feeds and matches still use mock data
-          // TODO: Add dedicated endpoints when backend threat intel service is ready
           throw new Error('Using mock data for feeds and matches');
         } else {
           throw new Error('Invalid threat stats response');

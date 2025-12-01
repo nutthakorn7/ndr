@@ -82,7 +82,6 @@ export default function SSLAnalysis() {
           }
           
           // For TLS versions and cipher suites, use mock data for now
-          // TODO: Add when backend provides TLS version/cipher aggregation
           throw new Error('Using mock data for TLS versions and ciphers');
         } else {
           throw new Error('No SSL data available');

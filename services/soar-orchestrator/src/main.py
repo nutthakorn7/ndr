@@ -22,14 +22,21 @@ class SOAROrchestrator:
         self.dry_run = os.getenv('DRY_RUN', 'true').lower() == 'true'
         
         # Kafka consumer
-        self.consumer = KafkaConsumer(
-            'alerts',
-            bootstrap_servers=os.getenv('KAFKA_BROKERS', 'kafka:9092').split(','),
-            auto_offset_reset='latest',
-            enable_auto_commit=True,
-            group_id='soar-orchestrator-group',
-            value_deserializer=lambda x: json.loads(x.decode('utf-8'))
-        )
+        # Kafka consumer
+        try:
+            self.consumer = KafkaConsumer(
+                'alerts',
+                bootstrap_servers=os.getenv('KAFKA_BROKERS', 'kafka:9092').split(','),
+                auto_offset_reset='latest',
+                enable_auto_commit=True,
+                group_id='soar-orchestrator-group',
+                value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+            )
+            self.kafka_available = True
+        except Exception as e:
+            logger.warning(f"Kafka unavailable ({e}). Starting in standalone mode.")
+            self.kafka_available = False
+            self.consumer = [] # Mock empty consumer
         
         # Database connection
         self.db_conn = psycopg2.connect(
@@ -144,13 +151,20 @@ class SOAROrchestrator:
         logger.info("Starting SOAR orchestrator...")
         
         try:
-            for message in self.consumer:
-                alert = message.value
-                await self.process_alert(alert)
+            if self.kafka_available:
+                for message in self.consumer:
+                    alert = message.value
+                    await self.process_alert(alert)
+            else:
+                # Standalone mode: Simulate processing or just idle
+                logger.info("Running in standalone mode (no Kafka). Waiting for events...")
+                while True:
+                    await asyncio.sleep(60)
         except KeyboardInterrupt:
             logger.info("Shutting down...")
         finally:
-            self.consumer.close()
+            if hasattr(self.consumer, 'close'):
+                self.consumer.close()
             self.db_conn.close()
 
 if __name__ == '__main__':

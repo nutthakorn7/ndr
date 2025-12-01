@@ -15,6 +15,55 @@ export default function EventSearch() {
   const [newSearchName, setNewSearchName] = useState('');
   const [chartData, setChartData] = useState([]);
 
+  // Missing state definitions
+  const [mode, setMode] = useState('builder');
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState([]);
+  const [timeRange, setTimeRange] = useState('24h');
+  const [clauses, setClauses] = useState([
+    { id: 1, field: 'event.severity', operator: 'is', value: 'high', logic: 'AND' }
+  ]);
+
+  const handleSearch = async () => {
+    setLoading(true);
+    try {
+      const searchParams = mode === 'raw' 
+        ? { q: query, timeRange }
+        : { structuredQuery: clauses, timeRange };
+      
+      const data = await api.searchEvents(searchParams);
+      setResults(data || []);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addClause = () => {
+    setClauses([...clauses, { 
+      id: Date.now(), 
+      field: 'source.ip', 
+      operator: 'is', 
+      value: '', 
+      logic: 'AND' 
+    }]);
+  };
+
+  const removeClause = (id) => {
+    if (clauses.length > 1) {
+      setClauses(clauses.filter(c => c.id !== id));
+    }
+  };
+
+  const updateClause = (id, field, value) => {
+    setClauses(clauses.map(c => 
+      c.id === id ? { ...c, [field]: value } : c
+    ));
+  };
+
   useEffect(() => {
     loadSavedSearches();
   }, []);

@@ -331,8 +331,8 @@ export default function AlertModal({ alertId, onClose }) {
             <div className="notes-view">
               <div className="add-note">
                 <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Add investigation notes..."
                   rows={4}
                 />
@@ -427,6 +427,10 @@ export default function AlertModal({ alertId, onClose }) {
           <button className="btn-secondary" onClick={handleDownloadPcap}>
             <Download className="w-4 h-4" />
             Download PCAP
+          </button>
+          <button className="btn-secondary" onClick={handleGenerateReport} disabled={reportLoading}>
+            {reportLoading ? <LoadingSpinner size="small" /> : <FileText className="w-4 h-4" />}
+            Generate Report
           </button>
           <button className="btn-danger">
             <AlertTriangle className="w-4 h-4" />

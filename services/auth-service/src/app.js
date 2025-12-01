@@ -47,7 +47,8 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
-// Refresh token app.post('/auth/refresh', async (req, res) => {
+// Refresh token
+app.post('/auth/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body;
     

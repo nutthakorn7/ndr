@@ -78,7 +78,6 @@ export default function SoarIntegration({ view = 'playbooks' }) {
         }
         
         // For connectors, still using mock data
-        // TODO: Add when backend provides connector status endpoint
         if ((!playbooksResponse || playbooksResponse.length === 0) && (!executionsResponse || executionsResponse.length === 0)) {
           throw new Error('No SOAR data available from API');
         }

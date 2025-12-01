@@ -384,11 +384,19 @@ app.get('/stats/traffic', async (req, res) => {
         }
       }
     });
+    
+    if (!body.aggregations || !body.aggregations.traffic_over_time) {
+      return res.json([]);
+    }
+
     res.json(body.aggregations.traffic_over_time.buckets.map(b => ({
       timestamp: b.key_as_string,
       bytes: b.total_bytes.value
     })));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    logger.error('Traffic stats failed:', e);
+    res.json([]); // Return empty on error to avoid UI crash
+  }
 });
 
 app.get('/stats/protocols', async (req, res) => {
@@ -402,11 +410,19 @@ app.get('/stats/protocols', async (req, res) => {
         }
       }
     });
+
+    if (!body.aggregations || !body.aggregations.protocols) {
+      return res.json([]);
+    }
+
     res.json(body.aggregations.protocols.buckets.map(b => ({
       protocol: b.key,
       count: b.doc_count
     })));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    logger.error('Protocol stats failed:', e);
+    res.json([]); 
+  }
 });
 
 app.get('/sensors', async (req, res) => {
@@ -508,6 +524,7 @@ app.get('/pcap/download/:filename', async (req, res) => {
     logger.error('Failed to download PCAP:', error);
     res.status(502).json({ error: 'Failed to download PCAP' });
   }
+});
 // AI Service Proxy
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:8090';
 
