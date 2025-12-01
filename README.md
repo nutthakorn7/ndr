@@ -141,10 +141,14 @@ Detailed alert context with MITRE ATT&CK mapping
 
 ## 📚 Documentation
 
+### Installation
+- [Management Server Installation](docs/MANAGEMENT_SERVER_INSTALL.md) - Complete server setup guide
+- [Sensor Installation](docs/SENSOR_INSTALL.md) - Deploy sensors on remote hosts
+
+### Additional Resources
 - [Deployment Guide](DEPLOY_DEMO.md) - How to deploy the demo
 - [API Integration](ui/API_INTEGRATION.md) - Backend integration guide
 - [Feature Gap Analysis](UI_FEATURE_GAP_ANALYSIS.md) - Roadmap details
-- [Production Readiness](docs/production_readiness.md) - Deployment checklist
 
 ## 🤝 Contributing
 
