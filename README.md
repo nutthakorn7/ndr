@@ -28,6 +28,7 @@ Enterprise-grade Network Detection & Response (NDR) platform with real-time thre
 - **File Analysis** - YARA scanning and sandbox integration
 - **DNS Intelligence** - Suspicious domain detection
 - **Threat Intelligence** - IOC feeds and reputation scoring
+- **Edge Computing** - Distributed processing with local buffering and detection
 
 ### 🤖 Automation
 - **SOAR Integration** - Automated response playbooks

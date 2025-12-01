@@ -392,3 +392,101 @@ GET /events?q=severity:critical AND event.type:malware
 # Wildcard
 GET /events?q=destination.ip:10.0.*
 ```
+
+---
+
+## Edge Computing APIs
+
+### Edge Agent APIs (`Port 8086`)
+
+#### `POST /ingest`
+Ingest security events from local sensors.
+
+**Headers:**
+- `Authorization`: `Bearer <API_KEY>`
+- `Content-Type`: `application/json`
+
+**Body:**
+```json
+{
+  "event_type": "network_flow",
+  "source_ip": "192.168.1.50",
+  "destination_ip": "10.0.0.5",
+  "protocol": "TCP",
+  "payload": "..."
+}
+```
+
+#### `GET /health`
+Check agent health status.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "uptime_seconds": 3600,
+  "buffer_usage_percent": 12.5
+}
+```
+
+### Edge Coordinator APIs (`Port 8085`)
+
+#### `POST /edge/register`
+Register a new edge agent.
+
+**Body:**
+```json
+{
+  "agent_id": "agent-001",
+  "location": "New York Branch",
+  "version": "1.0.0",
+  "capabilities": ["compression", "sampling"]
+}
+```
+
+#### `POST /edge/heartbeat`
+Send heartbeat to confirm online status.
+
+**Body:**
+```json
+{
+  "agent_id": "agent-001",
+  "status": "online",
+  "metrics": {
+    "buffer_size": 1024,
+    "events_processed": 5000
+  }
+}
+```
+
+#### `GET /edge/agents`
+List all registered edge agents.
+
+**Response:**
+```json
+[
+  {
+    "agent_id": "agent-001",
+    "location": "New York Branch",
+    "status": "online",
+    "last_heartbeat": "2025-01-01T12:00:00Z"
+  }
+]
+```
+
+#### `POST /edge/agents/:id/config`
+Update configuration for a specific agent.
+
+**Headers:**
+- `Authorization`: `Bearer <COORDINATOR_API_KEY>`
+
+**Body:**
+```json
+{
+  "forwarding_policy": {
+    "compression_enabled": true,
+    "sampling_rate": 0.5,
+    "severity_threshold": "medium"
+  }
+}
+```

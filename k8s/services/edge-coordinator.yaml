@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-coordinator
+  labels:
+    app: edge-coordinator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: edge-coordinator
+  template:
+    metadata:
+      labels:
+        app: edge-coordinator
+    spec:
+      containers:
+      - name: edge-coordinator
+        image: rust-edge-coordinator:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8085
+          name: http
+        env:
+        - name: PORT
+          value: "8085"
+        - name: DATABASE_URL
+          value: "postgresql://postgres:postgres@postgres:5432/security_analytics"
+        - name: RUST_LOG
+          value: "info"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8085
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8085
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-coordinator
+spec:
+  selector:
+    app: edge-coordinator
+  ports:
+  - port: 8085
+    targetPort: 8085
+    name: http
+  type: ClusterIP

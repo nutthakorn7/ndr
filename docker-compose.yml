@@ -309,6 +309,53 @@ services:
       - PORT=8088
       - RUST_LOG=info
     restart: always
+  
+  # Edge Computing Services
+  edge-coordinator:
+    build: ./services/rust-edge-coordinator
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=8085
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
+      - COORDINATOR_API_KEY=${COORDINATOR_API_KEY:-dev-coordinator-secret-key-change-in-production}
+      - TLS_ENABLED=${COORDINATOR_TLS_ENABLED:-false}
+      - TLS_CERT_PATH=/etc/edge-coordinator/tls/cert.pem
+      - TLS_KEY_PATH=/etc/edge-coordinator/tls/key.pem
+      - RUST_LOG=info
+    volumes:
+      - ./tls-certs/coordinator:/etc/edge-coordinator/tls:ro
+    depends_on:
+      - postgres
+    restart: always
+
+  edge-agent:
+    build: ./services/rust-edge-agent
+    ports:
+      - "8086:8086"
+    environment:
+      - PORT=8086
+      - EDGE_AGENT_ID=edge-agent-demo
+      - EDGE_LOCATION=demo-site
+      - COORDINATOR_URL=${COORDINATOR_URL:-http://edge-coordinator:8085}
+      - KAFKA_BROKERS=kafka:29092
+      - KAFKA_TOPIC=edge-events
+      - BUFFER_DB_PATH=/var/lib/edge-agent/buffer.db
+      - MAX_BUFFER_SIZE_MB=512
+      - HEARTBEAT_INTERVAL_SECS=30
+      - API_KEY=${EDGE_AGENT_API_KEY:-dev-agent-secret-key-change-in-production}
+      - TLS_ENABLED=${AGENT_TLS_ENABLED:-false}
+      - TLS_CERT_PATH=/etc/edge-agent/tls/cert.pem
+      - TLS_KEY_PATH=/etc/edge-agent/tls/key.pem
+      - RUST_LOG=info
+    volumes:
+      - edge-agent-data:/var/lib/edge-agent
+      - ./tls-certs/agent:/etc/edge-agent/tls:ro
+    depends_on:
+      - edge-coordinator
+      - kafka
+    restart: always
+
   rust-soar-orchestrator:
     build: ./services/rust-soar-orchestrator
     environment:
@@ -377,3 +424,4 @@ volumes:
   suricata-logs:
   suricata-rules:
   pcap-data:
+  edge-agent-data:

@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: edge-agent
+  labels:
+    app: edge-agent
+spec:
+  selector:
+    matchLabels:
+      app: edge-agent
+  template:
+    metadata:
+      labels:
+        app: edge-agent
+    spec:
+      hostNetwork: true
+      containers:
+      - name: edge-agent
+        image: rust-edge-agent:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8086
+          name: http
+        env:
+        - name: PORT
+          value: "8086"
+        - name: EDGE_AGENT_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: EDGE_LOCATION
+          value: "kubernetes-cluster"
+        - name: COORDINATOR_URL
+          value: "http://edge-coordinator:8085"
+        - name: KAFKA_BROKERS
+          value: "kafka:9092"
+        - name: KAFKA_TOPIC
+          value: "edge-events"
+        - name: BUFFER_DB_PATH
+          value: "/var/lib/edge-agent/buffer.db"
+        - name: MAX_BUFFER_SIZE_MB
+          value: "1024"
+        - name: HEARTBEAT_INTERVAL_SECS
+          value: "30"
+        - name: RUST_LOG
+          value: "info"
+        volumeMounts:
+        - name: edge-agent-data
+          mountPath: /var/lib/edge-agent
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8086
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8086
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+      volumes:
+      - name: edge-agent-data
+        hostPath:
+          path: /var/lib/edge-agent
+          type: DirectoryOrCreate
