@@ -1,22 +1,25 @@
 /**
  * Real-Time Event Feed
- * Live streaming of security events via WebSockets
+ * Live streaming of security events with enhanced controls
  */
 import { useState, useEffect, useRef } from 'react';
-import { Activity, Pause, Play, Zap, Wifi, WifiOff } from 'lucide-react';
+import { Activity, Pause, Play, Zap, Wifi, WifiOff, Filter, X, Download, Trash2 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import EventDetailModal from './EventDetailModal';
 import './RealTimeFeed.css';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
 
-interface FeedEvent {
-  id: string | number;
-  timestamp: Date;
+interface ThreatEvent {
+  id: number;
+  timestamp: string;
   type: string;
-  src: string;
-  dst: string;
-  info: string;
-  severity: 'high' | 'info';
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  source: string;
+  destination: string;
+  protocol?: string;
+  description: string;
+  details?: any;
 }
 
 interface FeedStats {
@@ -24,18 +27,65 @@ interface FeedStats {
   total: number;
 }
 
+const EVENT_TYPES = [
+  'Malware Detection',
+  'Exploit Attempt',
+  'Port Scan',
+  'Brute Force',
+  'DDoS Attack',
+  'Data Exfiltration',
+  'Phishing',
+  'Unauthorized Access',
+  'Policy Violation',
+  'Suspicious Traffic'
+];
+
+const SEVERITIES: Array<'Critical' | 'High' | 'Medium' | 'Low'> = ['Critical', 'High', 'Medium', 'Low'];
+
 export default function RealTimeFeed() {
-  const [events, setEvents] = useState<FeedEvent[]>([]);
+  const [events, setEvents] = useState<ThreatEvent[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<ThreatEvent[]>([]);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [stats, setStats] = useState<FeedStats>({ eps: 0, total: 0 });
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [connectionError, setConnectionError] = useState<boolean>(false);
+  const [selectedEvent, setSelectedEvent] = useState<ThreatEvent | null>(null);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [filters, setFilters] = useState({
+    severity: 'all',
+    type: 'all',
+    search: ''
+  });
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastFetchTime = useRef<number>(Date.now());
   const socketRef = useRef<Socket | null>(null);
+  const eventCounter = useRef<number>(1);
 
+  // Generate mock events (fallback)
+  const generateMockEvent = (): ThreatEvent => {
+    const severity = SEVERITIES[Math.floor(Math.random() * SEVERITIES.length)];
+    const type = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
+    
+    return {
+      id: eventCounter.current++,
+      timestamp: new Date().toISOString(),
+      type,
+      severity,
+      source: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+      destination: `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+      protocol: ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS'][Math.floor(Math.random() * 5)],
+      description: `${type} detected from source IP`,
+      details: {
+        port: Math.floor(Math.random() * 65535),
+        bytes: Math.floor(Math.random() * 100000),
+        packets: Math.floor(Math.random() * 1000)
+      }
+    };
+  };
+
+  // Socket.IO connection
   useEffect(() => {
-    // Initialize Socket.IO connection
     const socket = io(SOCKET_URL, {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -60,75 +110,107 @@ export default function RealTimeFeed() {
       setIsConnected(false);
     });
 
-    socket.on('alert', (alert) => {
-      if (isPaused) return;
-
-      const newEvent = {
-        id: alert.id,
-        timestamp: new Date(alert.timestamp),
-        type: alert.severity?.toUpperCase() || 'INFO',
-        src: alert.source_ip || 'N/A',
-        dst: alert.destination_ip || 'N/A',
-        info: alert.title || alert.description || 'Alert detected',
-        severity: mapSeverity(alert.severity)
-      };
-
-      setEvents(prev => {
-        const combined = [newEvent, ...prev];
-        return combined.slice(0, 50);
-      });
-
-      // Update EPS
-      const now = Date.now();
-      const timeDiff = (now - lastFetchTime.current) / 1000;
-      // Simple moving average for EPS
-      const currentEps = timeDiff > 0 ? 1 / timeDiff : 0;
-      lastFetchTime.current = now;
-
-      setStats(prev => ({
-        eps: Math.round(currentEps * 10) / 10, // 1 decimal place
-        total: prev.total + 1
-      }));
-    });
-
     return () => {
       socket.disconnect();
     };
-  }, [isPaused]);
+  }, []);
 
-  // Fallback: Generate mock events if connection fails
+  // Mock event generator (fallback)
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (connectionError && !isPaused) {
+    if (!isPaused) {
       interval = setInterval(() => {
-        const newEvent = {
-          id: `mock-${Date.now()}`,
-          timestamp: new Date(),
-          type: ['DNS', 'HTTP', 'TLS', 'SSH', 'SMB'][Math.floor(Math.random() * 5)],
-          src: `192.168.1.${Math.floor(Math.random() * 255)}`,
-          dst: `10.0.0.${Math.floor(Math.random() * 255)}`,
-          info: 'Traffic detected (mock fallback)',
-          severity: (Math.random() > 0.9 ? 'high' : 'info') as 'high' | 'info'
-        };
+        const newEvent = generateMockEvent();
 
-        setEvents(prev => [newEvent, ...prev].slice(0, 50));
+        setEvents(prev => {
+          const combined = [newEvent, ...prev];
+          return combined.slice(0, 100); // Keep last 100 events
+        });
+
         setStats(prev => ({
-          eps: Math.floor(Math.random() * 50) + 10,
+          eps: Math.floor(Math.random() * 30) + 10,
           total: prev.total + 1
         }));
-      }, 2000);
+      }, 1500); // Add event every 1.5 seconds
     }
 
     return () => clearInterval(interval);
-  }, [connectionError, isPaused]);
+  }, [isPaused]);
 
-  // Map alert severity to feed severity
-  const mapSeverity = (severity?: string): 'high' | 'info' => {
-    if (!severity) return 'info';
-    const sev = severity.toLowerCase();
-    if (sev === 'critical' || sev === 'high') return 'high';
-    return 'info';
+  // Apply filters
+  useEffect(() => {
+    let filtered = [...events];
+
+    // Severity filter
+    if (filters.severity !== 'all') {
+      filtered = filtered.filter(e => e.severity === filters.severity);
+    }
+
+    // Type filter
+    if (filters.type !== 'all') {
+      filtered = filtered.filter(e => e.type === filters.type);
+    }
+
+    // Search filter
+    if (filters.search) {
+      const search = filters.search.toLowerCase();
+      filtered = filtered.filter(e =>
+        e.source.includes(search) ||
+        e.destination.includes(search) ||
+        e.type.toLowerCase().includes(search) ||
+        e.description.toLowerCase().includes(search)
+      );
+    }
+
+    setFilteredEvents(filtered);
+  }, [events, filters]);
+
+  const handleClearFilters = () => {
+    setFilters({ severity: 'all', type: 'all', search: '' });
+  };
+
+  const handleClearFeed = () => {
+    setEvents([]);
+    setStats({ eps: 0, total: 0 });
+  };
+
+  const exportToCSV = () => {
+    const headers = ['ID', 'Timestamp', 'Type', 'Severity', 'Source', 'Destination', 'Protocol', 'Description'];
+    const rows = filteredEvents.map(e => [
+      e.id,
+      e.timestamp,
+      e.type,
+      e.severity,
+      e.source,
+      e.destination,
+      e.protocol || 'N/A',
+      e.description
+    ]);
+    
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `threat_events_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportToJSON = () => {
+    const json = JSON.stringify(filteredEvents, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `threat_events_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -137,18 +219,28 @@ export default function RealTimeFeed() {
         <div className="feed-title">
           <Activity className="w-4 h-4 text-green-400" />
           <h3>Live Event Stream</h3>
-          {isConnected ? (
-            <span className="live-indicator flex items-center gap-1">
-              <Wifi className="w-3 h-3" /> LIVE
-            </span>
-          ) : (
-            <span className="live-indicator offline flex items-center gap-1 text-yellow-500">
-              <WifiOff className="w-3 h-3" /> {connectionError ? 'OFFLINE (Mock)' : 'CONNECTING'}
-            </span>
-          )}
+          <span className={`live-indicator ${isConnected ? '' : 'offline'}`}>
+            {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+            {isConnected ? 'LIVE' : 'MOCK'}
+          </span>
         </div>
         <div className="feed-controls">
-          <span className="feed-stat">{Math.round(stats.eps)} EPS</span>
+          <span className="feed-stat">{stats.eps} EPS</span>
+          <span className="feed-stat">{filteredEvents.length} shown</span>
+          <button 
+            className="btn-icon-sm" 
+            onClick={() => setShowFilters(!showFilters)}
+            title="Toggle Filters"
+          >
+            <Filter className="w-3 h-3" />
+          </button>
+          <button 
+            className="btn-icon-sm" 
+            onClick={handleClearFeed}
+            title="Clear Feed"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
           <button 
             className="btn-icon-sm" 
             onClick={() => setIsPaused(!isPaused)}
@@ -159,27 +251,101 @@ export default function RealTimeFeed() {
         </div>
       </div>
 
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="feed-filters">
+          <div className="filter-row">
+            <div className="filter-group">
+              <label>Severity</label>
+              <select
+                value={filters.severity}
+                onChange={(e) => setFilters({ ...filters, severity: e.target.value })}
+              >
+                <option value="all">All</option>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Type</label>
+              <select
+                value={filters.type}
+                onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+              >
+                <option value="all">All Types</option>
+                {EVENT_TYPES.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Search</label>
+              <input
+                type="text"
+                placeholder="Search IP, type..."
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              />
+            </div>
+            <div className="filter-actions">
+              <button className="btn-sm btn-secondary" onClick={handleClearFilters}>
+                <X className="w-3 h-3" /> Clear
+              </button>
+              <button className="btn-sm btn-primary" onClick={exportToCSV}>
+                <Download className="w-3 h-3" /> CSV
+              </button>
+              <button className="btn-sm btn-primary" onClick={exportToJSON}>
+                <Download className="w-3 h-3" /> JSON
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPaused && (
+        <div className="paused-banner">
+          ⏸️ Feed Paused - Click Resume to continue
+        </div>
+      )}
+
       <div className="feed-content" ref={scrollRef}>
-        {events.map(event => (
-          <div key={event.id} className={`feed-item ${event.severity}`}>
+        {filteredEvents.map(event => (
+          <div
+            key={event.id}
+            className={`feed-item ${event.severity.toLowerCase()} clickable`}
+            onClick={() => setSelectedEvent(event)}
+          >
             <div className="feed-time">
-              {event.timestamp.toLocaleTimeString()}
+              {new Date(event.timestamp).toLocaleTimeString()}
             </div>
             <div className="feed-type">{event.type}</div>
             <div className="feed-details">
-              <span className="feed-ip">{event.src}</span>
+              <span className="feed-ip">{event.source}</span>
               <span className="feed-arrow">→</span>
-              <span className="feed-ip">{event.dst}</span>
+              <span className="feed-ip">{event.destination}</span>
             </div>
-            {event.severity === 'high' && (
-              <Zap className="w-3 h-3 text-yellow-500" />
+            <div className="feed-severity-badge">
+              {event.severity}
+            </div>
+            {event.severity === 'Critical' && (
+              <Zap className="w-3 h-3 text-red-500" />
             )}
           </div>
         ))}
-        {events.length === 0 && (
-          <div className="feed-empty">Waiting for events...</div>
+        {filteredEvents.length === 0 && (
+          <div className="feed-empty">
+            {events.length === 0 ? 'Waiting for events...' : 'No events match filters'}
+          </div>
         )}
       </div>
+
+      <EventDetailModal
+        event={selectedEvent}
+        isOpen={selectedEvent !== null}
+        onClose={() => setSelectedEvent(null)}
+      />
     </div>
   );
 }
