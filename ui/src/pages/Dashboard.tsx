@@ -9,6 +9,8 @@ import './Dashboard.css';
 // Core components (loaded immediately)
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ThemeToggle from '../components/ThemeToggle';
+import KeyboardShortcuts from '../components/KeyboardShortcuts';
 
 // Lazy load heavy components
 const AlertModal = lazy(() => import('../components/AlertModal'));
@@ -208,6 +210,8 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
             <Activity className="w-4 h-4" />
             <span>{(stats.eps / 1000).toFixed(1)}k EPS</span>
           </div>
+          <ThemeToggle />
+          <KeyboardShortcuts />
           <button 
             className="nav-icon" 
             onClick={() => addToast('No new notifications', 'info')}
