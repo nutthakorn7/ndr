@@ -143,6 +143,7 @@ Detailed alert context with MITRE ATT&CK mapping
 ## 📚 Documentation
 
 ### Installation
+- [User Guide](docs/USER_GUIDE.md) - **Start Here!** How to use the dashboard and features
 - [Management Server Installation](docs/MANAGEMENT_SERVER_INSTALL.md) - Complete server setup guide
 - [Sensor Installation](docs/SENSOR_INSTALL.md) - Deploy sensors on remote hosts
 
