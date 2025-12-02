@@ -1,0 +1,36 @@
+/* KpiTile - Uses BaseCard as foundation */
+
+.kpi-tile {
+  /* BaseCard handles background, border, padding, radius */
+  /* Override padding for denser layout */
+  padding: var(--space-3) !important;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.kpi-tile__label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: var(--font-semibold);
+}
+
+.kpi-tile__value {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.kpi-tile__trend {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+/* Severity variants - colors the value */
+.kpi-tile--critical .kpi-tile__value { color: var(--color-critical); }
+.kpi-tile--high .kpi-tile__value { color: var(--color-high); }
+.kpi-tile--medium .kpi-tile__value { color: var(--color-medium); }
+.kpi-tile--low .kpi-tile__value { color: var(--color-low); }

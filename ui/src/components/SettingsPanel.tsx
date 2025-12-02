@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { 
-  X, User, Key, Shield, Bell, Monitor, Save, 
-  RefreshCw, Plus, Trash2, AlertTriangle
+  X, User, Key, Shield, Bell, Monitor, 
+  Plus, Trash2, AlertTriangle
 } from 'lucide-react';
+import { BaseModal, BaseButton, BaseInput, BaseTable, Column } from './base';
 import { useToast } from './Toast';
 import './SettingsPanel.css';
 
@@ -10,7 +11,7 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-interface User {
+interface UserData {
   id: number;
   name: string;
   email: string;
@@ -43,7 +44,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [loading, setLoading] = useState(false);
 
   // Mock Data
-  const [users, setUsers] = useState<User[]>([
+  const [users, setUsers] = useState<UserData[]>([
     { id: 1, name: 'Admin User', email: 'admin@ndr.local', role: 'Administrator', status: 'active', lastLogin: 'Just now' },
     { id: 2, name: 'Security Analyst', email: 'analyst@ndr.local', role: 'Analyst', status: 'active', lastLogin: '2 hours ago' },
     { id: 3, name: 'Viewer', email: 'audit@ndr.local', role: 'Viewer', status: 'inactive', lastLogin: '5 days ago' },
@@ -82,78 +83,148 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
     addToast('API Key revoked', 'info');
   };
 
+  // User table columns
+  const userColumns: Column<UserData>[] = [
+    {
+      key: 'name',
+      header: 'User',
+      render: (row) => (
+        <div>
+          <div style={{ fontWeight: 'var(--font-medium)' }}>{row.name}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{row.email}</div>
+        </div>
+      )
+    },
+    { key: 'role', header: 'Role', width: '140px' },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '120px',
+      render: (row) => (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <span className={`status-dot status-dot--${row.status}`}></span>
+          {row.status}
+        </span>
+      )
+    },
+    { key: 'lastLogin', header: 'Last Login', width: '140px' },
+    {
+      key: 'id',
+      header: 'Actions',
+      width: '80px',
+      align: 'center',
+      render: (row) => (
+        <BaseButton
+          variant="ghost"
+          size="sm"
+          icon={<Trash2 size={14} />}
+          onClick={() => handleDeleteUser(row.id)}
+        />
+      )
+    }
+  ];
+
+  // API Keys table columns
+  const keyColumns: Column<ApiKey>[] = [
+    { key: 'name', header: 'Name' },
+    { key: 'prefix', header: 'Key Prefix', width: '140px' },
+    { key: 'created', header: 'Created', width: '120px' },
+    {
+      key: 'status',
+      header: 'Status',
+      width: '100px',
+      render: (row) => (
+        <span className={`status-badge status-badge--${row.status}`}>{row.status}</span>
+      )
+    },
+    {
+      key: 'id',
+      header: 'Actions',
+      width: '80px',
+      align: 'center',
+      render: (row) => (
+        row.status !== 'revoked' && (
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            onClick={() => handleRevokeKey(row.id)}
+          >
+            Revoke
+          </BaseButton>
+        )
+      )
+    }
+  ];
+
+  const navItems = [
+    { id: 'general', label: 'General', icon: Monitor },
+    { id: 'users', label: 'Users & Roles', icon: User },
+    { id: 'apikeys', label: 'API Keys', icon: Key },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'debug', label: 'Debug', icon: AlertTriangle },
+  ];
+
+  const getTabTitle = () => {
+    const titles: Record<string, string> = {
+      general: 'General Configuration',
+      users: 'User Management',
+      apikeys: 'API Key Management',
+      security: 'Security Policies',
+      notifications: 'Notification Preferences',
+      debug: 'Debug Information'
+    };
+    return titles[activeTab] || 'Settings';
+  };
+
   return (
-    <div className="settings-overlay">
-      <div className="settings-modal">
+    <BaseModal
+      isOpen={true}
+      onClose={onClose}
+      size="xl"
+      closeOnOverlayClick={false}
+    >
+      <div className="settings-content-wrapper">
+        {/* Sidebar */}
         <div className="settings-sidebar">
-          <div className="settings-header">
+          <div className="settings-sidebar-header">
             <h2>Settings</h2>
           </div>
           <nav className="settings-nav">
-            <button 
-              className={`nav-item ${activeTab === 'general' ? 'active' : ''}`}
-              onClick={() => setActiveTab('general')}
-            >
-              <Monitor className="w-4 h-4" /> General
-            </button>
-            <button 
-              className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
-              onClick={() => setActiveTab('users')}
-            >
-              <User className="w-4 h-4" /> Users & Roles
-            </button>
-            <button 
-              className={`nav-item ${activeTab === 'apikeys' ? 'active' : ''}`}
-              onClick={() => setActiveTab('apikeys')}
-            >
-              <Key className="w-4 h-4" /> API Keys
-            </button>
-            <button 
-              className={`nav-item ${activeTab === 'security' ? 'active' : ''}`}
-              onClick={() => setActiveTab('security')}
-            >
-              <Shield className="w-4 h-4" /> Security
-            </button>
-            <button 
-              className={`nav-item ${activeTab === 'notifications' ? 'active' : ''}`}
-              onClick={() => setActiveTab('notifications')}
-            >
-              <Bell className="w-4 h-4" /> Notifications
-            </button>
-            <button 
-              className={`nav-item ${activeTab === 'debug' ? 'active' : ''}`}
-              onClick={() => setActiveTab('debug')}
-            >
-              <AlertTriangle className="w-4 h-4" /> Debug
-            </button>
+            {navItems.map(item => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  className={`settings-nav-item ${activeTab === item.id ? 'settings-nav-item--active' : ''}`}
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <Icon size={16} />
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
-          <div className="settings-footer">
-            <span className="version">v2.4.0-beta</span>
+          <div className="settings-sidebar-footer">
+            <span className="settings-version">v2.4.0-beta</span>
           </div>
         </div>
 
-        <div className="settings-content">
-          <div className="content-header">
-            <h3>
-              {activeTab === 'general' && 'General Configuration'}
-              {activeTab === 'users' && 'User Management'}
-              {activeTab === 'apikeys' && 'API Key Management'}
-              {activeTab === 'security' && 'Security Policies'}
-              {activeTab === 'notifications' && 'Notification Preferences'}
-            </h3>
-            <button className="close-btn" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </button>
+        {/* Main Content */}
+        <div className="settings-main-content">
+          <div className="settings-content-header">
+            <h3>{getTabTitle()}</h3>
           </div>
 
-          <div className="content-body">
+          <div className="settings-content-body">
             {activeTab === 'general' && (
               <div className="form-section">
-                <div className="form-group">
-                  <label>Dashboard Refresh Rate (seconds)</label>
-                  <select 
+                <div className="form-row">
+                  <label>Refresh Rate</label>
+                  <select
                     value={config.refreshRate}
                     onChange={(e) => setConfig({...config, refreshRate: e.target.value})}
+                    className="input"
                   >
                     <option value="15">15 seconds</option>
                     <option value="30">30 seconds</option>
@@ -161,11 +232,12 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <option value="manual">Manual only</option>
                   </select>
                 </div>
-                <div className="form-group">
-                  <label>Data Retention Period (days)</label>
-                  <select 
+                <div className="form-row">
+                  <label>Data Retention</label>
+                  <select
                     value={config.retentionDays}
                     onChange={(e) => setConfig({...config, retentionDays: e.target.value})}
+                    className="input"
                   >
                     <option value="30">30 days</option>
                     <option value="90">90 days</option>
@@ -173,164 +245,91 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <option value="365">1 year</option>
                   </select>
                 </div>
-                <div className="form-group checkbox">
-                  <label className="switch">
-                    <input 
-                      type="checkbox" 
-                      checked={config.autoUpdate}
-                      onChange={(e) => setConfig({...config, autoUpdate: e.target.checked})}
-                    />
-                    <span className="slider round"></span>
-                  </label>
-                  <span>Enable Automatic System Updates</span>
+                <div className="form-row">
+                  <label>Auto Update</label>
+                  <input
+                    type="checkbox"
+                    checked={config.autoUpdate}
+                    onChange={(e) => setConfig({...config, autoUpdate: e.target.checked})}
+                  />
                 </div>
               </div>
             )}
 
             {activeTab === 'users' && (
-              <div className="list-section">
-                <div className="list-actions">
-                  <button className="btn-primary" onClick={() => addToast('Add User modal would open here', 'info')}>
-                    <Plus className="w-4 h-4" /> Add User
-                  </button>
+              <div>
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                  <BaseButton
+                    variant="primary"
+                    icon={<Plus size={16} />}
+                    onClick={() => addToast('Add User modal would open here', 'info')}
+                  >
+                    Add User
+                  </BaseButton>
                 </div>
-                <table className="settings-table">
-                  <thead>
-                    <tr>
-                      <th>User</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                      <th>Last Login</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map(user => (
-                      <tr key={user.id}>
-                        <td>
-                          <div className="user-cell">
-                            <div className="user-avatar-sm">{user.name.charAt(0)}</div>
-                            <div>
-                              <div className="font-medium">{user.name}</div>
-                              <div className="text-xs text-gray-500">{user.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td><span className="role-badge">{user.role}</span></td>
-                        <td>
-                          <span className={`status-dot ${user.status}`}></span> {user.status}
-                        </td>
-                        <td className="text-gray-400">{user.lastLogin}</td>
-                        <td>
-                          <button className="btn-icon-sm text-red-400" onClick={() => handleDeleteUser(user.id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <BaseTable data={users} columns={userColumns} />
               </div>
             )}
 
             {activeTab === 'apikeys' && (
-              <div className="list-section">
-                <div className="list-actions">
-                  <button className="btn-primary" onClick={() => addToast('Generate Key modal would open here', 'info')}>
-                    <Plus className="w-4 h-4" /> Generate New Key
-                  </button>
+              <div>
+                <div style={{ marginBottom: 'var(--space-4)' }}>
+                  <BaseButton
+                    variant="primary"
+                    icon={<Plus size={16} />}
+                    onClick={() => addToast('Generate Key modal would open here', 'info')}
+                  >
+                    Generate New Key
+                  </BaseButton>
                 </div>
-                <table className="settings-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Key Prefix</th>
-                      <th>Created</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {apiKeys.map(key => (
-                      <tr key={key.id}>
-                        <td className="font-medium">{key.name}</td>
-                        <td className="mono text-xs">{key.prefix}</td>
-                        <td className="text-gray-400">{key.created}</td>
-                        <td>
-                          <span className={`status-badge ${key.status}`}>{key.status}</span>
-                        </td>
-                        <td>
-                          {key.status === 'active' && (
-                            <button 
-                              className="btn-text-danger"
-                              onClick={() => handleRevokeKey(key.id)}
-                            >
-                              Revoke
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <BaseTable data={apiKeys} columns={keyColumns} />
               </div>
             )}
-            
-            {/* Placeholder for other tabs */}
-            {(activeTab === 'security' || activeTab === 'notifications') && (
-              <div className="empty-state">
-                <Shield className="w-12 h-12 text-gray-700 mb-4" />
-                <p>This configuration section is under development.</p>
+
+            {activeTab === 'notifications' && (
+              <div className="form-section">
+                <div className="form-row">
+                  <label>Email Notifications</label>
+                  <input
+                    type="checkbox"
+                    checked={config.emailNotifications}
+                    onChange={(e) => setConfig({...config, emailNotifications: e.target.checked})}
+                  />
+                </div>
+                <div className="form-row">
+                  <label>Slack Notifications</label>
+                  <input
+                    type="checkbox"
+                    checked={config.slackNotifications}
+                    onChange={(e) => setConfig({...config, slackNotifications: e.target.checked})}
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'security' && (
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Security policies configuration would go here...
               </div>
             )}
 
             {activeTab === 'debug' && (
-              <div className="form-section">
-                <div className="debug-warning">
-                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                  <p>These tools are for testing error handling and debugging purposes only.</p>
-                </div>
-                
-                <div className="form-group">
-                  <label>Error Boundary Test</label>
-                  <p className="text-sm text-gray-400 mb-2">
-                    Clicking this button will throw a JavaScript error to test the global Error Boundary.
-                  </p>
-                  <button 
-                    className="btn-danger"
-                    onClick={() => {
-                      // This will be caught by ErrorBoundary
-                      throw new Error('Manual test error triggered from Settings');
-                    }}
-                  >
-                    <AlertTriangle className="w-4 h-4" /> Trigger Crash
-                  </button>
-                </div>
-
-                <div className="form-group">
-                  <label>API Error Simulation</label>
-                  <p className="text-sm text-gray-400 mb-2">
-                    Force next API request to fail (simulates 500 Server Error).
-                  </p>
-                  <button 
-                    className="btn-secondary"
-                    onClick={() => addToast('API Error Simulation enabled for next request', 'info')}
-                  >
-                    <RefreshCw className="w-4 h-4" /> Simulate API Failure
-                  </button>
-                </div>
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Debug information and logs would go here...
               </div>
             )}
           </div>
 
-          <div className="content-footer">
-            <button className="btn-secondary" onClick={onClose}>Cancel</button>
-            <button className="btn-primary" onClick={handleSave} disabled={loading}>
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Changes</>}
-            </button>
+          <div className="settings-content-footer">
+            <BaseButton variant="secondary" onClick={onClose}>
+              Cancel
+            </BaseButton>
+            <BaseButton variant="primary" loading={loading} onClick={handleSave}>
+              Save Changes
+            </BaseButton>
           </div>
         </div>
       </div>
-    </div>
+    </BaseModal>
   );
 }

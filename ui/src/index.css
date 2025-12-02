@@ -1,3 +1,15 @@
+/**
+ * NDR Platform - Main Stylesheet
+ * Import order is critical - do not rearrange
+ */
+
+/* 1. Design Tokens (must be first) */
+@import './styles/tokens.css';
+
+/* 2. Base styles and reset */
+@import './styles/base.css';
+
+/* 3. Tailwind utilities (keeping for gradual migration) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

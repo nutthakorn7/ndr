@@ -1,0 +1,31 @@
+.page-container {
+  padding: var(--space-6);
+  width: 100%;
+  margin: 0 auto;
+}
+
+.page-container--sm {
+  max-width: var(--container-sm);
+}
+
+.page-container--md {
+  max-width: var(--container-md);
+}
+
+.page-container--lg {
+  max-width: var(--container-lg);
+}
+
+.page-container--xl {
+  max-width: var(--container-xl);
+}
+
+.page-container--full {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: var(--space-4);
+  }
+}

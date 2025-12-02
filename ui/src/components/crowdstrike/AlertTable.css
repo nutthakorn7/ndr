@@ -1,0 +1,15 @@
+/* AlertTable - Custom styles on top of BaseTable */
+
+.alert-table {
+  /* BaseTable handles container, headers, rows */
+  height: 100%;
+}
+
+.severity-badge {
+  display: inline-block;
+}
+
+.status-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}

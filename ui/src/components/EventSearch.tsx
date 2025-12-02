@@ -1,10 +1,11 @@
 /**
- * Event Search Interface
- * Advanced search for security events
+ * Event Search Interface - REFACTORED with Design System
+ * Advanced search for security events using base components
  */
 import { useState, useEffect } from 'react';
-import { Search, Download, Save } from 'lucide-react';
+import { Search, Download, Save, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BaseCard, BaseButton, BaseInput, BaseTable, Column } from './base';
 import LoadingSpinner from './LoadingSpinner';
 import api from '../utils/api';
 import './EventSearch.css';
@@ -48,8 +49,6 @@ export default function EventSearch() {
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
   const [newSearchName, setNewSearchName] = useState<string>('');
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-
-  // Missing state definitions
   const [mode, setMode] = useState<'builder' | 'raw'>('builder');
   const [query, setQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -135,52 +134,74 @@ export default function EventSearch() {
       setMode('builder');
       setClauses(search.query.structuredQuery);
     }
-    // Trigger search automatically
     setTimeout(handleSearch, 100);
   };
 
   // Prepare chart data from results
   useEffect(() => {
     if (results.length > 0) {
-      // Simple client-side aggregation by hour/minute
       const buckets: Record<number, number> = {};
       results.forEach(evt => {
         const time = new Date(evt.timestamp);
-        const key = time.setMinutes(0, 0, 0); // Aggregate by hour
+        const key = time.setMinutes(0, 0, 0);
         buckets[key] = (buckets[key] || 0) + 1;
       });
       
       const data = Object.keys(buckets).map(key => ({
         time: new Date(parseInt(key)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         count: buckets[parseInt(key)]
-      })).sort((a, b) => a.time.localeCompare(b.time)); // Sort by time string (rough approximation)
+      })).sort((a, b) => a.time.localeCompare(b.time));
       
       setChartData(data);
     }
   }, [results]);
 
+  // Table columns
+  const columns: Column<EventResult>[] = [
+    { 
+      key: 'timestamp', 
+      header: 'Time',
+      width: '140px',
+      render: (row) => new Date(row.timestamp).toLocaleTimeString()
+    },
+    { key: 'source_ip', header: 'Source', width: '140px' },
+    { key: 'dest_ip', header: 'Destination', width: '140px' },
+    { 
+      key: 'protocol', 
+      header: 'Protocol',
+      width: '100px',
+      render: (row) => <span className="protocol-tag">{row.protocol}</span>
+    },
+    { key: 'event_type', header: 'Type', width: '150px' },
+    { key: 'details', header: 'Details' }
+  ];
+
   return (
-    <div className="event-search-container">
-      <div className="search-header">
-        <div className="header-top-row">
-          <div className="search-mode-toggle">
-            <button 
-              className={`mode-btn ${mode === 'builder' ? 'active' : ''}`}
-              onClick={() => setMode('builder')}
-            >
-              Visual Builder
-            </button>
-            <button 
-              className={`mode-btn ${mode === 'raw' ? 'active' : ''}`}
-              onClick={() => setMode('raw')}
-            >
-              Raw Query
-            </button>
-          </div>
-          
-          <div className="saved-searches-controls">
+    <div className="event-search">
+      {/* Search Header Card */}
+      <BaseCard>
+        {/* Mode Toggle */}
+        <div className="search-mode-toggle">
+          <button 
+            className={`mode-btn ${mode === 'builder' ? 'active' : ''}`}
+            onClick={() => setMode('builder')}
+          >
+            Visual Builder
+          </button>
+          <button 
+            className={`mode-btn ${mode === 'raw' ? 'active' : ''}`}
+            onClick={() => setMode('raw')}
+          >
+            Raw Query
+          </button>
+        </div>
+
+        {/* Saved Searches */}
+        <div className="flex justify-between items-center" style={{ marginTop: 'var(--space-4)' }}>
+          <div className="flex gap-3 items-center">
             <select 
-              className="saved-search-select"
+              className="input"
+              style={{ minWidth: '200px' }}
               onChange={(e) => {
                 const search = savedSearches.find(s => s.id === parseInt(e.target.value));
                 if (search) loadSearch(search);
@@ -192,176 +213,207 @@ export default function EventSearch() {
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
-            <button className="btn-secondary" onClick={() => setShowSaveModal(true)}>
-              <Save className="w-4 h-4" /> Save
-            </button>
+            <BaseButton 
+              variant="secondary" 
+              size="sm"
+              icon={<Save size={16} />}
+              onClick={() => setShowSaveModal(true)}
+            >
+              Save
+            </BaseButton>
           </div>
-        </div>
 
-        {showSaveModal && (
-          <div className="save-search-modal">
-            <input 
-              type="text" 
-              placeholder="Search Name..." 
-              value={newSearchName}
-              onChange={(e) => setNewSearchName(e.target.value)}
-              className="save-input"
-            />
-            <button className="btn-primary" onClick={handleSaveSearch}>Save</button>
-            <button className="btn-secondary" onClick={() => setShowSaveModal(false)}>Cancel</button>
-          </div>
-        )}
-
-        {mode === 'raw' ? (
-          <div className="search-input-wrapper">
-            <Search className="search-icon" />
-            <input 
-              type="text" 
-              placeholder="Search events (e.g. ip=192.168.1.1 OR protocol=HTTP)..." 
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-          </div>
-        ) : (
-          <div className="query-builder">
-            {clauses.map((clause, index) => (
-              <div key={clause.id} className="query-clause">
-                {index > 0 && (
-                  <select 
-                    value={clause.logic}
-                    onChange={(e) => updateClause(clause.id, 'logic', e.target.value)}
-                    className="logic-select"
-                  >
-                    <option value="AND">AND</option>
-                    <option value="OR">OR</option>
-                  </select>
-                )}
-                <select 
-                  value={clause.field}
-                  onChange={(e) => updateClause(clause.id, 'field', e.target.value)}
-                  className="field-select"
-                >
-                  <option value="source.ip">Source IP</option>
-                  <option value="destination.ip">Dest IP</option>
-                  <option value="destination.port">Dest Port</option>
-                  <option value="network.protocol">Protocol</option>
-                  <option value="event.severity">Severity</option>
-                  <option value="event.category">Category</option>
-                </select>
-                <select 
-                  value={clause.operator}
-                  onChange={(e) => updateClause(clause.id, 'operator', e.target.value)}
-                  className="operator-select"
-                >
-                  <option value="is">is</option>
-                  <option value="is_not">is not</option>
-                  <option value="contains">contains</option>
-                  <option value="exists">exists</option>
-                </select>
-                <input 
-                  type="text"
-                  value={clause.value}
-                  onChange={(e) => updateClause(clause.id, 'value', e.target.value)}
-                  placeholder="Value..."
-                  className="value-input"
-                />
-                <button 
-                  onClick={() => removeClause(clause.id)}
-                  className="remove-clause-btn"
-                  disabled={clauses.length === 1}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <button onClick={addClause} className="add-clause-btn">
-              + Add Condition
-            </button>
-          </div>
-        )}
-        
-        <div className="search-controls">
+          {/* Time Range */}
           <select 
             value={timeRange} 
             onChange={(e) => setTimeRange(e.target.value)}
-            className="time-select"
+            className="input"
           >
             <option value="1h">Last 1 Hour</option>
             <option value="24h">Last 24 Hours</option>
             <option value="7d">Last 7 Days</option>
             <option value="30d">Last 30 Days</option>
           </select>
-          
-          <button className="btn-primary" onClick={handleSearch} disabled={loading}>
-            {loading ? <LoadingSpinner size="small" /> : 'Search'}
-          </button>
         </div>
-      </div>
 
-      <div className="search-results">
-        {loading ? (
-          <LoadingSpinner size="medium" message="Searching events..." />
-        ) : results.length > 0 ? (
-          <div className="results-section">
-            {/* Visualization */}
-            <div className="results-chart">
-              <h3>Event Volume</h3>
-              <div style={{ width: '100%', height: 200 }}>
-                <ResponsiveContainer>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="time" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9' }}
-                    />
-                    <Bar dataKey="count" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="results-header">
-              <span>Results: {results.length} events</span>
-              <button className="btn-export">
-                <Download className="w-4 h-4" />
-                Export
-              </button>
-            </div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Source</th>
-                  <th>Destination</th>
-                  <th>Protocol</th>
-                  <th>Type</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map(event => (
-                  <tr key={event.id}>
-                    <td className="mono text-sm">{new Date(event.timestamp).toLocaleTimeString()}</td>
-                    <td className="mono text-cyan-400">{event.source_ip}</td>
-                    <td className="mono text-cyan-400">{event.dest_ip}</td>
-                    <td><span className="protocol-tag">{event.protocol}</span></td>
-                    <td>{event.event_type}</td>
-                    <td className="text-gray-400">{event.details}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="empty-search">
-            <Search className="w-12 h-12 text-gray-700 mb-4" />
-            <p>Enter a query to search security events</p>
-            <p className="text-sm text-gray-500 mt-2">Try searching for IPs, protocols, or event types</p>
+        {/* Save Modal */}
+        {showSaveModal && (
+          <div style={{ marginTop: 'var(--space-4)', display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+            <BaseInput
+              placeholder="Search Name..."
+              value={newSearchName}
+              onChange={(e) => setNewSearchName(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <BaseButton variant="primary" size="sm" onClick={handleSaveSearch}>Save</BaseButton>
+            <BaseButton variant="secondary" size="sm" onClick={() => setShowSaveModal(false)}>Cancel</BaseButton>
           </div>
         )}
-      </div>
+
+        {/* Query Input */}
+        <div style={{ marginTop: 'var(--space-4)' }}>
+          {mode === 'raw' ? (
+            <BaseInput
+              icon={<Search size={18} />}
+              placeholder="Search events (e.g. ip=192.168.1.1 OR protocol=HTTP)..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+          ) : (
+            <div className="query-builder">
+              {clauses.map((clause, index) => (
+                <div key={clause.id} className="query-clause">
+                  {index > 0 && (
+                    <select 
+                      value={clause.logic}
+                      onChange={(e) => updateClause(clause.id, 'logic', e.target.value)}
+                      className="logic-select input"
+                    >
+                      <option value="AND">AND</option>
+                      <option value="OR">OR</option>
+                    </select>
+                  )}
+                  <select 
+                    value={clause.field}
+                    onChange={(e) => updateClause(clause.id, 'field', e.target.value)}
+                    className="field-select input"
+                  >
+                    <option value="source.ip">Source IP</option>
+                    <option value="destination.ip">Dest IP</option>
+                    <option value="destination.port">Dest Port</option>
+                    <option value="network.protocol">Protocol</option>
+                    <option value="event.severity">Severity</option>
+                    <option value="event.category">Category</option>
+                  </select>
+                  <select 
+                    value={clause.operator}
+                    onChange={(e) => updateClause(clause.id, 'operator', e.target.value)}
+                    className="operator-select input"
+                  >
+                    <option value="is">is</option>
+                    <option value="is_not">is not</option>
+                    <option value="contains">contains</option>
+                    <option value="exists">exists</option>
+                  </select>
+                  <input 
+                    type="text"
+                    value={clause.value}
+                    onChange={(e) => updateClause(clause.id, 'value', e.target.value)}
+                    placeholder="Value..."
+                    className="input"
+                    style={{ flex: 1 }}
+                  />
+                  <button 
+                    onClick={() => removeClause(clause.id)}
+                    className="remove-clause-btn"
+                    disabled={clauses.length === 1}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+              <BaseButton 
+                variant="ghost" 
+                size="sm" 
+                onClick={addClause}
+                style={{ marginTop: 'var(--space-2)' }}
+              >
+                + Add Condition
+              </BaseButton>
+            </div>
+          )}
+        </div>
+
+        {/* Search Button */}
+        <div style={{ marginTop: 'var(--space-4)', display: 'flex', justifyContent: 'flex-end' }}>
+          <BaseButton 
+            variant="primary" 
+            loading={loading}
+            onClick={handleSearch}
+          >
+            Search
+          </BaseButton>
+        </div>
+      </BaseCard>
+
+      {/* Results  */}
+      <BaseCard>
+        {loading ? (
+          <div style={{ padding: 'var(--space-12)', textAlign: 'center' }}>
+            <LoadingSpinner size="medium" message="Searching events..." />
+          </div>
+        ) : results.length > 0 ? (
+          <>
+            {/* Chart */}
+            {chartData.length > 0 && (
+              <div className="results-chart">
+                <h3>Event Volume</h3>
+                <div style={{ width: '100%', height: 200 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                      <XAxis dataKey="time" stroke="var(--text-tertiary)" />
+                      <YAxis stroke="var(--text-tertiary)" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'var(--surface-elevated)', 
+                          borderColor: 'var(--border-medium)', 
+                          color: 'var(--text-primary)' 
+                        }}
+                      />
+                      <Bar dataKey="count" fill="var(--color-primary)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Results Header */}
+            <div style={{ 
+              padding: 'var(--space-4)', 
+              borderBottom: '1px solid var(--border-subtle)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>
+                Results: {results.length} events
+              </span>
+              <BaseButton 
+                variant="ghost" 
+                size="sm"
+                icon={<Download size={16} />}
+              >
+                Export
+              </BaseButton>
+            </div>
+
+            {/* Results Table */}
+            <div style={{ padding: 'var(--space-4)' }}>
+              <BaseTable
+                data={results}
+                columns={columns}
+                emptyMessage="No events found"
+              />
+            </div>
+          </>
+        ) : (
+          <div style={{ 
+            padding: 'var(--space-16)', 
+            textAlign: 'center',
+            color: 'var(--text-tertiary)'
+          }}>
+            <Search size={48} style={{ marginBottom: 'var(--space-4)', opacity: 0.5 }} />
+            <p style={{ fontSize: 'var(--text-lg)', marginBottom: 'var(--space-2)' }}>
+              Enter a query to search security events
+            </p>
+            <p style={{ fontSize: 'var(--text-sm)' }}>
+              Try searching for IPs, protocols, or event types
+            </p>
+          </div>
+        )}
+      </BaseCard>
     </div>
   );
 }
