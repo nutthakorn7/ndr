@@ -5,10 +5,11 @@
 import { useState, useEffect } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, BarChart, Bar, LineChart, Line
 } from 'recharts';
-import { Network, ArrowUpRight, Activity, Download } from 'lucide-react';
-import api from '../utils/api';
+import { Network, ArrowUpRight, Activity, Download, BarChart2, Zap } from 'lucide-react';
+import { api } from '../services/api';
+import { mockApi } from '../services/mockApi';
 import { useToast } from './Toast';
 import './NetworkAnalytics.css';
 
@@ -74,39 +75,17 @@ export default function NetworkAnalytics() {
         }
 
       } catch (error) {
-        console.warn('Failed to load network analytics from API, using mock data:', error);
-        await new Promise(r => setTimeout(r, 800));
+        console.warn('Failed to load network analytics from API, using mock data');
         
-        // Mock Traffic Data (24h)
-        const traffic: TrafficData[] = [];
-        const now = new Date();
-        for (let i = 24; i >= 0; i--) {
-          traffic.push({
-            time: new Date(now.getTime() - i * 3600000).getHours() + ':00',
-            inbound: Math.floor(Math.random() * 500) + 200,
-            outbound: Math.floor(Math.random() * 300) + 100,
-          });
-        }
+        // Fallback to Mock API
+        const traffic = await mockApi.getTrafficStats(timeRange);
         setTrafficData(traffic);
 
-        // Mock Protocol Data
-        setProtocolData([
-          { name: 'HTTPS', value: 45 },
-          { name: 'DNS', value: 15 },
-          { name: 'HTTP', value: 12 },
-          { name: 'SSH', value: 8 },
-          { name: 'SMB', value: 5 },
-          { name: 'Other', value: 15 },
-        ]);
+        const protocols = await mockApi.getProtocolStats();
+        setProtocolData(protocols);
 
-        // Mock Top Talkers
-        setTopTalkers([
-          { ip: '192.168.1.105', bytes: '4.2 GB', flows: 12450, risk: 'High' },
-          { ip: '192.168.1.200', bytes: '2.1 GB', flows: 8540, risk: 'Medium' },
-          { ip: '192.168.1.15', bytes: '1.8 GB', flows: 6200, risk: 'Low' },
-          { ip: '10.0.0.5', bytes: '950 MB', flows: 4100, risk: 'Low' },
-          { ip: '172.16.0.25', bytes: '500 MB', flows: 1200, risk: 'Critical' },
-        ]);
+        const talkers = await mockApi.getTopTalkers();
+        setTopTalkers(talkers);
       } finally {
         setLoading(false);
       }
@@ -207,6 +186,68 @@ export default function NetworkAnalytics() {
                 />
                 <Legend layout="vertical" verticalAlign="middle" align="right" />
               </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+
+      
+      {/* New Analytics Row */}
+      <div className="charts-row">
+        {/* Severity Distribution */}
+        <div className="chart-card">
+          <div className="card-header">
+            <h3><BarChart2 className="w-4 h-4 text-red-400" /> Alert Severity</h3>
+          </div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                { name: 'Critical', value: 5, color: '#ef4444' },
+                { name: 'High', value: 12, color: '#f59e0b' },
+                { name: 'Medium', value: 25, color: '#3b82f6' },
+                { name: 'Low', value: 45, color: '#10b981' },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  cursor={{ fill: '#334155', opacity: 0.2 }}
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {
+                    [
+                      { name: 'Critical', value: 5, color: '#ef4444' },
+                      { name: 'High', value: 12, color: '#f59e0b' },
+                      { name: 'Medium', value: 25, color: '#3b82f6' },
+                      { name: 'Low', value: 45, color: '#10b981' },
+                    ].map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))
+                  }
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* EPS Trend */}
+        <div className="chart-card wide">
+          <div className="card-header">
+            <h3><Zap className="w-4 h-4 text-yellow-400" /> Events Per Second (EPS)</h3>
+          </div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trafficData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                />
+                <Line type="monotone" dataKey="inbound" stroke="#f59e0b" strokeWidth={2} dot={false} name="EPS" />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>

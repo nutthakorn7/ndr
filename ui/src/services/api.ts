@@ -100,6 +100,37 @@ class ApiClient {
     const response = await this.client.post('/ai/chat', { message, context });
     return response.data;
   }
+
+  // Analytics
+  async getTrafficStats(timeRange: string): Promise<any[]> {
+    try {
+      const response = await this.client.get(`/stats/traffic?range=${timeRange}`);
+      return response.data;
+    } catch (error) {
+      console.warn('Failed to fetch traffic stats');
+      throw error;
+    }
+  }
+
+  async getProtocolStats(): Promise<any[]> {
+    try {
+      const response = await this.client.get('/stats/protocols');
+      return response.data;
+    } catch (error) {
+      console.warn('Failed to fetch protocol stats');
+      throw error;
+    }
+  }
+
+  async getTopTalkers(): Promise<any[]> {
+    try {
+      const response = await this.client.get('/stats/top-talkers');
+      return response.data;
+    } catch (error) {
+      console.warn('Failed to fetch top talkers');
+      throw error;
+    }
+  }
 }
 
 export const api = new ApiClient();

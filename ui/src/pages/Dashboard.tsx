@@ -405,6 +405,12 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
               </Suspense>
             )}
 
+            {activeTab === 'topology' && (
+              <Suspense fallback={<LoadingSpinner size="medium" message="Loading Network Map..." />}>
+                <NetworkTopology />
+              </Suspense>
+            )}
+
             {activeTab === 'sensors' && (
               <Suspense fallback={<LoadingSpinner size="medium" message="Loading Sensors..." />}>
                 <SensorManagement />
