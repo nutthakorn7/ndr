@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { generateTopologyData, TopologyNode, TopologyLink } from '../utils/mockTopology';
+import { mockApi } from '../services/mockApi';
+import { TopologyNode, TopologyLink } from '../utils/mockTopology';
 import { X, ZoomIn, ZoomOut, RefreshCw, Activity, Shield, AlertTriangle } from 'lucide-react';
 import './NetworkTopology.css';
 
@@ -12,8 +13,19 @@ export default function NetworkTopology() {
   const fgRef = useRef<any>(null);
 
   useEffect(() => {
-    // Initial data generation
-    setData(generateTopologyData());
+    const loadData = async () => {
+      const topology = await mockApi.getTopologyData();
+      setData(topology);
+      
+      // Initial zoom to fit after data is loaded and graph rendered
+      setTimeout(() => {
+        if (fgRef.current) {
+          fgRef.current.zoomToFit(400);
+        }
+      }, 500);
+    };
+
+    loadData();
 
     // Handle resize
     const handleResize = () => {

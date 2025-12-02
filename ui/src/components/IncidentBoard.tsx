@@ -1,17 +1,22 @@
-import { useState } from 'react';
-import { 
-  AlertTriangle, Clock, User, Tag, MessageSquare, 
-  CheckCircle, ArrowLeft, Send, MoreVertical, 
-  Monitor, Shield, Calendar, Filter, Plus
-} from 'lucide-react';
-import { mockIncidents, Incident, IncidentTimelineItem } from '../utils/mockIncidents';
+import { useState, useEffect } from 'react';
+import { Search, Filter, MoreVertical, Clock, AlertTriangle, CheckCircle, XCircle, MessageSquare, ChevronRight, ChevronLeft, Send, User, ArrowLeft, Tag, Monitor, Shield, Calendar, Plus } from 'lucide-react';
+import { mockApi } from '../services/mockApi';
+import { Incident, IncidentTimelineItem } from '../utils/mockIncidents';
 import './IncidentDetail.css';
 
 export default function IncidentBoard() {
-  const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [newComment, setNewComment] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  useEffect(() => {
+    const loadIncidents = async () => {
+      const data = await mockApi.getIncidents();
+      setIncidents(data);
+    };
+    loadIncidents();
+  }, []);
 
   // Filter incidents
   const filteredIncidents = filterStatus === 'all' 

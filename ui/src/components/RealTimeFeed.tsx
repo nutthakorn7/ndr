@@ -6,21 +6,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Activity, Pause, Play, Zap, Wifi, WifiOff, Filter, X, Download, Trash2 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import EventDetailModal from './EventDetailModal';
+import { api, ThreatEvent } from '../services/api';
 import './RealTimeFeed.css';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
-
-interface ThreatEvent {
-  id: number;
-  timestamp: string;
-  type: string;
-  severity: 'Critical' | 'High' | 'Medium' | 'Low';
-  source: string;
-  destination: string;
-  protocol?: string;
-  description: string;
-  details?: any;
-}
 
 interface FeedStats {
   eps: number;
@@ -87,6 +76,31 @@ export default function RealTimeFeed({ onCreateIncident }: RealTimeFeedProps) {
       }
     };
   };
+
+  // Initial fetch from API
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const alerts = await api.getAlerts();
+        const mappedEvents: ThreatEvent[] = alerts.map((a: any) => ({
+          id: parseInt(a.id) || Math.floor(Math.random() * 10000),
+          timestamp: a.timestamp,
+          type: 'Alert',
+          severity: a.severity,
+          source: 'N/A',
+          destination: 'N/A',
+          description: a.description,
+          details: a
+        }));
+        setEvents(prev => [...mappedEvents, ...prev]);
+        setStats(prev => ({ ...prev, total: prev.total + mappedEvents.length }));
+      } catch (error) {
+        console.warn('Failed to fetch initial alerts');
+      }
+    };
+
+    fetchEvents();
+  }, []);
 
   // Socket.IO connection
   useEffect(() => {

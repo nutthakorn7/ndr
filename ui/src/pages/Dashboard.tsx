@@ -11,6 +11,7 @@ import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ThemeToggle from '../components/ThemeToggle';
 import KeyboardShortcuts from '../components/KeyboardShortcuts';
+import StatCard from '../components/StatCard';
 
 // Lazy load heavy components
 const AlertModal = lazy(() => import('../components/AlertModal'));
@@ -19,6 +20,7 @@ const NetworkTopology = lazy(() => import('../components/NetworkTopology'));
 const IncidentBoard = lazy(() => import('../components/IncidentBoard'));
 const RealTimeFeed = lazy(() => import('../components/RealTimeFeed'));
 const NetworkAnalytics = lazy(() => import('../components/NetworkAnalytics'));
+import { api, DashboardAnalytics } from '../services/api';
 const SensorManagement = lazy(() => import('../components/SensorManagement'));
 const AssetDiscovery = lazy(() => import('../components/AssetDiscovery'));
 const ThreatIntelligence = lazy(() => import('../components/ThreatIntelligence'));
@@ -32,20 +34,9 @@ const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
 const UserProfile = lazy(() => import('../components/UserProfile'));
 
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
 
 interface DashboardProps {
   initialSearch?: boolean;
-}
-
-interface DashboardStats {
-  totalAlerts: number;
-  criticalAlerts: number;
-  totalEvents: number;
-  activeAssets: number;
-  sensors: number;
-  mitigatedThreats: number;
-  eps: number;
 }
 
 function Dashboard({ initialSearch = false }: DashboardProps) {
@@ -78,61 +69,49 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
   };
 
   // Navigation Configurations
-  const [stats, setStats] = useState<DashboardStats>({
-    totalAlerts: 581,
-    criticalAlerts: 12,
-    totalEvents: 2347289,
-    activeAssets: 342,
-    sensors: 12,
-    mitigatedThreats: 67,
-    eps: 2400
+  const [stats, setStats] = useState<DashboardAnalytics['summary']>({
+    total_events: 0,
+    critical_alerts: 0,
+    open_alerts: 0,
+    assets_count: 0
   });
 
-  // Fetch real dashboard stats from API
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchStats = async () => {
       try {
-        const data = await api.getDashboardStats();
-        if (data && data.summary) {
-          setStats(prev => ({
-            ...prev,
-            totalAlerts: data.summary.open_alerts || prev.totalAlerts,
-            criticalAlerts: data.summary.critical_alerts || prev.criticalAlerts,
-            totalEvents: data.summary.total_events || prev.totalEvents,
-            activeAssets: data.summary.assets_count || prev.activeAssets
-          }));
-        }
+        const data = await api.getDashboardAnalytics();
+        setStats(data.summary);
       } catch (error) {
-        console.warn('Failed to fetch dashboard stats, using mock data', error);
+        console.error('Failed to fetch dashboard stats', error);
+        // Fallback or keep 0
       }
     };
 
-    fetchDashboardData();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000);
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000); // Refresh every 30s
     return () => clearInterval(interval);
   }, []);
-
-  // Real-time Stats Simulation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStats(prev => {
-        const newEps = Math.floor(2200 + Math.random() * 400);
-        let newCritical = prev.criticalAlerts;
-        if (Math.random() > 0.9) {
-          const change = Math.random() > 0.5 ? 1 : -1;
-          newCritical = Math.max(0, Math.min(20, prev.criticalAlerts + change));
-        }
-        return {
-          ...prev,
-          eps: newEps,
-          criticalAlerts: newCritical,
-          totalEvents: prev.totalEvents + Math.floor(newEps * 2)
-        };
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  
+  // Real-time Stats Simulation (Removed as per instruction)
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setStats(prev => {
+  //       const newEps = Math.floor(2200 + Math.random() * 400);
+  //       let newCritical = prev.criticalAlerts;
+  //       if (Math.random() > 0.9) {
+  //         const change = Math.random() > 0.5 ? 1 : -1;
+  //         newCritical = Math.max(0, Math.min(20, prev.criticalAlerts + change));
+  //       }
+  //       return {
+  //         ...prev,
+  //         eps: newEps,
+  //         criticalAlerts: newCritical,
+  //         totalEvents: prev.totalEvents + Math.floor(newEps * 2)
+  //       };
+  //     });
+  //   }, 2000);
+  //   return () => clearInterval(interval);
+  // }, []);
   
   const [selectedAlertId, setSelectedAlertId] = useState<string | number | null>(null);
 
@@ -216,11 +195,11 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
         <div className="nav-right">
           <div className="nav-stat critical">
             <AlertTriangle className="w-4 h-4" />
-            <span>{stats.criticalAlerts} Critical</span>
+            <span>{stats.critical_alerts} Critical</span>
           </div>
           <div className="nav-stat">
             <Activity className="w-4 h-4" />
-            <span>{(stats.eps / 1000).toFixed(1)}k EPS</span>
+            <span>{(stats.total_events / 1000000).toFixed(1)}M Events</span> {/* Adjusted to use total_events */}
           </div>
           <ThemeToggle />
           <KeyboardShortcuts />
@@ -308,46 +287,38 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
 
                 {/* KPI Grid */}
                 <div className="kpi-grid">
-                  <div className="kpi-card danger">
-                    <div className="kpi-icon">
-                      <AlertTriangle className="w-8 h-8" />
-                    </div>
-                    <div className="kpi-content">
-                      <div className="kpi-value">{stats.totalAlerts}</div>
-                      <div className="kpi-label">Total Alerts (24h)</div>
-                      <div className="kpi-trend up">↑ 12% vs yesterday</div>
-                    </div>
-                  </div>
-                  <div className="kpi-card primary">
-                    <div className="kpi-icon">
-                      <Activity className="w-8 h-8" />
-                    </div>
-                    <div className="kpi-content">
-                      <div className="kpi-value">2.3M</div>
-                      <div className="kpi-label">Total Events</div>
-                      <div className="kpi-trend neutral">~ Stable</div>
-                    </div>
-                  </div>
-                  <div className="kpi-card info">
-                    <div className="kpi-icon">
-                      <Server className="w-8 h-8" />
-                    </div>
-                    <div className="kpi-content">
-                      <div className="kpi-value">{stats.activeAssets}</div>
-                      <div className="kpi-label">Active Assets</div>
-                      <div className="kpi-trend up">↑ 4 new devices</div>
-                    </div>
-                  </div>
-                  <div className="kpi-card success">
-                    <div className="kpi-icon">
-                      <Shield className="w-8 h-8" />
-                    </div>
-                    <div className="kpi-content">
-                      <div className="kpi-value">100%</div>
-                      <div className="kpi-label">MITRE Coverage</div>
-                      <div className="kpi-trend neutral">All techniques active</div>
-                    </div>
-                  </div>
+                  <StatCard 
+                    title="Total Events" 
+                    value={stats.total_events.toLocaleString()} 
+                    trend="+12%" 
+                    trendUp={true} 
+                    icon={Activity} 
+                    color="blue" 
+                  />
+                  <StatCard 
+                    title="Critical Alerts" 
+                    value={stats.critical_alerts.toString()} 
+                    trend="+2" 
+                    trendUp={false} 
+                    icon={AlertTriangle} 
+                    color="red" 
+                  />
+                  <StatCard 
+                    title="Open Alerts" 
+                    value={stats.open_alerts.toString()} 
+                    trend="-1" 
+                    trendUp={true} 
+                    icon={Shield} 
+                    color="amber" 
+                  />
+                  <StatCard 
+                    title="Active Assets" 
+                    value={stats.assets_count.toString()} 
+                    trend="+3" 
+                    trendUp={true} 
+                    icon={Server} 
+                    color="emerald" 
+                  />
                 </div>
 
                 {/* Main Dashboard Grid */}

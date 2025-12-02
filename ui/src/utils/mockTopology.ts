@@ -17,6 +17,10 @@ export interface TopologyNode {
     openPorts: number[];
     lastSeen: string;
   };
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
 }
 
 export interface TopologyLink {
