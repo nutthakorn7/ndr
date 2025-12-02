@@ -1,10 +1,11 @@
+```javascript
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/ndr/', // Base path for GitHub Pages deployment
   plugins: [react()],
-  base: '/', // Local deployment base path
   build: {
     rollupOptions: {
       output: {
