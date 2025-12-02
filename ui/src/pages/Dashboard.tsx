@@ -2,7 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import {
   Search, Bell, Shield, Network, Database, Lock,
   Globe, Activity, FileText, Zap, Settings,
-  AlertTriangle, Server, Eye, Target, Cpu, Link, Monitor
+  AlertTriangle, Server, Eye, Target, Cpu, Link, Monitor, Share2
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -15,6 +15,7 @@ import KeyboardShortcuts from '../components/KeyboardShortcuts';
 // Lazy load heavy components
 const AlertModal = lazy(() => import('../components/AlertModal'));
 const EventSearch = lazy(() => import('../components/EventSearch'));
+const NetworkTopology = lazy(() => import('../components/NetworkTopology'));
 const RealTimeFeed = lazy(() => import('../components/RealTimeFeed'));
 const NetworkAnalytics = lazy(() => import('../components/NetworkAnalytics'));
 const SensorManagement = lazy(() => import('../components/SensorManagement'));
@@ -143,6 +144,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
       icon: Network,
       views: [
         { id: 'network', name: 'Traffic Analytics', icon: Activity },
+        { id: 'topology', name: 'Network Map', icon: Share2 },
         { id: 'dns', name: 'DNS Intelligence', icon: Globe },
         { id: 'ssl', name: 'SSL/TLS Analysis', icon: Lock }
       ]
@@ -467,7 +469,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
               </Suspense>
             )}
             {/* Other Tabs (Placeholders for now) */}
-            {!['overview', 'soc', 'network', 'sensors', 'assets', 'threats', 'detection', 'ssl', 'files', 'dns', 'soar', 'siem'].includes(activeTab) && (
+            {!['overview', 'soc', 'network', 'sensors', 'assets', 'threats', 'detection', 'ssl', 'files', 'dns', 'soar', 'siem', 'topology'].includes(activeTab) && (
               <div className="panel">
                 <h3>{navigation.flatMap(c => c.views).find(t => t.id === activeTab)?.name}</h3>
                 <p className="text-gray-400 mt-4">
