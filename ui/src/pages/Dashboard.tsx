@@ -66,10 +66,18 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
   }, [tab]);
 
   // Update URL when switching tabs
-  const handleTabChange = (newTab: string) => {
-    setActiveTab(newTab);
-    navigate(`/${newTab}`);
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    navigate(`?tab=${tabId}`);
   };
+
+  const handleCreateIncident = (event: any) => {
+    addToast(`Creating incident from event #${event.id}`, 'info');
+    // In a real app, this would pass data to the incident form
+    handleTabChange('incidents');
+  };
+
+  // Navigation Configurations
   const [stats, setStats] = useState<DashboardStats>({
     totalAlerts: 581,
     criticalAlerts: 12,
@@ -376,9 +384,9 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
                   </div>
 
                   {/* Real-Time Feed & MITRE */}
-                  <div className="panel-stack">
+                  <div className="feed-container">
                     <Suspense fallback={<LoadingSpinner size="small" />}>
-                      <RealTimeFeed />
+                      <RealTimeFeed onCreateIncident={handleCreateIncident} />
                     </Suspense>
                     
                     <div className="panel">

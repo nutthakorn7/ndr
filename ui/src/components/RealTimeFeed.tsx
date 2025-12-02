@@ -42,7 +42,11 @@ const EVENT_TYPES = [
 
 const SEVERITIES: Array<'Critical' | 'High' | 'Medium' | 'Low'> = ['Critical', 'High', 'Medium', 'Low'];
 
-export default function RealTimeFeed() {
+interface RealTimeFeedProps {
+  onCreateIncident?: (event: ThreatEvent) => void;
+}
+
+export default function RealTimeFeed({ onCreateIncident }: RealTimeFeedProps) {
   const [events, setEvents] = useState<ThreatEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<ThreatEvent[]>([]);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -341,10 +345,11 @@ export default function RealTimeFeed() {
         )}
       </div>
 
-      <EventDetailModal
-        event={selectedEvent}
-        isOpen={selectedEvent !== null}
+      <EventDetailModal 
+        event={selectedEvent} 
+        isOpen={!!selectedEvent} 
         onClose={() => setSelectedEvent(null)}
+        onCreateIncident={onCreateIncident}
       />
     </div>
   );

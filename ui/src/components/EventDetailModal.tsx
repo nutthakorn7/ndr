@@ -18,9 +18,10 @@ interface EventDetailModalProps {
   event: ThreatEvent | null;
   isOpen: boolean;
   onClose: () => void;
+  onCreateIncident?: (event: ThreatEvent) => void;
 }
 
-export default function EventDetailModal({ event, isOpen, onClose }: EventDetailModalProps) {
+export default function EventDetailModal({ event, isOpen, onClose, onCreateIncident }: EventDetailModalProps) {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !event) return null;
@@ -151,6 +152,18 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
           <button className="btn-secondary" onClick={onClose}>
             Close
           </button>
+          {onCreateIncident && (
+            <button 
+              className="btn-primary flex items-center gap-2"
+              onClick={() => {
+                onCreateIncident(event);
+                onClose();
+              }}
+            >
+              <Shield className="w-4 h-4" />
+              Create Incident
+            </button>
+          )}
         </div>
       </div>
     </div>
