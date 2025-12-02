@@ -547,3 +547,28 @@
   align-items: center;
   margin-bottom: 1.5rem;
 }
+
+/* StatCard Colors - Explicitly defined to avoid Tailwind purging issues */
+.stat-card-blue {
+  color: #60a5fa; /* text-blue-400 */
+  background-color: rgba(59, 130, 246, 0.2); /* bg-blue-500/20 */
+  border-color: rgba(59, 130, 246, 0.5); /* border-blue-500/50 */
+}
+
+.stat-card-red {
+  color: #f87171; /* text-red-400 */
+  background-color: rgba(239, 68, 68, 0.2); /* bg-red-500/20 */
+  border-color: rgba(239, 68, 68, 0.5); /* border-red-500/50 */
+}
+
+.stat-card-amber {
+  color: #fbbf24; /* text-amber-400 */
+  background-color: rgba(245, 158, 11, 0.2); /* bg-amber-500/20 */
+  border-color: rgba(245, 158, 11, 0.5); /* border-amber-500/50 */
+}
+
+.stat-card-emerald {
+  color: #34d399; /* text-emerald-400 */
+  background-color: rgba(16, 185, 129, 0.2); /* bg-emerald-500/20 */
+  border-color: rgba(16, 185, 129, 0.5); /* border-emerald-500/50 */
+}

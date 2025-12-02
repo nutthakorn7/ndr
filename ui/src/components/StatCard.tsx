@@ -10,11 +10,12 @@ interface StatCardProps {
 }
 
 export default function StatCard({ title, value, trend, trendUp, icon: Icon, color }: StatCardProps) {
+  // Using standard CSS classes to avoid Tailwind purging issues
   const colorClasses = {
-    blue: 'text-blue-400 bg-blue-500/20 border-blue-500/50',
-    red: 'text-red-400 bg-red-500/20 border-red-500/50',
-    amber: 'text-amber-400 bg-amber-500/20 border-amber-500/50',
-    emerald: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/50'
+    blue: 'stat-card-blue',
+    red: 'stat-card-red',
+    amber: 'stat-card-amber',
+    emerald: 'stat-card-emerald'
   };
 
   return (

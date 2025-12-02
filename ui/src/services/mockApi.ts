@@ -3,6 +3,19 @@ import { mockIncidents, Incident } from '../utils/mockIncidents';
 
 // Mock Service for features not yet implemented in backend
 class MockApiService {
+  // Dashboard Summary
+  async getDashboardAnalytics() {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return {
+      summary: {
+        total_events: 12450,
+        critical_alerts: 5,
+        open_alerts: 12,
+        assets_count: 48
+      }
+    };
+  }
+
   // Topology
   async getTopologyData() {
     // Simulate network delay
