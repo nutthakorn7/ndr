@@ -1,40 +1,48 @@
 import { LucideIcon } from 'lucide-react';
+import Card from './common/Card';
 
 interface StatCardProps {
   title: string;
   value: string;
-  trend: string;
-  trendUp: boolean;
+  trend?: string;
+  trendUp?: boolean;
   icon: LucideIcon;
   color: 'blue' | 'red' | 'amber' | 'emerald';
 }
 
 export default function StatCard({ title, value, trend, trendUp, icon: Icon, color }: StatCardProps) {
-  // Using standard CSS classes to avoid Tailwind purging issues
-  const colorClasses = {
-    blue: 'stat-card-blue',
-    red: 'stat-card-red',
-    amber: 'stat-card-amber',
-    emerald: 'stat-card-emerald'
+  // Map legacy colors to new Design System tokens if needed, or use direct mapping
+  const colorMap = {
+    blue: 'text-primary',
+    red: 'text-error',
+    amber: 'text-warning',
+    emerald: 'text-success'
+  };
+
+  const bgMap = {
+    blue: 'bg-primary/10',
+    red: 'bg-error/10',
+    amber: 'bg-warning/10',
+    emerald: 'bg-success/10'
   };
 
   return (
-    <div className={`stat-card ${colorClasses[color]} border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:shadow-lg h-full`}>
-      <div className="flex justify-between items-start mb-4">
-        <div className="p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-inner">
-          <Icon className="w-6 h-6" />
+    <Card className="h-full transition-all duration-200 hover:bg-surface-3 hover:shadow-elevation-2 cursor-pointer group">
+      <div className="flex justify-between items-start mb-2">
+        <div className={`p-2 rounded-md ${bgMap[color]} ${colorMap[color]} transition-colors group-hover:bg-opacity-20`}>
+          <Icon className="w-5 h-5" />
         </div>
         {trend && (
-          <div className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${trendUp ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+          <div className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${trendUp ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
             <span>{trendUp ? '↑' : '↓'}</span>
             <span>{trend}</span>
           </div>
         )}
       </div>
       <div>
-        <div className="text-3xl font-bold text-white tracking-tight mb-1">{value}</div>
-        <div className="text-sm font-medium text-slate-400 tracking-wide uppercase text-opacity-80">{title}</div>
+        <div className="text-2xl font-normal text-gray-100 tracking-tight mb-1">{value}</div>
+        <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">{title}</div>
       </div>
-    </div>
+    </Card>
   );
 }
