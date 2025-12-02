@@ -88,6 +88,34 @@ class MockApiService {
       { ip: '172.16.0.25', bytes: '500 MB', flows: 1200, risk: 'Critical' },
     ];
   }
+
+  // AI Chat
+  async chatWithAI(message: string, context: any) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const lowerMsg = message.toLowerCase();
+    
+    if (lowerMsg.includes('alert') || lowerMsg.includes('critical')) {
+      return {
+        response: "I found 5 critical alerts in the last hour. The most concerning is a potential C2 communication from 192.168.1.112. Would you like me to create an incident for this?"
+      };
+    }
+    
+    if (lowerMsg.includes('traffic') || lowerMsg.includes('bandwidth')) {
+      return {
+        response: "Network traffic is currently stable at 1.2 Gbps. However, I noticed a 15% spike in outbound traffic from the DMZ subnet 20 minutes ago."
+      };
+    }
+
+    if (lowerMsg.includes('ip') || lowerMsg.includes('192.168')) {
+      return {
+        response: "That IP address (192.168.1.105) has been flagged for suspicious PowerShell activity. It has communicated with 3 external malicious IPs in the last 24 hours."
+      };
+    }
+
+    return {
+      response: "I'm monitoring the network. Everything looks nominal right now. You can ask me about specific alerts, IPs, or traffic trends."
+    };
+  }
 }
 
 export const mockApi = new MockApiService();

@@ -32,6 +32,7 @@ const DNSIntelligence = lazy(() => import('../components/DNSIntelligence'));
 const SoarIntegration = lazy(() => import('../components/SoarIntegration'));
 const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
 const UserProfile = lazy(() => import('../components/UserProfile'));
+const AiChatWidget = lazy(() => import('../components/AiChatWidget'));
 
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -521,6 +522,11 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
           <UserProfile onClose={() => setShowProfile(false)} />
         </Suspense>
       )}
+
+      {/* AI Chat Widget */}
+      <Suspense fallback={<div />}>
+        <AiChatWidget />
+      </Suspense>
     </div>
   );
 }

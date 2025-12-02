@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles, Bot } from 'lucide-react';
-import api from '../utils/api';
+import { api } from '../services/api';
+import { mockApi } from '../services/mockApi';
 import './AiChatWidget.css';
 
 interface Message {
@@ -61,13 +62,25 @@ export default function AiChatWidget() {
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (error) {
-      console.error('Chat failed:', error);
-      setMessages(prev => [...prev, { 
-        id: Date.now() + 1, 
-        sender: 'ai', 
-        text: "I'm having trouble connecting to the AI service right now. Please try again later.",
-        isError: true
-      }]);
+      console.warn('Chat API failed, falling back to mock:', error);
+      
+      try {
+        // Fallback to mock API
+        const response = await mockApi.chatWithAI(userMsg.text, {});
+        const aiMsg: Message = { 
+          id: Date.now() + 1, 
+          sender: 'ai', 
+          text: response.response || "I'm processing that..."
+        };
+        setMessages(prev => [...prev, aiMsg]);
+      } catch (mockError) {
+        setMessages(prev => [...prev, { 
+          id: Date.now() + 1, 
+          sender: 'ai', 
+          text: "I'm having trouble connecting to the AI service right now. Please try again later.",
+          isError: true
+        }]);
+      }
     } finally {
       setLoading(false);
     }
