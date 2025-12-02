@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { generateAllRules, getRecommendedRules, type DetectionRule } from '../utils/mockRules';
 import RuleAnalytics from './RuleAnalytics';
+import MitreHeatMap from './MitreHeatMap';
 import api from '../utils/api';
 import './AdvancedDetection.css';
 
@@ -38,7 +39,7 @@ interface DetectionStats {
 }
 
 export default function AdvancedDetection() {
-  const [activeTab, setActiveTab] = useState<string>('suricata'); // suricata, yara, sigma, analytics, editor
+  const [activeTab, setActiveTab] = useState<string>('suricata'); // suricata, yara, sigma, analytics, mitre, editor
   const [rules, setRules] = useState<Rule[]>([]);
   const [allRules, setAllRules] = useState<DetectionRule[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -382,6 +383,14 @@ export default function AdvancedDetection() {
             <span>Analytics</span>
           </button>
           <button 
+            className={`sidebar-item ${activeTab === 'mitre' ? 'active' : ''}`}
+            onClick={() => setActiveTab('mitre')}
+            disabled={!libraryLoaded}
+          >
+            <Shield className="w-4 h-4" />
+            <span>MITRE ATT&CK</span>
+          </button>
+          <button 
             className={`sidebar-item ${activeTab === 'editor' ? 'active' : ''}`}
             onClick={() => setActiveTab('editor')}
           >
@@ -392,7 +401,16 @@ export default function AdvancedDetection() {
 
         {/* Content Panel */}
         <div className="rules-panel">
-          {activeTab === 'analytics' ? (
+          {activeTab === 'mitre' ? (
+            <MitreHeatMap 
+              rules={allRules}
+              onTacticClick={(tacticId) => {
+                // Filter rules by tactic - switch to rules view
+                setActiveTab('suricata');
+                // Could add tactic filter here in the future
+              }}
+            />
+          ) : activeTab === 'analytics' ? (
             <RuleAnalytics 
               rules={allRules}
               onCategoryClick={(category) => {

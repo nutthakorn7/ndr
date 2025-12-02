@@ -1,0 +1,309 @@
+.mitre-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1.5rem;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* Stats Section */
+.mitre-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.mitre-stat-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.mitre-stat-card .stat-label {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.mitre-stat-card .stat-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #3b82f6;
+  line-height: 1;
+}
+
+.mitre-stat-card .stat-sublabel {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+/* Coverage Legend */
+.coverage-legend {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.legend-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.legend-items {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 0.25rem;
+  border: 1px solid #475569;
+}
+
+/* Heat Map Grid */
+.mitre-grid {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.grid-header {
+  margin-bottom: 1.5rem;
+}
+
+.grid-header h3 {
+  color: #f1f5f9;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.grid-header p {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.tactics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.tactic-cell {
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  border: 2px solid rgba(148, 163, 184, 0.2);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tactic-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.tactic-name {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.tactic-id {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Fira Code', 'Roboto Mono', monospace;
+}
+
+.tactic-count {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #fff;
+  margin-top: 0.25rem;
+}
+
+.tactic-techniques {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Coverage Details */
+.coverage-details {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.coverage-details h4 {
+  color: #f1f5f9;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.top-tactics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tactic-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tactic-row:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+}
+
+.tactic-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tactic-badge {
+  background: #3b82f6;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Fira Code', 'Roboto Mono', monospace;
+}
+
+.tactic-name-full {
+  color: #f1f5f9;
+  font-weight: 500;
+}
+
+.tactic-stats {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.rule-count {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.tech-count {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+/* Gap Analysis */
+.gap-analysis {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.gap-analysis h4 {
+  color: #f1f5f9;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.gap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gap-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.375rem;
+}
+
+.gap-badge {
+  background: #dc2626;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Fira Code', 'Roboto Mono', monospace;
+}
+
+.gap-name {
+  color: #f1f5f9;
+  font-weight: 500;
+  flex: 1;
+}
+
+.gap-warning {
+  color: #f59e0b;
+  font-size: 0.875rem;
+}
+
+.no-gaps {
+  text-align: center;
+  padding: 2rem;
+  color: #22c55e;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .mitre-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .tactics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .legend-items {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .tactics-grid {
+    grid-template-columns: 1fr;
+  }
+}
