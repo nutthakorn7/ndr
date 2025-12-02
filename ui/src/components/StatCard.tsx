@@ -19,18 +19,21 @@ export default function StatCard({ title, value, trend, trendUp, icon: Icon, col
   };
 
   return (
-    <div className={`stat-card ${colorClasses[color]} border rounded-xl p-4 flex flex-col gap-2`}>
-      <div className="flex justify-between items-start">
-        <div className="p-2 rounded-lg bg-slate-900/50">
+    <div className={`stat-card ${colorClasses[color]} border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:shadow-lg h-full`}>
+      <div className="flex justify-between items-start mb-4">
+        <div className="p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-inner">
           <Icon className="w-6 h-6" />
         </div>
-        <div className={`text-xs font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-          {trend}
-        </div>
+        {trend && (
+          <div className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${trendUp ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+            <span>{trendUp ? '↑' : '↓'}</span>
+            <span>{trend}</span>
+          </div>
+        )}
       </div>
       <div>
-        <div className="text-2xl font-bold text-white mt-2">{value}</div>
-        <div className="text-sm text-slate-400">{title}</div>
+        <div className="text-3xl font-bold text-white tracking-tight mb-1">{value}</div>
+        <div className="text-sm font-medium text-slate-400 tracking-wide uppercase text-opacity-80">{title}</div>
       </div>
     </div>
   );
