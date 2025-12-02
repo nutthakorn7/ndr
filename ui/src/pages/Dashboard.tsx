@@ -16,6 +16,7 @@ import KeyboardShortcuts from '../components/KeyboardShortcuts';
 const AlertModal = lazy(() => import('../components/AlertModal'));
 const EventSearch = lazy(() => import('../components/EventSearch'));
 const NetworkTopology = lazy(() => import('../components/NetworkTopology'));
+const IncidentBoard = lazy(() => import('../components/IncidentBoard'));
 const RealTimeFeed = lazy(() => import('../components/RealTimeFeed'));
 const NetworkAnalytics = lazy(() => import('../components/NetworkAnalytics'));
 const SensorManagement = lazy(() => import('../components/SensorManagement'));
@@ -135,7 +136,8 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
       icon: Shield,
       views: [
         { id: 'overview', name: 'Security Posture', icon: Activity },
-        { id: 'soc', name: 'SOC Wallboard', icon: Monitor }
+        { id: 'soc', name: 'SOC Wallboard', icon: Monitor },
+        { id: 'incidents', name: 'Incident Response', icon: Shield }
       ]
     },
     {
@@ -409,6 +411,15 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
               </Suspense>
             )}
 
+            {/* Incident Response Tab */}
+            {activeTab === 'incidents' && (
+              <div className="view-container">
+                <Suspense fallback={<LoadingSpinner size="medium" message="Loading Incidents..." />}>
+                  <IncidentBoard />
+                </Suspense>
+              </div>
+            )}
+
             {activeTab === 'network' && (
               <Suspense fallback={<LoadingSpinner size="medium" message="Loading Network Analytics..." />}>
                 <NetworkAnalytics />
@@ -469,7 +480,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
               </Suspense>
             )}
             {/* Other Tabs (Placeholders for now) */}
-            {!['overview', 'soc', 'network', 'sensors', 'assets', 'threats', 'detection', 'ssl', 'files', 'dns', 'soar', 'siem', 'topology'].includes(activeTab) && (
+            {!['overview', 'soc', 'network', 'sensors', 'assets', 'threats', 'detection', 'ssl', 'files', 'dns', 'soar', 'siem', 'topology', 'incidents'].includes(activeTab) && (
               <div className="panel">
                 <h3>{navigation.flatMap(c => c.views).find(t => t.id === activeTab)?.name}</h3>
                 <p className="text-gray-400 mt-4">
