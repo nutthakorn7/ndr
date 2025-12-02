@@ -6,8 +6,9 @@ import { useState, useEffect } from 'react';
 import { 
   Eye, FileText, Shield, Search, 
   ToggleLeft, ToggleRight, RefreshCw, Plus, Filter,
-  CheckCircle, Activity, Edit, Save
+  CheckCircle, Activity, Edit, Save, Download, X
 } from 'lucide-react';
+import { generateAllRules, getRecommendedRules, type DetectionRule } from '../utils/mockRules';
 import api from '../utils/api';
 import './AdvancedDetection.css';
 
@@ -38,11 +39,21 @@ interface DetectionStats {
 export default function AdvancedDetection() {
   const [activeTab, setActiveTab] = useState<string>('suricata'); // suricata, yara, sigma, editor
   const [rules, setRules] = useState<Rule[]>([]);
+  const [allRules, setAllRules] = useState<DetectionRule[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [stats, setStats] = useState<DetectionStats | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [ruleContent, setRuleContent] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
+  const [selectedRules, setSelectedRules] = useState<Set<string | number>>(new Set());
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [filters, setFilters] = useState({
+    category: 'all',
+    severity: 'all',
+    technology: 'all',
+    status: 'all'
+  });
+  const [libraryLoaded, setLibraryLoaded] = useState<boolean>(false);
 
   // Helper function to map severity levels
   const mapSeverity = (severity: number | string): string => {
@@ -71,6 +82,86 @@ export default function AdvancedDetection() {
     } catch (e) {
       return dateString; // Return original if invalid
     }
+  };
+
+  // Load 5,000 rule library
+  const loadRuleLibrary = () => {
+    setLoading(true);
+    const generated = generateAllRules();
+    setAllRules(generated);
+    setLibraryLoaded(true);
+    
+    // Filter by active tab
+    const filteredByTab = generated.filter(r => r.ruleType === activeTab);
+    const converted = filteredByTab.map(r => ({
+      id: r.id,
+      name: r.name,
+      category: r.category,
+      severity: r.severity,
+      status: r.status,
+      hits: r.hits,
+      updated: r.updated
+    }));
+    
+    setRules(converted);
+    
+    // Update stats
+    setStats({
+      totalRules: generated.length,
+      activeRules: generated.filter(r => r.status === 'enabled').length,
+      recentHits: generated.reduce((sum, r) => sum + r.hits, 0),
+      lastUpdate: 'Just now'
+    });
+    
+    setLoading(false);
+  };
+
+  // Bulk operations
+  const handleSelectAll = () => {
+    if (selectedRules.size === filteredRules.length) {
+      setSelectedRules(new Set());
+    } else {
+      setSelectedRules(new Set(filteredRules.map(r => r.id)));
+    }
+  };
+
+  const handleBulkEnable = () => {
+    setRules(rules.map(r => 
+      selectedRules.has(r.id) ? { ...r, status: 'enabled' } : r
+    ));
+    setSelectedRules(new Set());
+  };
+
+  const handleBulkDisable = () => {
+    setRules(rules.map(r => 
+      selectedRules.has(r.id) ? { ...r, status: 'disabled' } : r
+    ));
+    setSelectedRules(new Set());
+  };
+
+  const handleEnableAllCritical = () => {
+    setRules(rules.map(r => 
+      r.severity === 'Critical' ? { ...r, status: 'enabled' } : r
+    ));
+  };
+
+  const handleEnableRecommended = () => {
+    // Enable recommended rules based on common threats
+    setRules(rules.map(r => {
+      const shouldEnable = 
+        r.severity === 'Critical' ||
+        (r.severity === 'High' && (
+          r.category.includes('Malware') ||
+          r.category.includes('Exploit') ||
+          r.category.includes('Ransomware')
+        ));
+      return shouldEnable ? { ...r, status: 'enabled' } : r;
+    }));
+  };
+
+  const handleDisableAll = () => {
+    setRules(rules.map(r => ({ ...r, status: 'disabled' })));
+    setSelectedRules(new Set());
   };
 
   useEffect(() => {
@@ -195,11 +286,24 @@ export default function AdvancedDetection() {
     ));
   };
 
-  const filteredRules = rules.filter(rule => 
-    rule.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rule.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rule.id.toString().includes(searchTerm)
-  );
+  const filteredRules = rules.filter(rule => {
+    // Search filter
+    const matchesSearch = 
+      rule.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      rule.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      rule.id.toString().includes(searchTerm);
+    
+    // Category filter
+    const matchesCategory = filters.category === 'all' || rule.category === filters.category;
+    
+    // Severity filter
+    const matchesSeverity = filters.severity === 'all' || rule.severity === filters.severity;
+    
+    // Status filter
+    const matchesStatus = filters.status === 'all' || rule.status === filters.status;
+    
+    return matchesSearch && matchesCategory && matchesSeverity && matchesStatus;
+  });
 
   return (
     <div className="advanced-detection">
@@ -299,6 +403,18 @@ export default function AdvancedDetection() {
             </div>
           ) : (
             <>
+              {/* Load Library Button - Show if not loaded */}
+              {!libraryLoaded && (
+                <div className="load-library-prompt">
+                  <button className="btn-load-library" onClick={loadRuleLibrary}>
+                    <Download className="w-5 h-5" />
+                    Load Rule Library (5,000 Rules)
+                  </button>
+                  <p>Load comprehensive detection rules from Suricata ET, YARA, and Sigma</p>
+                </div>
+              )}
+
+              {/* Panel Controls */}
               <div className="panel-controls">
                 <div className="search-input">
                   <Search className="w-4 h-4" />
@@ -310,14 +426,99 @@ export default function AdvancedDetection() {
                   />
                 </div>
                 <div className="control-actions">
-                  <button className="btn-secondary">
-                    <Filter className="w-4 h-4" /> Filter
+                  <button 
+                    className="btn-secondary" 
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
+                    <Filter className="w-4 h-4" /> 
+                    {showFilters ? 'Hide Filters' : 'Filters'}
                   </button>
                   <button className="btn-primary">
                     <Plus className="w-4 h-4" /> Add Rule
                   </button>
                 </div>
               </div>
+
+              {/* Bulk Actions Toolbar */}
+              {selectedRules.size > 0 && (
+                <div className="bulk-actions-toolbar">
+                  <div className="bulk-info">
+                    <span>{selectedRules.size} rule{selectedRules.size !== 1 ? 's' : ''} selected</span>
+                  </div>
+                  <div className="bulk-buttons">
+                    <button className="btn-sm btn-success" onClick={handleBulkEnable}>
+                      Enable Selected
+                    </button>
+                    <button className="btn-sm btn-danger" onClick={handleBulkDisable}>
+                      Disable Selected
+                    </button>
+                    <button className="btn-sm btn-secondary" onClick={() => setSelectedRules(new Set())}>
+                      <X className="w-4 h-4" /> Clear Selection
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Actions */}
+              {libraryLoaded && (
+                <div className="quick-actions">
+                  <button className="btn-quick" onClick={handleEnableAllCritical}>
+                    Enable All Critical
+                  </button>
+                  <button className="btn-quick" onClick={handleEnableRecommended}>
+                    Enable Recommended
+                  </button>
+                  <button className="btn-quick" onClick={handleDisableAll}>
+                    Disable All
+                  </button>
+                </div>
+              )}
+
+              {/* Filter Panel */}
+              {showFilters && (
+                <div className="filter-panel">
+                  <div className="filter-row">
+                    <div className="filter-group">
+                      <label>Category</label>
+                      <select 
+                        value={filters.category} 
+                        onChange={(e) => setFilters({...filters, category: e.target.value})}
+                      >
+                        <option value="all">All Categories</option>
+                        <option value="Malware">Malware</option>
+                        <option value="Exploit">Exploit</option>
+                        <option value="Phishing">Phishing</option>
+                        <option value="Ransomware">Ransomware</option>
+                        <option value="Scan">Scan</option>
+                      </select>
+                    </div>
+                    <div className="filter-group">
+                      <label>Severity</label>
+                      <select 
+                        value={filters.severity} 
+                        onChange={(e) => setFilters({...filters, severity: e.target.value})}
+                      >
+                        <option value="all">All Severities</option>
+                        <option value="Critical">Critical</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                      </select>
+                    </div>
+                    <div className="filter-group">
+                      <label>Status</label>
+                      <select 
+                        value={filters.status} 
+                        onChange={(e) => setFilters({...filters, status: e.target.value})}
+                      >
+                        <option value="all">All</option>
+                        <option value="enabled">Enabled</option>
+                        <option value="disabled">Disabled</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="rules-table-container">
                 {loading ? (
@@ -326,6 +527,13 @@ export default function AdvancedDetection() {
                   <table className="rules-table">
                     <thead>
                       <tr>
+                        <th style={{width: '40px'}}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedRules.size === filteredRules.length && filteredRules.length > 0}
+                            onChange={handleSelectAll}
+                          />
+                        </th>
                         <th style={{width: '60px'}}>Status</th>
                         <th>ID</th>
                         <th>Rule Name</th>
@@ -339,6 +547,21 @@ export default function AdvancedDetection() {
                     <tbody>
                       {filteredRules.map(rule => (
                         <tr key={rule.id} className={rule.status === 'disabled' ? 'disabled-row' : ''}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedRules.has(rule.id)}
+                              onChange={() => {
+                                const newSelected = new Set(selectedRules);
+                                if (newSelected.has(rule.id)) {
+                                  newSelected.delete(rule.id);
+                                } else {
+                                  newSelected.add(rule.id);
+                                }
+                                setSelectedRules(newSelected);
+                              }}
+                            />
+                          </td>
                           <td>
                             <button 
                               className={`toggle-btn ${rule.status}`}
