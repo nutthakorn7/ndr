@@ -6,9 +6,10 @@ import { useState, useEffect } from 'react';
 import { 
   Eye, FileText, Shield, Search, 
   ToggleLeft, ToggleRight, RefreshCw, Plus, Filter,
-  CheckCircle, Activity, Edit, Save, Download, X
+  CheckCircle, Activity, Edit, Save, Download, X, BarChart3
 } from 'lucide-react';
 import { generateAllRules, getRecommendedRules, type DetectionRule } from '../utils/mockRules';
+import RuleAnalytics from './RuleAnalytics';
 import api from '../utils/api';
 import './AdvancedDetection.css';
 
@@ -37,7 +38,7 @@ interface DetectionStats {
 }
 
 export default function AdvancedDetection() {
-  const [activeTab, setActiveTab] = useState<string>('suricata'); // suricata, yara, sigma, editor
+  const [activeTab, setActiveTab] = useState<string>('suricata'); // suricata, yara, sigma, analytics, editor
   const [rules, setRules] = useState<Rule[]>([]);
   const [allRules, setAllRules] = useState<DetectionRule[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -373,6 +374,14 @@ export default function AdvancedDetection() {
             <span>Sigma Rules</span>
           </button>
           <button 
+            className={`sidebar-item ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+            disabled={!libraryLoaded}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Analytics</span>
+          </button>
+          <button 
             className={`sidebar-item ${activeTab === 'editor' ? 'active' : ''}`}
             onClick={() => setActiveTab('editor')}
           >
@@ -383,7 +392,19 @@ export default function AdvancedDetection() {
 
         {/* Content Panel */}
         <div className="rules-panel">
-          {activeTab === 'editor' ? (
+          {activeTab === 'analytics' ? (
+            <RuleAnalytics 
+              rules={allRules}
+              onCategoryClick={(category) => {
+                setActiveTab('suricata'); // or 'yara'/'sigma' based on category
+                setFilters({...filters, category});
+              }}
+              onSeverityClick={(severity) => {
+                setActiveTab('suricata');
+                setFilters({...filters, severity});
+              }}
+            />
+          ) : activeTab === 'editor' ? (
             <div className="rule-editor-container">
               <div className="panel-controls">
                 <h3>Suricata Rules File (suricata.rules)</h3>
