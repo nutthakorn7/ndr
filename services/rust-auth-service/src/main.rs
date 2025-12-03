@@ -1,14 +1,14 @@
 use axum::{
     routing::{get, post, delete},
     Router,
-    http::{Method, StatusCode},
+    http::Method,
 };
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use sqlx::postgres::PgPoolOptions;
+use ndr_telemetry::{init_telemetry, info, error, warn};
+use ndr_storage::postgres::create_pool;
 
 mod handlers;
 mod models;
@@ -25,38 +25,38 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("auth-service") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
-    tracing::info!("Starting Rust Auth Service...");
+    info!("Starting Rust Auth Service...");
 
-    // Database Connection
+    // Database Connection using shared pool
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = PgPoolOptions::new()
-        .max_connections(50)
-        .connect(&database_url)
-        .await
-        .expect("Failed to connect to database");
+    let pool = match create_pool(&database_url).await {
+        Ok(p) => p,
+        Err(e) => {
+            error!(error = %e, "Failed to connect to database");
+            std::process::exit(1);
+        }
+    };
 
     let db = DB::new(pool);
     
     // Initialize DB Schema
     if let Err(e) = db.init_schema().await {
-        tracing::error!("Failed to initialize database schema: {}", e);
+        error!(error = %e, "Failed to initialize database schema");
         // Continue anyway, maybe it's already initialized
     }
 
     // Create default admin
     if let (Ok(email), Ok(password)) = (std::env::var("ADMIN_EMAIL"), std::env::var("ADMIN_PASSWORD")) {
         if let Err(e) = db.create_user(&email, &password, "Admin", "default").await {
-            tracing::warn!("Failed to create default admin (might exist): {}", e);
+            warn!(error = ?e, "Failed to create default admin (might exist)");
         } else {
-            tracing::info!("Default admin created: {}", email);
+            info!("Default admin created: {}", email);
         }
     }
 
@@ -91,7 +91,7 @@ async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8087".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     
-    tracing::info!("listening on {}", addr);
+    info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
