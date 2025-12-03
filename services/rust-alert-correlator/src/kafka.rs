@@ -2,7 +2,7 @@ use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::message::Message;
-use ndr_telemetry::{info, warn, error, debug};  // Use ndr_telemetry
+use ndr_telemetry::{info, warn, error};  // Use ndr_telemetry
 use ndr_core::domain::Alert;  // Use shared Alert type
 use crate::engine::CorrelationEngine;
 use std::sync::Arc;

@@ -20,6 +20,13 @@ use db::DB;
 use cache::Cache;
 use engine::CorrelationEngine;
 
+async fn health_check() -> impl axum::response::IntoResponse {
+    axum::Json(serde_json::json!({
+        "status": "ok",
+        "service": "rust-alert-correlator"
+    }))
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
@@ -73,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     // Kafka Consumer
     // Spawn health check server
     tokio::spawn(async {
-        let app = axum::Router::new().route("/health", axum::routing::get(|| async { "OK" }));
+        let app = axum::Router::new().route("/health", axum::routing::get(health_check));
         let port = std::env::var("HEALTH_PORT").unwrap_or_else(|_| "8090".to_string());
         let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
         info!("Health check server listening on {}", addr);

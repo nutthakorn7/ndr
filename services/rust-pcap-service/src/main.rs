@@ -1,8 +1,11 @@
 use axum::{
+    extract::State,
+    response::{IntoResponse, Json},
     routing::{get, get_service},
     Router,
     http::{Method, StatusCode},
 };
+use serde_json::json;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tower_http::services::ServeDir;
@@ -16,6 +19,13 @@ mod api;
 #[derive(Clone)]
 pub struct AppState {
     pub pcap_dir: String,
+}
+
+async fn health_check() -> impl IntoResponse {
+    Json(json!({
+        "status": "ok",
+        "service": "rust-pcap-service"
+    }))
 }
 
 #[tokio::main]
@@ -56,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Routes
     let app = Router::new()
-        .route("/health", get(|| async { "OK" }))
+        .route("/health", get(health_check))
         .route("/api/pcaps", get(api::list_pcaps))
         .nest_service("/files", ServeDir::new(&pcap_dir))
         .layer(TraceLayer::new_for_http())

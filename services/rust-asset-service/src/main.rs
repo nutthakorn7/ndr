@@ -1,14 +1,14 @@
 use axum::{
-    routing::{get, post},
+    routing::get,
     Router,
     http::Method,
 };
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use ndr_telemetry::{init_telemetry, info, error};
 use ndr_storage::postgres::create_pool;
+use dotenvy::dotenv;
 
 mod handlers;
 mod db;

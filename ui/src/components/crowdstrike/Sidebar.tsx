@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Activity, AlertTriangle, Network, Settings, Search, Menu, Target, FileText } from 'lucide-react';
+import { Shield, Activity, AlertTriangle, Network, Settings, Search, Menu, Target, FileText, ClipboardList, Zap, Server } from 'lucide-react';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -11,8 +11,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const navItems = [
     { id: 'dashboard', icon: Activity, label: 'Dashboard' },
     { id: 'alerts', icon: AlertTriangle, label: 'Detections' },
+    { id: 'incidents', icon: ClipboardList, label: 'Incidents' },
     { id: 'hunting', icon: Target, label: 'Threat Hunting' },
     { id: 'logs', icon: FileText, label: 'Log Viewer' },
+    { id: 'automation', icon: Zap, label: 'Automation (SOAR)' },
+    { id: 'edge', icon: Server, label: 'Edge Management' },
     { id: 'hosts', icon: Shield, label: 'Host Management' },
     { id: 'network', icon: Network, label: 'Network' },
     { id: 'config', icon: Settings, label: 'Configuration' },

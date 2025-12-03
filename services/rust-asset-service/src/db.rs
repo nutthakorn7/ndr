@@ -1,7 +1,6 @@
-use sqlx::{Pool, Postgres, Row};
-use crate::models::{Asset, AssetFilter, AssetStats, CountStat};
+use sqlx::{Pool, Postgres};
+use crate::models::{Asset, AssetFilter};
 use anyhow::Result;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct DB {
@@ -18,21 +17,17 @@ impl DB {
             r#"
             CREATE TABLE IF NOT EXISTS assets (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                ip_address VARCHAR(45) UNIQUE NOT NULL,
-                mac_address VARCHAR(17),
+                ip VARCHAR(45) NOT NULL UNIQUE,
                 hostname VARCHAR(255),
-                os_type VARCHAR(50),
-                os_version VARCHAR(50),
-                device_type VARCHAR(50),
-                criticality VARCHAR(20) DEFAULT 'unknown',
+                mac_address VARCHAR(17),
+                os VARCHAR(100),
                 first_seen TIMESTAMPTZ DEFAULT NOW(),
                 last_seen TIMESTAMPTZ DEFAULT NOW(),
-                tags TEXT[],
-                metadata JSONB DEFAULT '{}',
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
+                criticality VARCHAR(20) DEFAULT 'low',
+                device_type VARCHAR(50) DEFAULT 'unknown',
+                tags TEXT[] DEFAULT '{}'
             );
-            CREATE INDEX IF NOT EXISTS idx_assets_ip ON assets(ip_address);
+            CREATE INDEX IF NOT EXISTS idx_assets_ip ON assets(ip);
             CREATE INDEX IF NOT EXISTS idx_assets_hostname ON assets(hostname);
             "#
         )
@@ -41,38 +36,31 @@ impl DB {
         Ok(())
     }
 
-    pub async fn upsert_asset(&self, asset: Asset) -> Result<Asset> {
-        let rec = sqlx::query_as::<_, Asset>(
+    pub async fn upsert_asset(&self, asset: &Asset) -> Result<Asset> {
+        let row = sqlx::query_as!(
+            Asset,
             r#"
-            INSERT INTO assets (ip_address, mac_address, hostname, os_type, os_version, device_type, criticality, first_seen, last_seen, tags, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9)
-            ON CONFLICT (ip_address) 
-            DO UPDATE SET
-                mac_address = COALESCE(EXCLUDED.mac_address, assets.mac_address),
+            INSERT INTO assets (ip, hostname, mac_address, os, criticality, device_type, tags, last_seen)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+            ON CONFLICT (ip) DO UPDATE SET
                 hostname = COALESCE(EXCLUDED.hostname, assets.hostname),
-                os_type = COALESCE(EXCLUDED.os_type, assets.os_type),
-                os_version = COALESCE(EXCLUDED.os_version, assets.os_version),
-                device_type = COALESCE(EXCLUDED.device_type, assets.device_type),
-                last_seen = NOW(),
-                tags = EXCLUDED.tags,
-                metadata = assets.metadata || EXCLUDED.metadata,
-                updated_at = NOW()
+                mac_address = COALESCE(EXCLUDED.mac_address, assets.mac_address),
+                os = COALESCE(EXCLUDED.os, assets.os),
+                last_seen = NOW()
             RETURNING *
-            "#
+            "#,
+            asset.ip,
+            asset.hostname,
+            asset.mac_address,
+            asset.os,
+            asset.criticality,
+            asset.device_type,
+            asset.tags.as_deref()
         )
-        .bind(&asset.ip_address)
-        .bind(&asset.mac_address)
-        .bind(&asset.hostname)
-        .bind(&asset.os_type)
-        .bind(&asset.os_version)
-        .bind(&asset.device_type)
-        .bind(&asset.criticality)
-        .bind(&asset.tags)
-        .bind(&asset.metadata)
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(rec)
+        Ok(row)
     }
 
     pub async fn get_assets(&self, filter: AssetFilter) -> Result<Vec<Asset>> {
@@ -81,43 +69,42 @@ impl DB {
         let mut idx = 1;
 
         if let Some(ip) = filter.ip_address {
-            query.push_str(&format!(" AND ip_address = ${}", idx));
-            use sqlx::Arguments;
-            args.add(ip);
+            query.push_str(&format!(" AND ip = ${}", idx));
             idx += 1;
+            use sqlx::Arguments;
+            let _ = args.add(ip);
         }
         if let Some(host) = filter.hostname {
             query.push_str(&format!(" AND hostname ILIKE ${}", idx));
-            use sqlx::Arguments;
-            args.add(format!("%{}%", host));
             idx += 1;
+            use sqlx::Arguments;
+            let _ = args.add(format!("%{}%", host));
         }
         if let Some(crit) = filter.criticality {
             query.push_str(&format!(" AND criticality = ${}", idx));
-            use sqlx::Arguments;
-            args.add(crit);
             idx += 1;
+            use sqlx::Arguments;
+            let _ = args.add(crit);
         }
         if let Some(dt) = filter.device_type {
             query.push_str(&format!(" AND device_type = ${}", idx));
-            use sqlx::Arguments;
-            args.add(dt);
             idx += 1;
+            use sqlx::Arguments;
+            let _ = args.add(dt);
         }
 
         query.push_str(" ORDER BY last_seen DESC");
 
         if let Some(limit) = filter.limit {
             query.push_str(&format!(" LIMIT ${}", idx));
-            use sqlx::Arguments;
-            args.add(limit);
             idx += 1;
+            use sqlx::Arguments;
+            let _ = args.add(limit);
         }
         if let Some(offset) = filter.offset {
             query.push_str(&format!(" OFFSET ${}", idx));
             use sqlx::Arguments;
-            args.add(offset);
-            idx += 1;
+            let _ = args.add(offset);
         }
 
         let assets = sqlx::query_as_with::<_, Asset, _>(&query, args)

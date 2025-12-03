@@ -1,12 +1,12 @@
 use axum::{
     routing::{get, post},
     Router,
-    Json,
     extract::{State, Path},
     http::StatusCode,
+    response::{IntoResponse, Json},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sqlx::postgres::PgPool;
 use sqlx::Row;
 use std::env;
@@ -105,8 +105,11 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn health_check() -> &'static str {
-    "OK"
+async fn health_check() -> impl IntoResponse {
+    Json(json!({
+        "status": "ok",
+        "service": "rust-controller"
+    }))
 }
 
 async fn list_sensors(

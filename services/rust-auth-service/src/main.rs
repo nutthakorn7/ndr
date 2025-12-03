@@ -1,8 +1,11 @@
 use axum::{
+    extract::State,
+    response::{IntoResponse, Json},
     routing::{get, post, delete},
     Router,
-    http::Method,
+    http::{Method, StatusCode},
 };
+use serde_json::json;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use std::net::SocketAddr;
@@ -92,6 +95,9 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn health_check() -> &'static str {
-    "OK"
+async fn health_check() -> impl IntoResponse {
+    Json(json!({
+        "status": "ok",
+        "service": "rust-auth-service"
+    }))
 }

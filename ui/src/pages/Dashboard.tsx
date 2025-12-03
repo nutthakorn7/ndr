@@ -23,8 +23,11 @@ const RuleAnalytics = lazy(() => import('../components/RuleAnalytics'));
 const CommandPalette = lazy(() => import('../components/CommandPalette'));
 const ThreatHunting = lazy(() => import('./ThreatHunting'));
 const LogViewer = lazy(() => import('./LogViewer'));
+const SoarIntegration = lazy(() => import('../components/SoarIntegration'));
+const EdgeManagement = lazy(() => import('../components/EdgeManagement'));
 const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
 const ShortcutsHelp = lazy(() => import('../components/ShortcutsHelp'));
+const EventTicker = lazy(() => import('../components/EventTicker'));
 import { api, DashboardAnalytics } from '../services/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { generateAllRules } from '../utils/mockRules';
@@ -152,6 +155,30 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
         <Alerts />
       )}
 
+      {activeTab === 'incidents' && (
+        <div className="h-full overflow-hidden">
+          <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
+            <IncidentBoard />
+          </Suspense>
+        </div>
+      )}
+
+      {activeTab === 'automation' && (
+        <div className="h-full overflow-hidden">
+          <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
+            <SoarIntegration />
+          </Suspense>
+        </div>
+      )}
+
+      {activeTab === 'edge' && (
+        <div className="h-full overflow-hidden">
+          <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
+            <EdgeManagement />
+          </Suspense>
+        </div>
+      )}
+
       {activeTab === 'hunting' && (
         <div className="h-full overflow-hidden">
           <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
@@ -198,9 +225,6 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
             <Suspense fallback={<div className="h-[400px] bg-[var(--bg-panel)] animate-pulse rounded" />}>
               <ThreatIntelligence />
             </Suspense>
-            <Suspense fallback={<div className="h-[400px] bg-[var(--bg-panel)] animate-pulse rounded" />}>
-              <IncidentBoard />
-            </Suspense>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Suspense fallback={<div className="h-[400px] bg-[var(--bg-panel)] animate-pulse rounded" />}>
@@ -239,6 +263,11 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
       <Suspense fallback={null}>
         <AiChatWidget />
       </Suspense>
+      
+      <Suspense fallback={null}>
+        <EventTicker />
+      </Suspense>
+
       <Suspense fallback={null}>
         <CommandPalette 
           isOpen={isPaletteOpen}

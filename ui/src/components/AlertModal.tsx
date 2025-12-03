@@ -4,9 +4,13 @@
  */
 import { useState, useEffect } from 'react';
 import { X, Shield, Clock, Link, FileText, AlertTriangle, CheckCircle, Download } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import api from '../utils/api';
 import LoadingSpinner from './LoadingSpinner';
 import AttackChainGraph from './AttackChainGraph';
+import FileAnalysis from './FileAnalysis';
+import SSLAnalysis from './SSLAnalysis';
+import DNSIntelligence from './DNSIntelligence';
 import './AlertModal.css';
 
 interface AlertModalProps {
@@ -30,7 +34,7 @@ interface Alert {
   risk_score?: number;
   status: string;
   notes?: Note[];
-  raw_event?: any;
+  raw_event?: Record<string, unknown>;
 }
 
 interface Note {
@@ -39,15 +43,33 @@ interface Note {
   timestamp: string;
 }
 
+interface AttackChainEvent {
+  title: string;
+  rule_name?: string;
+  severity: string;
+  timestamp: string;
+  src_ip?: string;
+  dst_ip?: string;
+  protocol?: string;
+}
+
+interface AiAnalysis {
+  severity_assessment: string;
+  confidence: number;
+  analysis: string;
+  recommended_actions: string[];
+}
+
 export default function AlertModal({ alertId, onClose }: AlertModalProps) {
   const [alert, setAlert] = useState<Alert | null>(null);
-  const [chain, setChain] = useState<any[]>([]);
+  const [chain, setChain] = useState<AttackChainEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('details');
   const [newNote, setNewNote] = useState<string>('');
-  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<AiAnalysis | null>(null);
   const [aiLoading, setAiLoading] = useState<boolean>(false);
   const [reportLoading, setReportLoading] = useState<boolean>(false);
+  const [activeAnalysis, setActiveAnalysis] = useState<'file' | 'ssl' | 'dns' | null>(null);
 
   useEffect(() => {
     const fetchAlertData = async () => {
@@ -56,11 +78,11 @@ export default function AlertModal({ alertId, onClose }: AlertModalProps) {
         // Try to fetch from API first
         const [alertData, chainData] = await Promise.all([
           api.getAlertById(alertId),
-          api.getCorrelatedAlerts(alertId).catch(() => ({ alerts: [] })) // Changed chain to alerts
+          api.getCorrelatedAlerts(alertId).catch(() => ({ alerts: [] }))
         ]);
         
         setAlert(alertData);
-        setChain(chainData?.alerts || []); // Changed chain to alerts
+        setChain(chainData?.alerts || []);
       } catch (error) {
         console.warn('Failed to load alert from API, using mock data:', error);
         // Fallback to mock data for demo purposes
@@ -130,10 +152,12 @@ export default function AlertModal({ alertId, onClose }: AlertModalProps) {
   };
 
   const handleAiTriage = async () => {
+    if (!alert) return;
     setAiLoading(true);
     try {
-      const result = await api.triageAlert(alertId, alert);
-      setAiAnalysis(result);
+      // Cast the result to unknown first then to AiAnalysis to handle potential mismatch
+      const result = await api.triageAlert(alertId, alert as unknown as Record<string, unknown>);
+      setAiAnalysis(result as unknown as AiAnalysis);
     } catch (error) {
       console.error('AI Triage failed:', error);
     } finally {
@@ -142,9 +166,10 @@ export default function AlertModal({ alertId, onClose }: AlertModalProps) {
   };
 
   const handleGenerateReport = async () => {
+    if (!alert) return;
     setReportLoading(true);
     try {
-      const report = await api.generateReport(alertId, alert);
+      const report = await api.generateReport(alertId, alert as unknown as Record<string, unknown>);
       // Create a blob and download it
       const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
@@ -321,6 +346,32 @@ export default function AlertModal({ alertId, onClose }: AlertModalProps) {
             </div>
           )}
 
+          {activeTab === 'details' && (
+            <div className="deep-analysis-section mt-6 pt-6 border-t border-[var(--border-subtle)]">
+              <h4 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-4">Deep Analysis</h4>
+              <div className="flex gap-3">
+                <button 
+                  className="btn-secondary flex items-center gap-2"
+                  onClick={() => setActiveAnalysis('file')}
+                >
+                  <FileText className="w-4 h-4" /> File Analysis
+                </button>
+                <button 
+                  className="btn-secondary flex items-center gap-2"
+                  onClick={() => setActiveAnalysis('dns')}
+                >
+                  <Globe className="w-4 h-4" /> DNS Intelligence
+                </button>
+                <button 
+                  className="btn-secondary flex items-center gap-2"
+                  onClick={() => setActiveAnalysis('ssl')}
+                >
+                  <Shield className="w-4 h-4" /> SSL/TLS Inspection
+                </button>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'chain' && (
             <div className="chain-view">
               {chain.length === 0 ? (
@@ -427,7 +478,11 @@ export default function AlertModal({ alertId, onClose }: AlertModalProps) {
 
                   <div className="ai-content">
                     <h5>Analysis</h5>
-                    <p dangerouslySetInnerHTML={{ __html: aiAnalysis.analysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                    <p dangerouslySetInnerHTML={{ 
+                      __html: DOMPurify.sanitize(
+                        aiAnalysis.analysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      ) 
+                    }} />
                     
                     {aiAnalysis.recommended_actions && (
                       <div className="ai-actions">
@@ -474,6 +529,30 @@ export default function AlertModal({ alertId, onClose }: AlertModalProps) {
           </button>
         </div>
       </div>
+
+
+      {/* Stacked Modals for Deep Analysis */}
+      {activeAnalysis && (
+        <div className="modal-overlay stacked" style={{ zIndex: 1100 }}>
+          <div className="alert-modal wide" style={{ width: '90%', height: '90%', maxWidth: '1200px' }}>
+            <div className="modal-header">
+              <div className="modal-title-section">
+                {activeAnalysis === 'file' && <h2>File Analysis</h2>}
+                {activeAnalysis === 'dns' && <h2>DNS Intelligence</h2>}
+                {activeAnalysis === 'ssl' && <h2>SSL/TLS Inspection</h2>}
+              </div>
+              <button className="close-btn" onClick={() => setActiveAnalysis(null)}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="modal-content no-padding" style={{ height: 'calc(100% - 60px)', overflow: 'auto' }}>
+              {activeAnalysis === 'file' && <FileAnalysis onClose={() => setActiveAnalysis(null)} />}
+              {activeAnalysis === 'dns' && <DNSIntelligence />}
+              {activeAnalysis === 'ssl' && <SSLAnalysis />}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

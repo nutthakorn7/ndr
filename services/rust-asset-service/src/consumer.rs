@@ -46,7 +46,7 @@ pub async fn start_consumer(db: DB) -> Result<()> {
                     Ok(log) => {
                         let assets = AssetExtractor::extract_from_log(&log);
                         for asset in assets {
-                            if let Err(e) = db.upsert_asset(asset.clone()).await {
+                            if let Err(e) = db.upsert_asset(&asset.clone()).await {
                                 error!("Failed to upsert asset {}: {}", asset.ip_address, e);
                             } else {
                                 debug!("Upserted asset: {}", asset.ip_address);

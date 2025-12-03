@@ -1,12 +1,10 @@
 use crate::db::DB;
 use crate::cache::Cache;
 use crate::models::ChainEvent;
-use ndr_core::domain::Alert;  // Use shared Alert type
+use ndr_core::domain::Alert;
 use anyhow::Result;
-use serde_json::{json, Value};
-use ndr_telemetry::{info, error};  // Use ndr_telemetry instead of tracing
+use ndr_telemetry::info;
 use uuid::Uuid;
-use std::sync::Arc;
 
 pub struct CorrelationEngine {
     db: DB,

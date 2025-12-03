@@ -1,5 +1,5 @@
 use sqlx::{Pool, Postgres, Row};
-use crate::models::{AlertMeta, ChainEvent};
+use crate::models::AlertMeta;
 use anyhow::Result;
 use uuid::Uuid;
 use serde_json::Value;

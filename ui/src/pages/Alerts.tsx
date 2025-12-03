@@ -4,10 +4,13 @@ import { Filter, X, Search, FileCode } from 'lucide-react';
 
 const EventSearch = lazy(() => import('../components/EventSearch'));
 const FileAnalysis = lazy(() => import('../components/FileAnalysis'));
+const SSLAnalysis = lazy(() => import('../components/SSLAnalysis'));
+const DNSIntelligence = lazy(() => import('../components/DNSIntelligence'));
 
 export default function Alerts() {
   const [selectedAlertId, setSelectedAlertId] = useState<string | number | null>(null);
   const [activeView, setActiveView] = useState<'alerts' | 'search' | 'files'>('alerts');
+  const [activeAnalysis, setActiveAnalysis] = useState<'file' | 'ssl' | 'dns' | null>(null);
 
   // Mock Data
   const alerts: Alert[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => ({
@@ -92,7 +95,7 @@ export default function Alerts() {
             <div className={`flex-1 transition-all duration-300 ${selectedAlertId ? 'w-1/2' : 'w-full'}`}>
               <AlertTable 
                 alerts={alerts}
-                selectedId={selectedAlertId}
+                selectedRowId={selectedAlertId}
                 onSelect={setSelectedAlertId}
               />
             </div>
@@ -142,6 +145,31 @@ export default function Alerts() {
                     </div>
                   </div>
 
+                  {/* Deep Analysis */}
+                  <div className="deep-analysis-section">
+                    <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3">Deep Analysis</h4>
+                    <div className="flex gap-3">
+                      <button 
+                        className="flex-1 py-2 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded text-sm font-medium hover:bg-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2"
+                        onClick={() => setActiveAnalysis('file')}
+                      >
+                        <FileCode className="w-4 h-4" /> File Analysis
+                      </button>
+                      <button 
+                        className="flex-1 py-2 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded text-sm font-medium hover:bg-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2"
+                        onClick={() => setActiveAnalysis('dns')}
+                      >
+                        <Search className="w-4 h-4" /> DNS Intel
+                      </button>
+                      <button 
+                        className="flex-1 py-2 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded text-sm font-medium hover:bg-[var(--border-subtle)] transition-colors flex items-center justify-center gap-2"
+                        onClick={() => setActiveAnalysis('ssl')}
+                      >
+                        <Filter className="w-4 h-4" /> SSL/TLS
+                      </button>
+                    </div>
+                  </div>
+                
                   {/* Details */}
                   <div>
                     <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3">Detection Details</h4>
@@ -186,6 +214,35 @@ export default function Alerts() {
           </Suspense>
         </div>
       )}
+
+      {/* Stacked Modals for Deep Analysis */}
+      {activeAnalysis && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1100] flex items-center justify-center p-8">
+          <div className="bg-[var(--bg-app)] w-full h-full max-w-6xl rounded-lg shadow-2xl border border-[var(--border-subtle)] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-[var(--border-subtle)] flex justify-between items-center bg-[var(--bg-panel)]">
+              <h2 className="text-lg font-semibold">
+                {activeAnalysis === 'file' && 'File Analysis'}
+                {activeAnalysis === 'dns' && 'DNS Intelligence'}
+                {activeAnalysis === 'ssl' && 'SSL/TLS Inspection'}
+              </h2>
+              <button 
+                className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors"
+                onClick={() => setActiveAnalysis(null)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              <Suspense fallback={<div className="h-full w-full flex items-center justify-center">Loading...</div>}>
+                {activeAnalysis === 'file' && <FileAnalysis onClose={() => setActiveAnalysis(null)} />}
+                {activeAnalysis === 'dns' && <DNSIntelligence />}
+                {activeAnalysis === 'ssl' && <SSLAnalysis />}
+              </Suspense>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

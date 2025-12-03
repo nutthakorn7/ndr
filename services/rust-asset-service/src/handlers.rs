@@ -4,14 +4,14 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use crate::models::{AssetFilter, AssetStats};
+use crate::models::AssetFilter;
 use crate::AppState;
 use serde_json::json;
 use uuid::Uuid;
 
 pub async fn health_check() -> impl IntoResponse {
     Json(json!({
-        "status": "healthy",
+        "status": "ok",
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "service": "rust-asset-service"
     }))
@@ -51,7 +51,7 @@ pub async fn get_stats(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     match state.db.get_stats().await {
-        Ok(stats) => Json(stats).into_response(),
+        Ok(stats) => Json::<crate::models::AssetStats>(stats).into_response(),
         Err(e) => {
             tracing::error!("Failed to fetch stats: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch stats").into_response()

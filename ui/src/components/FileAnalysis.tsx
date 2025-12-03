@@ -40,11 +40,16 @@ interface AnalyzedFile {
   time: string;
 }
 
-export default function FileAnalysis() {
+interface FileAnalysisProps {
+  initialSearchQuery?: string;
+  onClose?: () => void;
+}
+
+export default function FileAnalysis({ initialSearchQuery = '', onClose }: FileAnalysisProps) {
   const [stats, setStats] = useState<FileStats | null>(null);
   const [files, setFiles] = useState<AnalyzedFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>(initialSearchQuery);
 
   useEffect(() => {
     const loadData = async () => {

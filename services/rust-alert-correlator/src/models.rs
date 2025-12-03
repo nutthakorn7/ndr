@@ -4,7 +4,7 @@
 //! and adds service-specific types for correlation metadata.
 
 // Re-export shared domain types
-pub use ndr_core::domain::{Alert, Severity};
+
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
