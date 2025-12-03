@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { 
+import {
   Search, Filter, Download, ChevronDown, ChevronRight, X, RefreshCw, AlertTriangle,
   Save, FolderOpen, Share2, Link
 } from 'lucide-react';
@@ -12,6 +12,7 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import { useSavedQueries, SavedQuery } from '../hooks/useSavedQueries';
 import { SavedQueriesMenu } from '../components/SavedQueriesMenu';
+import { FilterBar, FilterConfig } from '../components/FilterBar';
 
 interface LogEntry {
   id: string;
@@ -38,7 +39,6 @@ export default function Investigation() {
   const [loading, setLoading] = useState(false);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [selectedLogs, setSelectedLogs] = useState(new Set<string>());
-  const [showFilters, setShowFilters] = useState(true);
   
   // Saved Queries State
   const { savedQueries, saveQuery, deleteQuery, toggleFavorite } = useSavedQueries();
@@ -56,6 +56,60 @@ export default function Investigation() {
     srcIp: searchParams.get('src') || '',
     dstIp: searchParams.get('dst') || '',
   });
+
+  // Filter Configuration
+  const filterConfig: FilterConfig[] = [
+    {
+      key: 'timeRange',
+      label: 'Time Range',
+      type: 'select',
+      options: [
+        { value: '1h', label: 'Last 1 Hour' },
+        { value: '24h', label: 'Last 24 Hours' },
+        { value: '7d', label: 'Last 7 Days' },
+        { value: '30d', label: 'Last 30 Days' }
+      ]
+    },
+    {
+      key: 'severity',
+      label: 'Severity',
+      type: 'select',
+      options: [
+        { value: 'critical', label: 'Critical' },
+        { value: 'high', label: 'High' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'low', label: 'Low' },
+        { value: 'info', label: 'Info' }
+      ]
+    },
+    {
+      key: 'eventType',
+      label: 'Event Type',
+      type: 'select',
+      options: [
+        { value: 'dns_query', label: 'DNS Query' },
+        { value: 'http_request', label: 'HTTP Request' },
+        { value: 'ssh_login', label: 'SSH Login' },
+        { value: 'file_access', label: 'File Access' }
+      ]
+    },
+    {
+      key: 'protocol',
+      label: 'Protocol',
+      type: 'select',
+      options: [
+        { value: 'TCP', label: 'TCP' },
+        { value: 'UDP', label: 'UDP' },
+        { value: 'ICMP', label: 'ICMP' }
+      ]
+    },
+    { key: 'srcIp', label: 'Source IP', type: 'text', placeholder: 'e.g. 192.168.1.5' },
+    { key: 'dstIp', label: 'Dest IP', type: 'text', placeholder: 'e.g. 10.0.0.1' }
+  ];
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
 
   // Sync state to URL
   useEffect(() => {
@@ -210,7 +264,7 @@ export default function Investigation() {
         `${log.dst_ip}:${log.dst_port}`,
         log.protocol
       ]);
-      const csv = [headers, ...rows].map(row => row.join(',')).join('\\n');
+      const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -285,215 +339,116 @@ export default function Investigation() {
         </div>
       </div>
 
-      {/* Query Bar */}
       {/* Search & Toolbar */}
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
-          <input
-            type="text"
-            placeholder="Search logs (e.g. source:192.168.1.1 OR type:dns)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchLogs()}
-            className="w-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded pl-10 pr-4 py-2 text-[var(--text-primary)] focus:border-[var(--sev-info)] outline-none"
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          {/* Saved Queries Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSavedQueries(!showSavedQueries)}
-              className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
-              title="Saved Queries"
-            >
-              <FolderOpen className="w-5 h-5" />
-            </button>
-            <SavedQueriesMenu
-              isOpen={showSavedQueries}
-              onClose={() => setShowSavedQueries(false)}
-              queries={savedQueries}
-              onLoad={handleLoadQuery}
-              onDelete={deleteQuery}
-              onToggleFavorite={toggleFavorite}
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+            <input
+              type="text"
+              placeholder="Search logs (e.g. source:192.168.1.1 OR type:dns)"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchLogs()}
+              className="w-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded pl-10 pr-4 py-2 text-[var(--text-primary)] focus:border-[var(--sev-info)] outline-none"
             />
           </div>
-
-          {/* Save Query Button */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSaveDialog(!showSaveDialog)}
-              className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
-              title="Save Current Query"
-            >
-              <Save className="w-5 h-5" />
-            </button>
-            
-            {/* Save Dialog */}
-            {showSaveDialog && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowSaveDialog(false)} />
-                <div className="absolute top-full right-0 mt-2 w-72 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg shadow-xl z-50 p-4">
-                  <h3 className="text-sm font-semibold mb-3 text-[var(--text-primary)]">Save Query</h3>
-                  <input
-                    type="text"
-                    placeholder="Query Name"
-                    value={newQueryName}
-                    onChange={(e) => setNewQueryName(e.target.value)}
-                    className="w-full bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm mb-3 focus:border-[var(--sev-info)] outline-none"
-                    autoFocus
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setShowSaveDialog(false)}
-                      className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveQuery}
-                      disabled={!newQueryName.trim()}
-                      className="px-3 py-1.5 text-xs bg-[var(--sev-info)] text-white rounded hover:opacity-90 disabled:opacity-50"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Share Button */}
-          <div className="relative">
-            <button
-              onClick={handleShare}
-              className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
-              title="Share Query Link"
-            >
-              <Share2 className="w-5 h-5" />
-            </button>
-            {showShareTooltip && (
-              <div className="absolute top-full right-0 mt-2 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap z-50 animate-fade-in">
-                Link copied!
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`h-full px-4 border rounded flex items-center gap-2 transition-colors ${
-              showFilters
-                ? 'bg-[var(--sev-info)] border-[var(--sev-info)] text-white'
-                : 'bg-[var(--bg-panel)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-          </button>
           
-          <button 
-            onClick={fetchLogs}
-            className="h-full px-4 bg-[var(--sev-info)] text-white rounded hover:opacity-90 flex items-center gap-2"
-          >
-            <Search className="w-4 h-4" />
-            Search
-          </button>
-        </div>
-      </div>
+          <div className="flex gap-2">
+            {/* Saved Queries & Share buttons ... */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSavedQueries(!showSavedQueries)}
+                className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
+                title="Saved Queries"
+              >
+                <FolderOpen className="w-5 h-5" />
+              </button>
+              <SavedQueriesMenu
+                isOpen={showSavedQueries}
+                onClose={() => setShowSavedQueries(false)}
+                queries={savedQueries}
+                onLoad={handleLoadQuery}
+                onDelete={deleteQuery}
+                onToggleFavorite={toggleFavorite}
+              />
+            </div>
 
-      {/* Filter Panel */}
-      {showFilters && (
-        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">Quick Filters</h3>
-            <button
-              onClick={clearFilters}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1"
+            <div className="relative">
+              <button
+                onClick={() => setShowSaveDialog(!showSaveDialog)}
+                className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
+                title="Save Current Query"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+              {/* ... save dialog ... */}
+              {showSaveDialog && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowSaveDialog(false)} />
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg shadow-xl z-50 p-4">
+                    <h3 className="text-sm font-semibold mb-3 text-[var(--text-primary)]">Save Query</h3>
+                    <input
+                      type="text"
+                      placeholder="Query Name"
+                      value={newQueryName}
+                      onChange={(e) => setNewQueryName(e.target.value)}
+                      className="w-full bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm mb-3 focus:border-[var(--sev-info)] outline-none"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setShowSaveDialog(false)}
+                        className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveQuery}
+                        disabled={!newQueryName.trim()}
+                        className="px-3 py-1.5 text-xs bg-[var(--sev-info)] text-white rounded hover:opacity-90 disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={handleShare}
+                className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
+                title="Share Query Link"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+              {showShareTooltip && (
+                <div className="absolute top-full right-0 mt-2 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap z-50 animate-fade-in">
+                  Link copied!
+                </div>
+              )}
+            </div>
+            
+            <button 
+              onClick={fetchLogs}
+              className="h-full px-4 bg-[var(--sev-info)] text-white rounded hover:opacity-90 flex items-center gap-2"
             >
-              <X className="w-3 h-3" />
-              Clear All
+              <Search className="w-4 h-4" />
+              Search
             </button>
           </div>
-          <div className="grid grid-cols-6 gap-4">
-            <div>
-              <label className="block text-xs text-[var(--text-secondary)] mb-2">Time Range</label>
-              <select
-                value={filters.timeRange}
-                onChange={(e) => setFilters({...filters, timeRange: e.target.value})}
-                className="w-full px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)]"
-              >
-                <option value="1h">Last Hour</option>
-                <option value="24h">Last 24h</option>
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-secondary)] mb-2">Severity</label>
-              <select
-                value={filters.severity}
-                onChange={(e) => setFilters({...filters, severity: e.target.value})}
-                className="w-full px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)]"
-              >
-                <option value="all">All</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="info">Info</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-secondary)] mb-2">Event Type</label>
-              <select
-                value={filters.eventType}
-                onChange={(e) => setFilters({...filters, eventType: e.target.value})}
-                className="w-full px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)]"
-              >
-                <option value="all">All</option>
-                <option value="dns_query">DNS Query</option>
-                <option value="http_request">HTTP Request</option>
-                <option value="ssh_login">SSH Login</option>
-                <option value="tls_handshake">TLS Handshake</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-secondary)] mb-2">Protocol</label>
-              <select
-                value={filters.protocol}
-                onChange={(e) => setFilters({...filters, protocol: e.target.value})}
-                className="w-full px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)]"
-              >
-                <option value="all">All</option>
-                <option value="TCP">TCP</option>
-                <option value="UDP">UDP</option>
-                <option value="ICMP">ICMP</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-secondary)] mb-2">Source IP</label>
-              <input
-                type="text"
-                value={filters.srcIp}
-                onChange={(e) => setFilters({...filters, srcIp: e.target.value})}
-                placeholder="192.168.1.*"
-                className="w-full px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-secondary)] mb-2">Dest IP</label>
-              <input
-                type="text"
-                value={filters.dstIp}
-                onChange={(e) => setFilters({...filters, dstIp: e.target.value})}
-                placeholder="10.0.0.*"
-                className="w-full px-3 py-2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
-              />
-            </div>
-          </div>
         </div>
-      )}
+
+        {/* Filter Bar */}
+        <FilterBar 
+          config={filterConfig}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClearAll={clearFilters}
+        />
+      </div>
 
       {/* Results Stats & BulkActionBar */}
       {selectedLogs.size > 0 ? (
