@@ -105,8 +105,13 @@ async fn main() -> anyhow::Result<()> {
     // Initialize IOC store
     let ioc_store = Arc::new(IocStore::new());
 
-    // HTTP client for coordinator communication
-    let coordinator_client = Arc::new(reqwest::Client::new());
+    // HTTP client for coordinator communication with timeouts
+    let coordinator_client = Arc::new(
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))        // Overall request timeout
+            .connect_timeout(Duration::from_secs(5)) // Connection timeout
+            .build()?
+    );
 
     let is_online = Arc::new(RwLock::new(false));
 
@@ -485,6 +490,8 @@ async fn rule_updater_task(state: AppState) {
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
+        .set("socket.timeout.ms", "30000")      // Socket timeout 30s
+        .set("request.timeout.ms", "30000")     // Request timeout 30s
         .create()
     {
         Ok(c) => c,

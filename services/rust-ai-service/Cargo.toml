@@ -8,7 +8,7 @@ edition = "2021"
 ndr-core = { path = "../crates/ndr-core" }
 ndr-telemetry = { path = "../crates/ndr-telemetry" }
 ndr-storage = { path = "../crates/ndr-storage" }
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "json", "uuid"] }
+sqlx = { version = "0.8.2", features = ["runtime-tokio-rustls", "postgres", "chrono", "json", "uuid"] }
 
 # Service-specific dependencies
 axum = "0.7"
