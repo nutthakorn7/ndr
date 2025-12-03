@@ -88,7 +88,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
   return (
     <FalconLayout activeTab={activeTab} onTabChange={handleTabChange}>
       {/* KPI Row - Dense 4px gap */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" style={{ gap: 'var(--spacing-lg)' }}>
+      <div className="grid grid-cols-4 gap-4 mb-6" style={{ gap: 'var(--spacing-lg)' }}>
         <KpiTile
           label="Total Events"
           value={stats.total_events.toLocaleString()}
