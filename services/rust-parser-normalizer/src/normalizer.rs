@@ -98,7 +98,7 @@ impl LogNormalizer {
     }
 
     fn apply_zeek_mappings(&self, source: &Value, target: &mut Value) {
-        let zeek = source.get("zeek").or(Some(source)).unwrap();
+        let zeek = source.get("zeek").unwrap_or(source);
         
         if let Some(orig_h) = zeek.get("id.orig_h") {
             self.set_nested(target, "source.ip", orig_h.clone());
@@ -115,7 +115,7 @@ impl LogNormalizer {
     }
 
     fn apply_suricata_mappings(&self, source: &Value, target: &mut Value) {
-        let eve = source.get("suricata").or(Some(source)).unwrap();
+        let eve = source.get("suricata").unwrap_or(source);
 
         if let Some(src_ip) = eve.get("src_ip") {
             self.set_nested(target, "source.ip", src_ip.clone());
@@ -151,7 +151,11 @@ impl LogNormalizer {
                     o.insert(part.to_string(), json!({}));
                 }
             }
-            current = current.get_mut(*part).unwrap();
+            if let Some(next) = current.get_mut(*part) {
+                current = next;
+            } else {
+                return; // Failed to traverse path
+            }
         }
     }
 }

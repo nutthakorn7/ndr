@@ -13,7 +13,7 @@ use parser::LogParser;
 use normalizer::LogNormalizer;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     
     // Initialize telemetry
@@ -36,17 +36,17 @@ async fn main() {
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
         .create()
-        .expect("Consumer creation failed");
+        .map_err(|e| anyhow::anyhow!("Consumer creation failed: {}", e))?;
 
     consumer
         .subscribe(&["raw-logs", &zeek_topic, &suricata_topic])
-        .expect("Can't subscribe to specified topics");
+        .map_err(|e| anyhow::anyhow!("Can't subscribe to specified topics: {}", e))?;
 
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", &brokers)
         .set("message.timeout.ms", "5000")
         .create()
-        .expect("Producer creation failed");
+        .map_err(|e| anyhow::anyhow!("Producer creation failed: {}", e))?;
 
     let parser = LogParser::new();
     let normalizer = LogNormalizer::new();
@@ -78,7 +78,13 @@ async fn main() {
                         let parsed = parser.parse(raw_log);
                         let normalized = normalizer.normalize(parsed);
 
-                        let output_json = serde_json::to_string(&normalized).unwrap();
+                        let output_json = match serde_json::to_string(&normalized) {
+                            Ok(json) => json,
+                            Err(e) => {
+                                error!("Failed to serialize normalized log: {}", e);
+                                continue;
+                            }
+                        };
                         
                         let _ = producer
                             .send(

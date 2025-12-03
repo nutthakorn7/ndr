@@ -64,7 +64,10 @@ impl Repository {
     pub async fn save_model(&self, version: &str, artifacts: &ModelArtifacts) -> Result<()> {
         info!("Saving model version {} to database...", version);
         
-        let artifacts_json = serde_json::to_value(artifacts).unwrap();
+        let artifacts_json = serde_json::to_value(artifacts).map_err(|e| {
+            error!("Failed to serialize artifacts: {}", e);
+            ndr_storage::StorageError::Serialization(e.to_string())
+        })?;
         
         // Deactivate previous models
         sqlx::query("UPDATE ai_models SET is_active = false WHERE model_type = 'kmeans_anomaly'")

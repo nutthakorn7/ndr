@@ -13,7 +13,7 @@ use linfa::prelude::*;
 use linfa_clustering::KMeans;
 use ndarray::{Array2, ArrayView1};
 use ndr_storage::postgres::create_pool;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 mod repository;
 use repository::{Repository, ModelArtifacts};
@@ -90,7 +90,7 @@ impl AnomalyModel {
             distances.push(min_dist);
         }
         
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let threshold_idx = (distances.len() as f64 * 0.99) as usize;
         let threshold = distances[threshold_idx.min(distances.len() - 1)];
 
@@ -110,7 +110,10 @@ impl AnomalyModel {
             return (0, false, 0.0);
         }
 
-        let centroids = self.centroids.as_ref().unwrap();
+        let centroids = match self.centroids.as_ref() {
+            Some(c) => c,
+            None => return (0, false, 0.0),
+        };
         let point = ArrayView1::from(features);
 
         // Find distance to nearest centroid
@@ -147,7 +150,7 @@ struct Prediction {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Initialize telemetry
     if let Err(e) = init_telemetry("ai-service") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -155,8 +158,9 @@ async fn main() {
     }
 
     // Connect to database
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = create_pool(&database_url).await.expect("Failed to connect to database");
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|_| anyhow::anyhow!("DATABASE_URL environment variable must be set"))?;
+    let pool = create_pool(&database_url).await?;
     let repository = Arc::new(Repository::new(pool));
 
     let model = Arc::new(Mutex::new(AnomalyModel::new()));
@@ -164,7 +168,13 @@ async fn main() {
     // Load existing model
     match repository.load_active_model().await {
         Ok(Some(artifacts)) => {
-            let mut m = model.lock().unwrap();
+            let mut m = match model.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    error!("Model lock poisoned, recovering");
+                    poisoned.into_inner()
+                }
+            };
             m.load_from_artifacts(artifacts);
             info!("Loaded existing model from database");
         }
@@ -192,12 +202,24 @@ async fn main() {
     let addr = format!("0.0.0.0:{}", port);
     
     info!("listening on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
+    axum::serve(listener, app)
+        .await
+        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
+    
+    Ok(())
 }
 
 async fn health_check(State(state): State<AppState>) -> impl IntoResponse {
-    let model = state.model.lock().unwrap();
+    let model = match state.model.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            error!("Model lock poisoned during health check, recovering");
+            poisoned.into_inner()
+        }
+    };
     Json(serde_json::json!({
         "status": "healthy",
         "model_loaded": model.centroids.is_some()
@@ -208,7 +230,13 @@ async fn analyze_flow(
     State(state): State<AppState>,
     Json(flow): Json<FlowData>,
 ) -> Result<Json<Prediction>, (StatusCode, String)> {
-    let model = state.model.lock().unwrap();
+    let model = match state.model.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            error!("Model lock poisoned during analyze, recovering");
+            poisoned.into_inner()
+        }
+    };
     
     if model.centroids.is_none() {
         return Err((StatusCode::SERVICE_UNAVAILABLE, "Model not loaded".to_string()));
@@ -243,12 +271,22 @@ async fn train_model(State(state): State<AppState>) -> Result<Json<serde_json::V
 
     // 2. Train model
     let artifacts = {
-        let mut model = state.model.lock().unwrap();
+        let mut model = match state.model.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                error!("Model lock poisoned during training, recovering");
+                poisoned.into_inner()
+            }
+        };
         model.train(data).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?
     };
 
     // 3. Save model
-    let version = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
+    let version = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_secs()
+        .to_string();
     state.repository.save_model(&version, &artifacts).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Save Error: {}", e)))?;
 

@@ -15,19 +15,19 @@ impl LogParser {
     pub fn new() -> Self {
         // Grok patterns translated to Regex
         // SYSLOG: %{SYSLOGTIMESTAMP:timestamp} %{IPORHOST:host} %{PROG:program}(?:\[%{POSINT:pid}\])?: %{GREEDYDATA:message}
-        let syslog_regex = Regex::new(r"^(?P<timestamp>\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(?P<host>[\w\.\-]+)\s+(?P<program>[\w\.\-]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<message>.*)$").unwrap();
+        let syslog_regex = Regex::new(r"^(?P<timestamp>\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(?P<host>[\w\.\-]+)\s+(?P<program>[\w\.\-]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<message>.*)$").expect("Invalid syslog regex");
         
         // APACHE: %{COMBINEDAPACHELOG} (Simplified)
-        let apache_regex = Regex::new(r"^(?P<clientip>[\d\.]+)\s+\-\s+\-\s+\[(?P<timestamp>[^\]]+)\]\s+.(?P<verb>\w+)\s+(?P<request>[^\s]+)\s+HTTP/(?P<httpversion>[\d\.]+).\s+(?P<response>\d+)\s+(?P<bytes>\d+)\s+.(?P<referrer>[^.]*).\s+.(?P<agent>[^.]*).$").unwrap();
+        let apache_regex = Regex::new(r"^(?P<clientip>[\d\.]+)\s+\-\s+\-\s+\[(?P<timestamp>[^\]]+)\]\s+.(?P<verb>\w+)\s+(?P<request>[^\s]+)\s+HTTP/(?P<httpversion>[\d\.]+).\s+(?P<response>\d+)\s+(?P<bytes>\d+)\s+.(?P<referrer>[^.]*).\s+.(?P<agent>[^.]*).$").expect("Invalid apache regex");
 
         // NGINX (Similar to Apache usually, simplified)
-        let nginx_regex = Regex::new(r"^(?P<clientip>[\d\.]+)\s+\-\s+\-\s+\[(?P<timestamp>[^\]]+)\]\s+.(?P<verb>\w+)\s+(?P<request>[^\s]+)\s+HTTP/(?P<httpversion>[\d\.]+).\s+(?P<response>\d+)\s+(?P<bytes>\d+)\s+.(?P<referrer>[^.]*).\s+.(?P<agent>[^.]*).$").unwrap();
+        let nginx_regex = Regex::new(r"^(?P<clientip>[\d\.]+)\s+\-\s+\-\s+\[(?P<timestamp>[^\]]+)\]\s+.(?P<verb>\w+)\s+(?P<request>[^\s]+)\s+HTTP/(?P<httpversion>[\d\.]+).\s+(?P<response>\d+)\s+(?P<bytes>\d+)\s+.(?P<referrer>[^.]*).\s+.(?P<agent>[^.]*).$").expect("Invalid nginx regex");
 
         // WINDOWS: %{TIMESTAMP_ISO8601:timestamp} %{WORD:level} %{NUMBER:event_id} %{GREEDYDATA:message}
-        let windows_regex = Regex::new(r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\s+(?P<level>\w+)\s+(?P<event_id>\d+)\s+(?P<message>.*)$").unwrap();
+        let windows_regex = Regex::new(r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\s+(?P<level>\w+)\s+(?P<event_id>\d+)\s+(?P<message>.*)$").expect("Invalid windows regex");
 
         // NETFLOW: %{IP:src_ip} %{IP:dst_ip} %{INT:src_port} %{INT:dst_port} %{WORD:protocol} %{INT:bytes}
-        let netflow_regex = Regex::new(r"^(?P<src_ip>[\d\.]+)\s+(?P<dst_ip>[\d\.]+)\s+(?P<src_port>\d+)\s+(?P<dst_port>\d+)\s+(?P<protocol>\w+)\s+(?P<bytes>\d+)$").unwrap();
+        let netflow_regex = Regex::new(r"^(?P<src_ip>[\d\.]+)\s+(?P<dst_ip>[\d\.]+)\s+(?P<src_port>\d+)\s+(?P<dst_port>\d+)\s+(?P<protocol>\w+)\s+(?P<bytes>\d+)$").expect("Invalid netflow regex");
 
         Self {
             syslog_regex,
