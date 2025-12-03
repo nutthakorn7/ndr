@@ -1,7 +1,9 @@
 import { useState, lazy, Suspense } from 'react';
 import { AlertTable, Alert } from '../components/crowdstrike/AlertTable';
-import { Filter, X, Search, FileCode, Download } from 'lucide-react';
+import { Filter, X, Search, FileCode, Download, AlertTriangle } from 'lucide-react';
 import BulkActionBar from '../components/BulkActionBar';
+import SkeletonLoader from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 
 const EventSearch = lazy(() => import('../components/EventSearch'));
 const FileAnalysis = lazy(() => import('../components/FileAnalysis'));
@@ -13,6 +15,7 @@ export default function Alerts() {
   const [activeView, setActiveView] = useState<'alerts' | 'search' | 'files'>('alerts');
   const [activeAnalysis, setActiveAnalysis] = useState<'file' | 'ssl' | 'dns' | null>(null);
   const [selectedAlerts, setSelectedAlerts] = useState(new Set<string | number>());
+  const [loading, setLoading] = useState(false);
 
   // Mock Data
   const alerts: Alert[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => ({
@@ -151,11 +154,27 @@ export default function Alerts() {
           <div className="flex-1 flex gap-4 overflow-hidden">
             {/* Left: Alert List */}
             <div className={`flex-1 transition-all duration-300 ${selectedAlertId ? 'w-1/2' : 'w-full'}`}>
-              <AlertTable 
-                alerts={alerts}
-                selectedRowId={selectedAlertId}
-                onSelect={setSelectedAlertId}
-              />
+              {loading ? (
+                <SkeletonLoader variant="table" rows={15} columns={5} />
+              ) : alerts.length === 0 ? (
+                <EmptyState
+                  icon={AlertTriangle}
+                  title="No alerts found"
+                  description="There are currently no security alerts matching your criteria."
+                  action={{
+                    label: "Refresh",
+                    onClick: () => window.location.reload()
+                  }}
+                />
+              ) : (
+                <Suspense fallback={<SkeletonLoader variant="table" rows={15} columns={5} />}>
+                  <AlertTable
+                    alerts={alerts}
+                    onSelectAlert={setSelectedAlertId}
+                    selectedAlertId={selectedAlertId}
+                  />
+                </Suspense>
+              )}
             </div>
 
             {/* Right: Details Pane (Visible when selected) */}
