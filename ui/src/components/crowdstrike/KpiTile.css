@@ -2,7 +2,7 @@
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: var(--card-radius);
-  padding: var(--spacing-md);
+  padding: var(--spacing-lg);
   transition: all var(--transition-fast);
   position: relative;
   overflow: hidden;
@@ -15,7 +15,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
 }
 
 .kpi-tile__label {
@@ -42,7 +42,7 @@
   font-size: var(--text-2xl);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
   line-height: 1.2;
 }
 
@@ -51,7 +51,7 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 0;
+  margin-top: var(--spacing-xs);
 }
 
 .sparkline-container {
