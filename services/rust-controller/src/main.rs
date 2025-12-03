@@ -7,11 +7,12 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use sqlx::postgres::PgPool;
 use sqlx::Row;
 use std::env;
 use std::net::SocketAddr;
-use tracing_subscriber;
+use ndr_telemetry::{init_telemetry, info, error};
+use ndr_storage::postgres::create_pool;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
@@ -68,15 +69,16 @@ struct ListSensorsResponse {
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("sensor-controller") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     
     // Create database pool
-    let pool = PgPoolOptions::new()
-        .max_connections(50)
-        .connect(&database_url)
+    let pool = create_pool(&database_url)
         .await
         .expect("Failed to connect to database");
 
@@ -93,7 +95,7 @@ async fn main() {
     // Run it
     let port = env::var("PORT").unwrap_or_else(|_| "8084".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
-    println!("Rust Sensor Controller listening on {}", addr);
+    info!("Rust Sensor Controller listening on {}", addr);
     
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
@@ -120,7 +122,7 @@ async fn list_sensors(
     .fetch_all(&state.db)
     .await
     .map_err(|e| {
-        eprintln!("Failed to list sensors: {}", e);
+        error!(error = %e, "Failed to list sensors");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -167,7 +169,7 @@ async fn register_sensor(
     .fetch_one(&state.db)
     .await
     .map_err(|e| {
-        eprintln!("Failed to register sensor: {}", e);
+        error!(error = %e, "Failed to register sensor");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
@@ -190,9 +192,9 @@ async fn heartbeat(
         SET last_heartbeat = $2, status = $3, last_metrics = $4, updated_at = $2 
         WHERE id = $1 
         RETURNING 
-            id, name, location, tenant_id, status, 
-            last_heartbeat, last_metrics, config, metadata, 
-            created_at, updated_at
+        id, name, location, tenant_id, status, 
+        last_heartbeat, last_metrics, config, metadata, 
+        created_at, updated_at
         "#,
         id,
         now,
@@ -202,7 +204,7 @@ async fn heartbeat(
     .fetch_optional(&state.db)
     .await
     .map_err(|e| {
-        eprintln!("Failed to update heartbeat: {}", e);
+        error!(error = %e, "Failed to update heartbeat");
         StatusCode::INTERNAL_SERVER_ERROR
     })?
     .ok_or(StatusCode::NOT_FOUND)?;
