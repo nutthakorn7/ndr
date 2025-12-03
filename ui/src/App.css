@@ -1,4 +1,8 @@
 /* App.css - Minimal styles */
+
+/* Import design system CSS variables and utilities */
+@import './styles/design-system.css';
+
 * {
   margin: 0;
   padding: 0;
