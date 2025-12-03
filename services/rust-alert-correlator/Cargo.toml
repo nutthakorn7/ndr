@@ -8,21 +8,34 @@ edition = "2021"
 ndr-core = { path = "../crates/ndr-core" }
 ndr-telemetry = { path = "../crates/ndr-telemetry" }
 ndr-storage = { path = "../crates/ndr-storage" }
-ndr-api = { path = "../crates/ndr-api" }
 
 # Async runtime
-tokio = { version = "1", features = ["full"] }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Database & Storage (used directly by service code)
+sqlx = { workspace = true }
+redis = { workspace = true }
+
+# Time
+chrono = { workspace = true }
+
+# UUID  
+uuid = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# HTTP/Web (for future API)
+dotenv = "0.15"
 
 # Kafka
 rdkafka = { version = "0.36", features = ["cmake-build"] }
 
-# Already provided by shared crates, but needed directly here
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-
-# Environment
-dotenv = "0.15"
 
 # Hash (if still needed for correlation)
 md-5 = "0.10"

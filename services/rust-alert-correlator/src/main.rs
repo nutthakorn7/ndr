@@ -2,7 +2,7 @@
 //! 
 //! This service has been migrated to use the shared crate ecosystem.
 
-use dotenv::dotenv();
+use dotenv::dotenv;
 use std::sync::Arc;
 
 // Shared crates
