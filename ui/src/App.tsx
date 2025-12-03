@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useState, useEffect, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
+import Investigation from './pages/Investigation';
+import Alerts from './pages/Alerts';
+import Playbooks from './pages/Playbooks';
 import './App.css';
 import './styles/themes.css';
 import { ToastProvider } from './components/Toast';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
-import LoadingSpinner from './components/LoadingSpinner';
+import { LoadingSpinner } from './components/LoadingSpinner';
+import { ShortcutsHelp } from './components/ShortcutsHelp';
 import AiChatWidget from './components/AiChatWidget';
 
 function App() {
@@ -60,6 +66,7 @@ function App() {
               </Routes>
             </Suspense>
             <AiChatWidget />
+            <ShortcutsHelp />
           </BrowserRouter>
         </ToastProvider>
       </ThemeProvider>
