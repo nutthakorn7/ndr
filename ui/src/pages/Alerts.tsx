@@ -199,7 +199,6 @@ export default function Alerts() {
               onClearAll={clearFilters}
             />
           </div>
-          </div>
 
           {/* Split View Content */}
           <div className="flex-1 flex gap-4 overflow-hidden">
