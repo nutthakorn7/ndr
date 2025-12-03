@@ -1,6 +1,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { AlertTable, Alert } from '../components/crowdstrike/AlertTable';
-import { Filter, X, Search, FileCode } from 'lucide-react';
+import { Filter, X, Search, FileCode, Download } from 'lucide-react';
+import BulkActionBar from '../components/BulkActionBar';
 
 const EventSearch = lazy(() => import('../components/EventSearch'));
 const FileAnalysis = lazy(() => import('../components/FileAnalysis'));
@@ -11,6 +12,7 @@ export default function Alerts() {
   const [selectedAlertId, setSelectedAlertId] = useState<string | number | null>(null);
   const [activeView, setActiveView] = useState<'alerts' | 'search' | 'files'>('alerts');
   const [activeAnalysis, setActiveAnalysis] = useState<'file' | 'ssl' | 'dns' | null>(null);
+  const [selectedAlerts, setSelectedAlerts] = useState(new Set<string | number>());
 
   // Mock Data
   const alerts: Alert[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => ({
@@ -29,8 +31,59 @@ export default function Alerts() {
 
   const selectedAlert = alerts.find(a => a.id === selectedAlertId);
 
+  const handleExportAlerts = () => {
+    const dataToExport = selectedAlerts.size > 0
+      ? alerts.filter(a => selectedAlerts.has(a.id))
+      : alerts;
+    
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alerts-${Date.now()}.json`;
+    a.click();
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedAlerts.size === alerts.length) {
+      setSelectedAlerts(new Set());
+    } else {
+      setSelectedAlerts(new Set(alerts.map(a => a.id)));
+    }
+  };
+
+  const toggleSelectAlert = (alertId: string | number) => {
+    const newSelected = new Set(selectedAlerts);
+    if (newSelected.has(alertId)) {
+      newSelected.delete(alertId);
+    } else {
+      newSelected.add(alertId);
+    }
+    setSelectedAlerts(newSelected);
+  };
+
   return (
     <div className="h-full flex flex-col gap-4">
+      {/* Bulk Action Bar */}
+      {selectedAlerts.size > 0 && (
+        <BulkActionBar
+          selectedCount={selectedAlerts.size}
+          totalCount={alerts.length}
+          onExport={handleExportAlerts}
+          onClear={() => setSelectedAlerts(new Set())}
+          actions={[
+            {
+              label: 'Assign',
+              onClick: () => console.log('Assign alerts')
+            },
+            {
+              label: 'Change Status',
+              onClick: () => console.log('Change status')
+            }
+          ]}
+        />
+      )}
+
       {/* Sub-Navigation Tabs */}
       <div className="flex items-center gap-2 bg-[var(--bg-panel)] p-2 border border-[var(--border-subtle)] rounded">
         <button
