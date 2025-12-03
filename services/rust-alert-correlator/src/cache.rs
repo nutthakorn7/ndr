@@ -19,14 +19,14 @@ impl Cache {
         Ok(value)
     }
 
-    pub async fn set_pending_alert(&self, key: &str, ttl_seconds: usize) -> Result<()> {
+    pub async fn set_pending_alert(&self, key: &str, ttl_seconds: u64) -> Result<()> {
         let mut conn = self.client.get_async_connection().await?;
         let redis_key = format!("alert:{}", key);
         conn.set_ex(redis_key, "pending", ttl_seconds).await?;
         Ok(())
     }
 
-    pub async fn set_meta_alert(&self, key: &str, meta_id: &str, ttl_seconds: usize) -> Result<()> {
+    pub async fn set_meta_alert(&self, key: &str, meta_id: &str, ttl_seconds: u64) -> Result<()> {
         let mut conn = self.client.get_async_connection().await?;
         let redis_key = format!("alert:{}", key);
         conn.set_ex(redis_key, meta_id, ttl_seconds).await?;

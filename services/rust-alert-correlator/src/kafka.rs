@@ -2,7 +2,8 @@ use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::message::Message;
-use tracing::{info, warn, error, debug};
+use ndr_telemetry::{info, warn, error, debug};  // Use ndr_telemetry
+use ndr_core::domain::Alert;  // Use shared Alert type
 use crate::engine::CorrelationEngine;
 use std::sync::Arc;
 use std::time::Duration;
@@ -50,7 +51,7 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
                     continue;
                 }
 
-                match serde_json::from_str::<crate::models::Alert>(payload) {
+                match serde_json::from_str::<Alert>(payload) {
                     Ok(alert) => {
                         match engine.process_alert(alert).await {
                             Ok(Some(enriched_alert)) => {

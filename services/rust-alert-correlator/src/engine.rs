@@ -1,9 +1,10 @@
 use crate::db::DB;
 use crate::cache::Cache;
-use crate::models::{Alert, ChainEvent};
+use crate::models::ChainEvent;
+use ndr_core::domain::Alert;  // Use shared Alert type
 use anyhow::Result;
 use serde_json::{json, Value};
-use tracing::{info, error};
+use ndr_telemetry::{info, error};  // Use ndr_telemetry instead of tracing
 use uuid::Uuid;
 use std::sync::Arc;
 
@@ -71,7 +72,7 @@ impl CorrelationEngine {
 
     async fn create_new_meta_alert(&self, alert: &Alert, key: &str) -> Result<Uuid> {
         // Set pending in cache
-        self.cache.set_pending_alert(key, self.aggregation_window).await?;
+        self.cache.set_pending_alert(key, self.aggregation_window as u64).await?;
 
         let severity_score = self.calculate_severity_score(alert);
         let attack_chain = self.detect_attack_chain(alert).await?;
@@ -88,7 +89,7 @@ impl CorrelationEngine {
         ).await?;
 
         // Update cache with real ID
-        self.cache.set_meta_alert(key, &meta_id.to_string(), self.aggregation_window).await?;
+        self.cache.set_meta_alert(key, &meta_id.to_string(), self.aggregation_window as u64).await?;
 
         info!("Created new meta-alert {}: score={}", meta_id, severity_score);
         Ok(meta_id)
@@ -101,7 +102,10 @@ impl CorrelationEngine {
         let title = &alert.description;
 
         let raw = format!("{}|{}|{}|{}", rule_id, src_ip, dst_ip, title);
-        format!("{:x}", md5::compute(raw))
+        // Use md-5 crate
+        use md5::{Md5, Digest};
+        let hash = Md5::digest(raw.as_bytes());
+        format!("{:x}", hash)
     }
 
     fn calculate_severity_score(&self, alert: &Alert) -> i32 {

@@ -10,6 +10,7 @@ use ndr_core::{domain::Alert, ports::AlertRepository};
 use ndr_telemetry::{init_telemetry, info, error};
 use ndr_storage::postgres::create_pool;
 
+mod models;  // Declare models module
 mod db;
 mod cache;
 mod engine;
