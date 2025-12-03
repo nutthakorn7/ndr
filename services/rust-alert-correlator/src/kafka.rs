@@ -20,17 +20,17 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
         .create()
-        .expect("Consumer creation failed");
+        .map_err(|e| anyhow::anyhow!("Failed to create Kafka consumer: {}", e))?;
 
     consumer
         .subscribe(&["alerts", "security-alerts"])
-        .expect("Can't subscribe to alerts");
+        .map_err(|e| anyhow::anyhow!("Failed to subscribe to alerts topic: {}", e))?
 
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", &brokers)
         .set("message.timeout.ms", "5000")
         .create()
-        .expect("Producer creation failed");
+        .map_err(|e| anyhow::anyhow!("Failed to create Kafka producer: {}", e))?
 
     info!("Alert Correlator Consumer started. Listening on 'alerts'...");
 
@@ -55,7 +55,13 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
                     Ok(alert) => {
                         match engine.process_alert(alert).await {
                             Ok(Some(enriched_alert)) => {
-                                let output_json = serde_json::to_string(&enriched_alert).unwrap();
+                                let output_json = match serde_json::to_string(&enriched_alert) {
+                                    Ok(json) => json,
+                                    Err(e) => {
+                                        error!("Failed to serialize enriched alert: {}", e);
+                                        continue;
+                                    }
+                                };
                                 
                                 // Send to correlated-alerts
                                 let _ = producer

@@ -114,9 +114,10 @@ impl LocalDetector {
     }
 
     pub fn add_rule(&mut self, rule: DetectionRule) {
+        let rule_name = rule.name.clone();
         self.rules.retain(|r| r.name != rule.name);
         self.rules.push(rule);
-        ndr_telemetry::info!("Added/Updated rule: {}", self.rules.last().unwrap().name);
+        ndr_telemetry::info!("Added/Updated rule: {}", rule_name);
     }
 
     pub fn get_priority(&self, event: &Value, ioc_store: &crate::ioc_store::IocStore) -> i32 {

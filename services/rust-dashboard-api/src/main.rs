@@ -22,7 +22,7 @@ use state::AppState;
 use kafka::KafkaConsumer;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Initialize telemetry
     if let Err(e) = init_telemetry("dashboard-api") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -32,7 +32,8 @@ async fn main() {
     info!("Starting Rust Dashboard API...");
 
     // Database Connection using shared pool
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = std::env::var("DATABASE_URL")
+        .map_err(|_| anyhow::anyhow!("DATABASE_URL environment variable must be set"))?;
     let pool = match create_pool(&database_url).await {
         Ok(p) => p,
         Err(e) => {
@@ -43,7 +44,8 @@ async fn main() {
 
     // OpenSearch Connection
     let opensearch_url = std::env::var("OPENSEARCH_URL").unwrap_or_else(|_| "http://opensearch:9200".to_string());
-    let transport = Transport::single_node(&opensearch_url).expect("Failed to create OpenSearch transport");
+    let transport = Transport::single_node(&opensearch_url)
+        .map_err(|e| anyhow::anyhow!("Failed to create OpenSearch transport: {}", e))?;
     let os_client = OpenSearch::new(transport);
 
     // Broadcast channel for real-time events
@@ -86,11 +88,20 @@ async fn main() {
         .layer(cors)
         .with_state(state);
 
-    // Run
-    let port = std::env::var("PORT").unwrap_or_else(|_| "8081".to_string());
-    let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+    // Run server
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8083".to_string());
+    let addr: SocketAddr = format!("0.0.0.0:{}", port)
+        .parse()
+        .map_err(|e| anyhow::anyhow!("Invalid socket address: {}", e))?;
     
-    info!("Listening on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    info!("Dashboard API listening on {}", addr);
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
+    
+    axum::serve(listener, app)
+        .await
+        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
+    
+    Ok(())
 }

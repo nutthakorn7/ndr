@@ -149,7 +149,7 @@ async fn main() -> anyhow::Result<()> {
     // Initialize Metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
     let handle = builder.install_recorder()
-        .expect("failed to install Prometheus recorder");
+        .map_err(|e| anyhow::anyhow!("Failed to install Prometheus recorder: {}", e))?;
 
     // Register custom metrics with descriptions
     metrics::describe_counter!("edge_agent_events_ingested", "Total number of events ingested");
@@ -479,18 +479,25 @@ async fn rule_updater_task(state: AppState) {
     let brokers = config.kafka_brokers.clone();
     drop(config);
 
-    let consumer: StreamConsumer = ClientConfig::new()
+    let consumer: StreamConsumer = match ClientConfig::new()
         .set("group.id", "edge-agent-rule-updater")
         .set("bootstrap.servers", &brokers)
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
         .create()
-        .expect("Consumer creation failed");
+    {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Failed to create Kafka consumer for rule updates: {}", e);
+            return;  // Exit the task gracefully
+        }
+    };
 
-    consumer
-        .subscribe(&["edge-rules"])
-        .expect("Can't subscribe to specified topic");
+    if let Err(e) = consumer.subscribe(&["edge-rules"]) {
+        error!("Failed to subscribe to edge-rules topic: {}", e);
+        return;  // Exit the task gracefully
+    }
 
     info!("Started rule updater task, listening on edge-rules");
 

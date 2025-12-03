@@ -39,7 +39,7 @@ struct BatchLogRequest {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Initialize telemetry
     if let Err(e) = init_telemetry("ingestion-gateway") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -82,7 +82,8 @@ async fn main() {
 
     // Initialize Metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
-    let handle = builder.install_recorder().expect("failed to install Prometheus recorder");
+    let handle = builder.install_recorder()
+        .map_err(|e| anyhow::anyhow!("Failed to install Prometheus recorder: {}", e))?;
 
     // Build our application with routes
     let app = Router::new()
@@ -95,11 +96,20 @@ async fn main() {
 
     // Run it
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-    let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+    let addr: SocketAddr = format!("0.0.0.0:{}", port)
+        .parse()
+        .map_err(|e| anyhow::anyhow!("Invalid socket address: {}", e))?;
     
     info!("Listening on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
+    
+    axum::serve(listener, app)
+        .await
+        .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
+    
+    Ok(())
 }
 
 async fn health_check() -> &'static str {

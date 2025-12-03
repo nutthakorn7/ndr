@@ -21,7 +21,7 @@ use cache::Cache;
 use engine::CorrelationEngine;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     
     // Initialize telemetry (replaces tracing_subscriber::fmt::init())
@@ -34,7 +34,7 @@ async fn main() {
 
     // Database using shared pool creation
     let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+        .map_err(|_| anyhow::anyhow!("DATABASE_URL environment variable must be set"))?;
     
     let pool = match create_pool(&database_url).await {
         Ok(p) => p,
@@ -75,4 +75,6 @@ async fn main() {
         error!(error = %e, "Kafka consumer failed");
         std::process::exit(1);
     }
+    
+    Ok(())
 }
