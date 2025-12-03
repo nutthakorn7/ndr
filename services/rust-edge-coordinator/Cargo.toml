@@ -27,6 +27,7 @@ metrics = "0.22"
 metrics-exporter-prometheus = "0.13"
 sha2 = "0.10"
 hex = "0.4"
-axum-server = { version = "0.6", features = ["tls-rustls"] }
+axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 rustls = "0.21"
 rustls-pemfile = "1.0"
+rdkafka = { version = "0.36", features = ["cmake-build"] }

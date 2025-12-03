@@ -1,0 +1,181 @@
+warning: unused import: `crate::error::Result`
+ --> services/crates/ndr-core/src/services/correlation.rs:7:5
+  |
+7 | use crate::error::Result;
+  |     ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `alerts`
+  --> services/crates/ndr-core/src/services/correlation.rs:20:36
+   |
+20 | ...relate_alerts(&self, alerts: &[Alert]) -> Vec<CorrelatedGrou...
+   |                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_alerts`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `NotificationChannel` is never used
+  --> services/crates/ndr-core/src/ports/notification.rs:23:10
+   |
+23 | pub enum NotificationChannel {
+   |          ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ndr-core` (lib) generated 3 warnings (run `cargo fix --lib -p ndr-core` to apply 1 suggestion)
+warning: unused import: `crate::error::Result`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:11:5
+   |
+11 | use crate::error::Result;
+   |     ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: this function depends on never type fallback being `()`
+  --> services/crates/ndr-storage/src/redis/cache.rs:25:5
+   |
+25 | /     pub fn set_ex<T: Serialize>(
+26 | |         &self,
+27 | |         key: &str,
+28 | |         value: &T,
+29 | |         ttl_seconds: u64,
+30 | |     ) -> Result<()> {
+   | |___________________^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in Rust 2024 and in a future release in all editions!
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+   = help: specify the types explicitly
+note: in edition 2024, the requirement `!: FromRedisValue` will fail
+  --> services/crates/ndr-storage/src/redis/cache.rs:34:14
+   |
+34 |         conn.set_ex(key, serialized, ttl_seconds)?;
+   |              ^^^^^^
+   = note: `#[warn(dependency_on_unit_never_type_fallback)]` (part of `#[warn(rust_2024_compatibility)]`) on by default
+help: use `()` annotations to avoid fallback changes
+   |
+34 |         conn.set_ex::<_, _, ()>(key, serialized, ttl_seconds)?;
+   |                    ++++++++++++
+
+warning: this function depends on never type fallback being `()`
+  --> services/crates/ndr-storage/src/redis/cache.rs:54:5
+   |
+54 |     pub fn delete(&self, key: &str) -> Result<()> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in Rust 2024 and in a future release in all editions!
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+   = help: specify the types explicitly
+note: in edition 2024, the requirement `!: FromRedisValue` will fail
+  --> services/crates/ndr-storage/src/redis/cache.rs:56:14
+   |
+56 |         conn.del(key)?;
+   |              ^^^
+help: use `()` annotations to avoid fallback changes
+   |
+56 |         conn.del::<_, ()>(key)?;
+   |                 +++++++++
+
+warning: unused variable: `id`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:32:32
+   |
+32 | ...c fn find_by_id(&self, id: Uuid) -> ndr_core::error::Result<...
+   |                           ^^ help: if this is intentional, prefix it with an underscore: `_id`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `limit`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:39:9
+   |
+39 |         limit: usize,
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_limit`
+
+warning: field `pool` is never read
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:15:5
+   |
+14 | pub struct PostgresAlertRepository {
+   |            ----------------------- field in this struct
+15 |     pool: PgPool,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `client` and `index` are never read
+  --> services/crates/ndr-storage/src/opensearch/event_store.rs:16:5
+   |
+15 | pub struct OpenSearchEventStore {
+   |            -------------------- fields in this struct
+16 |     client: OpenSearch,
+   |     ^^^^^^
+17 |     index: String,
+   |     ^^^^^
+
+warning: unused import: `DateTime`
+ --> services/crates/ndr-auth/src/jwt.rs:3:14
+  |
+3 | use chrono::{DateTime, Utc};
+  |              ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `AlertStatus` and `Severity`
+ --> services/crates/ndr-api/src/dto/alert.rs:7:31
+  |
+7 | use ndr_core::domain::{Alert, Severity, AlertStatus};
+  |                               ^^^^^^^^  ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ndr-storage` (lib) generated 7 warnings (run `cargo fix --lib -p ndr-storage` to apply 3 suggestions)
+warning: `ndr-auth` (lib) generated 1 warning (run `cargo fix --lib -p ndr-auth` to apply 1 suggestion)
+warning: `ndr-api` (lib) generated 1 warning (run `cargo fix --lib -p ndr-api` to apply 1 suggestion)
+    Checking rust-dashboard-api v0.1.0 (/Users/pop7/Code/NDR/services/rust-dashboard-api)
+error: set `DATABASE_URL` to use query macros online, or run `cargo sqlx prepare` to update the query cache
+  --> services/rust-dashboard-api/src/handlers.rs:80:18
+   |
+80 |     let alerts = sqlx::query!("SELECT id, title, severity, status, timestamp, description FROM alerts ORDER BY timestamp DESC LIMIT 50")
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::sqlx_macros::expand_query` which comes from the expansion of the macro `sqlx::query` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused imports: `Path` and `Query`
+ --> services/rust-dashboard-api/src/handlers.rs:2:22
+  |
+2 |     extract::{State, Query, Path, ws::{WebSocketUpgrade, WebSocket, Message}},
+  |                      ^^^^^  ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `warn`
+ --> services/rust-dashboard-api/src/kafka.rs:6:34
+  |
+6 | use ndr_telemetry::{info, error, warn};
+  |                                  ^^^^
+
+warning: unused variable: `e`
+  --> services/rust-dashboard-api/src/handlers.rs:26:20
+   |
+26 |         if let Err(e) = socket.send(Message::Text(msg)).await {
+   |                    ^ help: if this is intentional, prefix it with an underscore: `_e`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `state`
+  --> services/rust-dashboard-api/src/handlers.rs:64:11
+   |
+64 |     State(state): State<Arc<AppState>>,
+   |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+
+warning: unused variable: `e`
+  --> services/rust-dashboard-api/src/kafka.rs:41:44
+   |
+41 | ...                   if let Err(e) = self.tx.send(text.to_string()) {
+   |                                  ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused import: `sink::SinkExt`
+  --> services/rust-dashboard-api/src/handlers.rs:10:15
+   |
+10 | use futures::{sink::SinkExt, stream::StreamExt};
+   |               ^^^^^^^^^^^^^
+
+warning: `rust-dashboard-api` (bin "rust-dashboard-api") generated 6 warnings
+error: could not compile `rust-dashboard-api` (bin "rust-dashboard-api") due to 1 previous error; 6 warnings emitted

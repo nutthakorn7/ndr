@@ -1,0 +1,399 @@
+warning: unused import: `crate::error::Result`
+ --> services/crates/ndr-core/src/services/correlation.rs:7:5
+  |
+7 | use crate::error::Result;
+  |     ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `alerts`
+  --> services/crates/ndr-core/src/services/correlation.rs:20:36
+   |
+20 | ...relate_alerts(&self, alerts: &[Alert]) -> Vec<CorrelatedGrou...
+   |                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_alerts`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `NotificationChannel` is never used
+  --> services/crates/ndr-core/src/ports/notification.rs:23:10
+   |
+23 | pub enum NotificationChannel {
+   |          ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ndr-core` (lib) generated 3 warnings (run `cargo fix --lib -p ndr-core` to apply 1 suggestion)
+    Checking rust-edge-agent v0.1.0 (/Users/pop7/Code/NDR/services/rust-edge-agent)
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:63:22
+    |
+ 63 |             .execute(&self.pool)
+    |              ------- ^^^^^^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |              |
+    |              required by a bound introduced by this call
+    |
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+help: consider dereferencing here
+    |
+ 63 |             .execute(&*self.pool)
+    |                       +
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:60:9
+    |
+ 60 | /         sqlx::query("INSERT INTO buffered_events (event_data, priority) VALUES (?, ?)")
+ 61 | |             .bind(event_data)
+ 62 | |             .bind(priority)
+ 63 | |             .execute(&self.pool)
+    | |________________________________^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:64:14
+    |
+ 64 |             .await?;
+    |              ^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:75:20
+    |
+ 75 |         .fetch_all(&self.pool)
+    |          --------- ^^^^^^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |          |
+    |          required by a bound introduced by this call
+    |
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_all`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:217:12
+    |
+213 |     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    |                  --------- required by a bound in this associated function
+...
+217 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_all`
+help: consider dereferencing here
+    |
+ 75 |         .fetch_all(&*self.pool)
+    |                     +
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:71:20
+    |
+ 71 |           let rows = sqlx::query(
+    |  ____________________^
+ 72 | |             "SELECT id, event_data, created_at, priority FROM buffered_events ORDER BY priority DESC, created_at ASC LIMIT ?"
+ 73 | |         )
+ 74 | |         .bind(batch_size as i64)
+ 75 | |         .fetch_all(&self.pool)
+    | |______________________________^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_all`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:217:12
+    |
+213 |     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    |                  --------- required by a bound in this associated function
+...
+217 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_all`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:76:10
+    |
+ 76 |         .await?;
+    |          ^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_all`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:217:12
+    |
+213 |     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    |                  --------- required by a bound in this associated function
+...
+217 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_all`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:103:19
+    |
+103 |         q.execute(&self.pool).await?;
+    |           ------- ^^^^^^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |           |
+    |           required by a bound introduced by this call
+    |
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+help: consider dereferencing here
+    |
+103 |         q.execute(&*self.pool).await?;
+    |                    +
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:103:9
+    |
+103 |         q.execute(&self.pool).await?;
+    |         ^^^^^^^^^^^^^^^^^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:103:31
+    |
+103 |         q.execute(&self.pool).await?;
+    |                               ^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:111:24
+    |
+111 |             .fetch_one(&self.pool)
+    |              --------- ^^^^^^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |              |
+    |              required by a bound introduced by this call
+    |
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_one`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:239:12
+    |
+235 |     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    |                  --------- required by a bound in this associated function
+...
+239 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_one`
+help: consider dereferencing here
+    |
+111 |             .fetch_one(&*self.pool)
+    |                         +
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:110:19
+    |
+110 |           let row = sqlx::query("SELECT COUNT(*) as count FROM buffered_events")
+    |  ___________________^
+111 | |             .fetch_one(&self.pool)
+    | |__________________________________^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_one`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:239:12
+    |
+235 |     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    |                  --------- required by a bound in this associated function
+...
+239 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_one`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:112:14
+    |
+112 |             .await?;
+    |              ^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_one`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:239:12
+    |
+235 |     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    |                  --------- required by a bound in this associated function
+...
+239 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_one`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:118:24
+    |
+118 |             .fetch_one(&self.pool)
+    |              --------- ^^^^^^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |              |
+    |              required by a bound introduced by this call
+    |
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_one`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:239:12
+    |
+235 |     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    |                  --------- required by a bound in this associated function
+...
+239 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_one`
+help: consider dereferencing here
+    |
+118 |             .fetch_one(&*self.pool)
+    |                         +
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:117:19
+    |
+117 |           let row = sqlx::query("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()")
+    |  ___________________^
+118 | |             .fetch_one(&self.pool)
+    | |__________________________________^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_one`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:239:12
+    |
+235 |     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    |                  --------- required by a bound in this associated function
+...
+239 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_one`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:119:14
+    |
+119 |             .await?;
+    |              ^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::fetch_one`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:239:12
+    |
+235 |     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    |                  --------- required by a bound in this associated function
+...
+239 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::fetch_one`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:142:22
+    |
+142 |             .execute(&self.pool)
+    |              ------- ^^^^^^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |              |
+    |              required by a bound introduced by this call
+    |
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+help: consider dereferencing here
+    |
+142 |             .execute(&*self.pool)
+    |                       +
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:135:13
+    |
+135 | /             sqlx::query(
+136 | |                 "DELETE FROM buffered_events WHERE id IN (
+137 | |                     SELECT id FROM buffered_events ORDER BY created_at ASC LIMIT (
+138 | |                         SELECT COUNT(*) / 10 FROM buffered_events
+...   |
+142 | |             .execute(&self.pool)
+    | |________________________________^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+
+error[E0277]: the trait bound `&Arc<Pool<Sqlite>>: Executor<'_>` is not satisfied
+   --> services/rust-edge-agent/src/buffer.rs:143:14
+    |
+143 |             .await?;
+    |              ^^^^^ the trait `Executor<'_>` is not implemented for `&Arc<Pool<Sqlite>>`
+    |
+    = help: the following other types implement trait `Executor<'c>`:
+              `&'c mut AnyConnection` implements `Executor<'c>`
+              `&'c mut SqliteConnection` implements `Executor<'c>`
+              `&Pool<DB>` implements `Executor<'p>`
+note: required by a bound in `sqlx::query::Query::<'q, DB, A>::execute`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sqlx-core-0.7.4/src/query.rs:155:12
+    |
+151 |     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    |                  ------- required by a bound in this associated function
+...
+155 |         E: Executor<'c, Database = DB>,
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Query::<'q, DB, A>::execute`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `rust-edge-agent` (lib) due to 18 previous errors

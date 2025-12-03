@@ -1,0 +1,255 @@
+warning: unused import: `crate::error::Result`
+ --> services/crates/ndr-core/src/services/correlation.rs:7:5
+  |
+7 | use crate::error::Result;
+  |     ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `alerts`
+  --> services/crates/ndr-core/src/services/correlation.rs:20:36
+   |
+20 | ...relate_alerts(&self, alerts: &[Alert]) -> Vec<CorrelatedGrou...
+   |                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_alerts`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `NotificationChannel` is never used
+  --> services/crates/ndr-core/src/ports/notification.rs:23:10
+   |
+23 | pub enum NotificationChannel {
+   |          ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ndr-core` (lib) generated 3 warnings (run `cargo fix --lib -p ndr-core` to apply 1 suggestion)
+warning: unused import: `crate::error::Result`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:11:5
+   |
+11 | use crate::error::Result;
+   |     ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: this function depends on never type fallback being `()`
+  --> services/crates/ndr-storage/src/redis/cache.rs:25:5
+   |
+25 | /     pub fn set_ex<T: Serialize>(
+26 | |         &self,
+27 | |         key: &str,
+28 | |         value: &T,
+29 | |         ttl_seconds: u64,
+30 | |     ) -> Result<()> {
+   | |___________________^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in Rust 2024 and in a future release in all editions!
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+   = help: specify the types explicitly
+note: in edition 2024, the requirement `!: FromRedisValue` will fail
+  --> services/crates/ndr-storage/src/redis/cache.rs:34:14
+   |
+34 |         conn.set_ex(key, serialized, ttl_seconds)?;
+   |              ^^^^^^
+   = note: `#[warn(dependency_on_unit_never_type_fallback)]` (part of `#[warn(rust_2024_compatibility)]`) on by default
+help: use `()` annotations to avoid fallback changes
+   |
+34 |         conn.set_ex::<_, _, ()>(key, serialized, ttl_seconds)?;
+   |                    ++++++++++++
+
+warning: this function depends on never type fallback being `()`
+  --> services/crates/ndr-storage/src/redis/cache.rs:54:5
+   |
+54 |     pub fn delete(&self, key: &str) -> Result<()> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in Rust 2024 and in a future release in all editions!
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+   = help: specify the types explicitly
+note: in edition 2024, the requirement `!: FromRedisValue` will fail
+  --> services/crates/ndr-storage/src/redis/cache.rs:56:14
+   |
+56 |         conn.del(key)?;
+   |              ^^^
+help: use `()` annotations to avoid fallback changes
+   |
+56 |         conn.del::<_, ()>(key)?;
+   |                 +++++++++
+
+warning: unused variable: `id`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:32:32
+   |
+32 | ...c fn find_by_id(&self, id: Uuid) -> ndr_core::error::Result<...
+   |                           ^^ help: if this is intentional, prefix it with an underscore: `_id`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `limit`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:39:9
+   |
+39 |         limit: usize,
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_limit`
+
+warning: field `pool` is never read
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:15:5
+   |
+14 | pub struct PostgresAlertRepository {
+   |            ----------------------- field in this struct
+15 |     pool: PgPool,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `client` and `index` are never read
+  --> services/crates/ndr-storage/src/opensearch/event_store.rs:16:5
+   |
+15 | pub struct OpenSearchEventStore {
+   |            -------------------- fields in this struct
+16 |     client: OpenSearch,
+   |     ^^^^^^
+17 |     index: String,
+   |     ^^^^^
+
+warning: `ndr-storage` (lib) generated 7 warnings (run `cargo fix --lib -p ndr-storage` to apply 3 suggestions)
+    Checking rust-ai-service v0.1.0 (/Users/pop7/Code/NDR/services/rust-ai-service)
+error[E0432]: unresolved imports `ndr_storage::postgres::PgPool`, `ndr_storage::postgres::sqlx`
+ --> services/rust-ai-service/src/repository.rs:1:29
+  |
+1 | use ndr_storage::postgres::{PgPool, sqlx};
+  |                             ^^^^^^  ^^^^ no `sqlx` in `postgres`
+  |                             |
+  |                             no `PgPool` in `postgres`
+  |
+  = help: consider importing this type alias instead:
+          sqlx::PgPool
+
+warning: unused import: `std::sync::Arc`
+ --> services/rust-ai-service/src/repository.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `linfa::prelude::*`
+ --> services/rust-ai-service/src/repository.rs:7:5
+  |
+7 | use linfa::prelude::*;
+  |     ^^^^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>: serde::Serialize` is not satisfied
+    --> services/rust-ai-service/src/repository.rs:10:24
+     |
+  10 | #[derive(Debug, Clone, Serialize, Deserialize)]
+     |                        ^^^^^^^^^ the trait `Serialize` is not implemented for `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>`
+  11 | pub struct ModelArtifacts {
+  12 |     pub centroids: Array2<f64>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 202 others
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_core-1.0.228/src/ser/mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>: serde::Deserialize<'de>` is not satisfied
+    --> services/rust-ai-service/src/repository.rs:12:20
+     |
+  12 |     pub centroids: Array2<f64>,
+     |                    ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+             and 215 others
+note: required by a bound in `next_element`
+    --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_core-1.0.228/src/de/mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>: serde::Deserialize<'de>` is not satisfied
+    --> services/rust-ai-service/src/repository.rs:12:20
+     |
+  12 |     pub centroids: Array2<f64>,
+     |                    ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+             and 215 others
+note: required by a bound in `next_value`
+    --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_core-1.0.228/src/de/mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>: serde::Deserialize<'de>` is not satisfied
+  --> services/rust-ai-service/src/repository.rs:10:35
+   |
+10 | #[derive(Debug, Clone, Serialize, Deserialize)]
+   |                                   ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+             (T0, T1, T2)
+           and 215 others
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+Some errors have detailed explanations: E0277, E0432.
+For more information about an error, try `rustc --explain E0277`.
+warning: `rust-ai-service` (bin "rust-ai-service") generated 2 warnings
+error: could not compile `rust-ai-service` (bin "rust-ai-service") due to 5 previous errors; 2 warnings emitted

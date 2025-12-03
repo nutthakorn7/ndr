@@ -3,6 +3,8 @@
 //! Provides consistent observability across all NDR services.
 
 use anyhow::Result;
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{trace, Resource, runtime};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 /// Initialize telemetry for a service
@@ -22,12 +24,23 @@ pub fn init_telemetry(service_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Initialize telemetry with OpenTelemetry/Jaeger tracing
-pub fn init_with_tracing(service_name: &str, jaeger_endpoint: &str) -> Result<()> {
-    let tracer = opentelemetry_jaeger::new_agent_pipeline()
-        .with_service_name(service_name)
-        .with_endpoint(jaeger_endpoint)
-        .install_simple()?;
+/// Initialize telemetry with OpenTelemetry/OTLP tracing
+pub fn init_with_tracing(service_name: &str, endpoint: &str) -> Result<()> {
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(endpoint),
+        )
+        .with_trace_config(
+            trace::config().with_resource(
+                Resource::new(vec![
+                    opentelemetry::KeyValue::new("service.name", service_name.to_string()),
+                ]),
+            ),
+        )
+        .install_batch(runtime::Tokio)?;
 
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
     
@@ -42,8 +55,8 @@ pub fn init_with_tracing(service_name: &str, jaeger_endpoint: &str) -> Result<()
 
     tracing::info!(
         service = service_name,
-        jaeger = jaeger_endpoint,
-        "Telemetry with distributed tracing initialized"
+        endpoint = endpoint,
+        "Telemetry with OTLP tracing initialized"
     );
     
     Ok(())

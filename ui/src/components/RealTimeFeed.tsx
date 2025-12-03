@@ -4,12 +4,12 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { Activity, Pause, Play, Zap, Wifi, WifiOff, Filter, X, Download, Trash2 } from 'lucide-react';
-import { io, Socket } from 'socket.io-client';
+import { useWebSocket } from '../hooks/useWebSocket';
 import EventDetailModal from './EventDetailModal';
-import { api, ThreatEvent } from '../services/api';
+import { ThreatEvent } from '../services/api';
 import './RealTimeFeed.css';
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
+const WS_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081').replace('http', 'ws') + '/ws';
 
 interface FeedStats {
   eps: number;
@@ -40,8 +40,6 @@ export default function RealTimeFeed({ onCreateIncident }: RealTimeFeedProps) {
   const [filteredEvents, setFilteredEvents] = useState<ThreatEvent[]>([]);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [stats, setStats] = useState<FeedStats>({ eps: 0, total: 0 });
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [connectionError, setConnectionError] = useState<boolean>(false);
   const [selectedEvent, setSelectedEvent] = useState<ThreatEvent | null>(null);
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [filters, setFilters] = useState({
@@ -51,110 +49,84 @@ export default function RealTimeFeed({ onCreateIncident }: RealTimeFeedProps) {
   });
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const lastFetchTime = useRef<number>(Date.now());
-  const socketRef = useRef<Socket | null>(null);
   const eventCounter = useRef<number>(1);
 
-  // Generate mock events (fallback)
-  const generateMockEvent = (): ThreatEvent => {
-    const severity = SEVERITIES[Math.floor(Math.random() * SEVERITIES.length)];
-    const type = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
-    
-    return {
-      id: eventCounter.current++,
-      timestamp: new Date().toISOString(),
-      type,
-      severity,
-      source: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-      destination: `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
-      protocol: ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS'][Math.floor(Math.random() * 5)],
-      description: `${type} detected from source IP`,
-      details: {
-        port: Math.floor(Math.random() * 65535),
-        bytes: Math.floor(Math.random() * 100000),
-        packets: Math.floor(Math.random() * 1000)
-      }
-    };
-  };
+  // WebSocket Connection
+  const { messages, isConnected } = useWebSocket(WS_URL);
 
-  // Initial fetch from API
+  // Process WebSocket messages
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const alerts = await api.getAlerts();
-        const mappedEvents: ThreatEvent[] = alerts.map((a: any) => ({
-          id: parseInt(a.id) || Math.floor(Math.random() * 10000),
-          timestamp: a.timestamp,
-          type: 'Alert',
-          severity: a.severity,
-          source: 'N/A',
-          destination: 'N/A',
-          description: a.description,
-          details: a
-        }));
-        setEvents(prev => [...mappedEvents, ...prev]);
-        setStats(prev => ({ ...prev, total: prev.total + mappedEvents.length }));
-      } catch (error) {
-        console.warn('Failed to fetch initial alerts');
-      }
-    };
+    if (messages.length > 0 && !isPaused) {
+      const latestMsg = messages[0];
+      // Assuming message is already parsed JSON or needs parsing
+      // The hook parses JSON, so latestMsg is an object.
+      // We need to map it to ThreatEvent if it's not already.
+      // For now, let's assume the backend sends something compatible or we map it.
+      // If backend sends raw log, we might need to map it.
+      
+      const newEvent: ThreatEvent = {
+        id: eventCounter.current++,
+        timestamp: latestMsg.timestamp || new Date().toISOString(),
+        type: latestMsg.type || 'Log',
+        severity: latestMsg.severity || 'Low',
+        source: latestMsg.source_ip || latestMsg.source || 'Unknown',
+        destination: latestMsg.dest_ip || latestMsg.destination || 'Unknown',
+        protocol: latestMsg.protocol || 'TCP',
+        description: latestMsg.message || JSON.stringify(latestMsg),
+        details: latestMsg
+      };
 
-    fetchEvents();
-  }, []);
+      setEvents(prev => {
+        const combined = [newEvent, ...prev];
+        return combined.slice(0, 100);
+      });
 
-  // Socket.IO connection
-  useEffect(() => {
-    const socket = io(SOCKET_URL, {
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
-    
-    socketRef.current = socket;
+      setStats(prev => ({
+        eps: prev.eps, // We'd need to calculate this
+        total: prev.total + 1
+      }));
+    }
+  }, [messages, isPaused]);
 
-    socket.on('connect', () => {
-      console.log('Connected to WebSocket server');
-      setIsConnected(true);
-      setConnectionError(false);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
-      setIsConnected(false);
-    });
-
-    socket.on('connect_error', (err) => {
-      console.warn('WebSocket connection error:', err);
-      setConnectionError(true);
-      setIsConnected(false);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
-  // Mock event generator (fallback)
+  // Generate mock events (fallback if not connected)
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
-    if (!isPaused) {
+    if (!isConnected && !isPaused) {
       interval = setInterval(() => {
-        const newEvent = generateMockEvent();
+        const severity = SEVERITIES[Math.floor(Math.random() * SEVERITIES.length)];
+        const type = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
+        
+        const newEvent: ThreatEvent = {
+          id: eventCounter.current++,
+          timestamp: new Date().toISOString(),
+          type,
+          severity,
+          source: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+          destination: `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+          protocol: ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS'][Math.floor(Math.random() * 5)],
+          description: `${type} detected from source IP`,
+          details: {
+            port: Math.floor(Math.random() * 65535),
+            bytes: Math.floor(Math.random() * 100000),
+            packets: Math.floor(Math.random() * 1000)
+          }
+        };
 
         setEvents(prev => {
           const combined = [newEvent, ...prev];
-          return combined.slice(0, 100); // Keep last 100 events
+          return combined.slice(0, 100);
         });
 
         setStats(prev => ({
           eps: Math.floor(Math.random() * 30) + 10,
           total: prev.total + 1
         }));
-      }, 1500); // Add event every 1.5 seconds
+      }, 1500);
     }
 
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isConnected, isPaused]);
 
   // Apply filters
   useEffect(() => {

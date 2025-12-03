@@ -47,5 +47,5 @@ pub struct ActionConfig {
 pub enum ActionType {
     Webhook,
     Log,
-    // Email, BlockIP, etc.
+    BlockIP,
 }

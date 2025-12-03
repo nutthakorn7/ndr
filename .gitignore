@@ -4,3 +4,12 @@ __pycache__/
 *.pyc
 .env
 tests/test_results.json
+
+# Rust
+target/
+**/*.rs.bk
+
+# IDEs
+.idea/
+.vscode/
+*.swp

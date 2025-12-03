@@ -1,0 +1,146 @@
+[0m[0m[1m[32m    Fetching[0m advisory database from `https://github.com/RustSec/advisory-db.git`
+[0m[0m[1m[32m      Loaded[0m 881 security advisories (from /Users/pop7/.cargo/advisory-db)
+[0m[0m[1m[32m    Updating[0m crates.io index
+[0m[0m[1m[32m    Scanning[0m Cargo.lock for vulnerabilities (505 crate dependencies)
+[0m[0m[1m[31mCrate:    [0m rsa
+[0m[0m[1m[31mVersion:  [0m 0.9.9
+[0m[0m[1m[31mTitle:    [0m Marvin Attack: potential key recovery through timing sidechannels
+[0m[0m[1m[31mDate:     [0m 2023-11-22
+[0m[0m[1m[31mID:       [0m RUSTSEC-2023-0071
+[0m[0m[1m[31mURL:      [0m https://rustsec.org/advisories/RUSTSEC-2023-0071
+[0m[0m[1m[31mSeverity: [0m 5.9 (medium)
+[0m[0m[1m[31mSolution: [0m No fixed upgrade is available!
+[0m[0m[1m[31mDependency tree:
+[0mrsa 0.9.9
+└── sqlx-mysql 0.7.4
+    ├── sqlx-macros-core 0.7.4
+    │   └── sqlx-macros 0.7.4
+    │       └── sqlx 0.7.4
+    │           ├── rust-edge-coordinator 0.1.0
+    │           ├── rust-edge-agent 0.1.0
+    │           ├── rust-dashboard-api 0.1.0
+    │           ├── rust-controller 0.1.0
+    │           ├── rust-auth-service 0.1.0
+    │           ├── rust-asset-service 0.1.0
+    │           ├── rust-alert-correlator 0.1.0
+    │           └── ndr-storage 0.1.0
+    │               ├── rust-parser-normalizer 0.1.0
+    │               ├── rust-ingestion-gateway 0.1.0
+    │               ├── rust-edge-coordinator 0.1.0
+    │               ├── rust-dashboard-api 0.1.0
+    │               ├── rust-asset-service 0.1.0
+    │               └── rust-alert-correlator 0.1.0
+    └── sqlx 0.7.4
+
+[0m[0m[1m[31mCrate:    [0m sqlx
+[0m[0m[1m[31mVersion:  [0m 0.7.4
+[0m[0m[1m[31mTitle:    [0m Binary Protocol Misinterpretation caused by Truncating or Overflowing Casts
+[0m[0m[1m[31mDate:     [0m 2024-08-15
+[0m[0m[1m[31mID:       [0m RUSTSEC-2024-0363
+[0m[0m[1m[31mURL:      [0m https://rustsec.org/advisories/RUSTSEC-2024-0363
+[0m[0m[1m[31mSolution: [0m Upgrade to >=0.8.1
+[0m[0m[1m[31mDependency tree:
+[0msqlx 0.7.4
+├── rust-edge-coordinator 0.1.0
+├── rust-edge-agent 0.1.0
+├── rust-dashboard-api 0.1.0
+├── rust-controller 0.1.0
+├── rust-auth-service 0.1.0
+├── rust-asset-service 0.1.0
+├── rust-alert-correlator 0.1.0
+└── ndr-storage 0.1.0
+    ├── rust-parser-normalizer 0.1.0
+    ├── rust-ingestion-gateway 0.1.0
+    ├── rust-edge-coordinator 0.1.0
+    ├── rust-dashboard-api 0.1.0
+    ├── rust-asset-service 0.1.0
+    └── rust-alert-correlator 0.1.0
+
+[0m[0m[1m[33mCrate:    [0m dotenv
+[0m[0m[1m[33mVersion:  [0m 0.15.0
+[0m[0m[1m[33mWarning:  [0m unmaintained
+[0m[0m[1m[33mTitle:    [0m dotenv is Unmaintained
+[0m[0m[1m[33mDate:     [0m 2021-12-24
+[0m[0m[1m[33mID:       [0m RUSTSEC-2021-0141
+[0m[0m[1m[33mURL:      [0m https://rustsec.org/advisories/RUSTSEC-2021-0141
+[0m[0m[1m[33mDependency tree:
+[0mdotenv 0.15.0
+├── rust-yara-scanner 0.1.0
+├── rust-soar-orchestrator 0.1.0
+├── rust-siem-exporter 0.1.0
+├── rust-pcap-service 0.1.0
+├── rust-parser-normalizer 0.1.0
+├── rust-ingestion-gateway 0.1.0
+├── rust-dashboard-api 0.1.0
+├── rust-controller 0.1.0
+├── rust-auth-service 0.1.0
+├── rust-asset-service 0.1.0
+└── rust-alert-correlator 0.1.0
+
+[0m[0m[1m[33mCrate:    [0m opentelemetry-jaeger
+[0m[0m[1m[33mVersion:  [0m 0.20.0
+[0m[0m[1m[33mWarning:  [0m unmaintained
+[0m[0m[1m[33mTitle:    [0m opentelemetry-jaeger crate is unmaintained
+[0m[0m[1m[33mDate:     [0m 2025-11-17
+[0m[0m[1m[33mID:       [0m RUSTSEC-2025-0123
+[0m[0m[1m[33mURL:      [0m https://rustsec.org/advisories/RUSTSEC-2025-0123
+[0m[0m[1m[33mDependency tree:
+[0mopentelemetry-jaeger 0.20.0
+└── ndr-telemetry 0.1.0
+    ├── rust-yara-scanner 0.1.0
+    ├── rust-soar-orchestrator 0.1.0
+    ├── rust-siem-exporter 0.1.0
+    ├── rust-sensor 0.1.0
+    ├── rust-pcap-service 0.1.0
+    ├── rust-parser-normalizer 0.1.0
+    ├── rust-ingestion-gateway 0.1.0
+    ├── rust-edge-coordinator 0.1.0
+    ├── rust-edge-agent 0.1.0
+    ├── rust-dashboard-api 0.1.0
+    ├── rust-controller 0.1.0
+    ├── rust-auth-service 0.1.0
+    ├── rust-asset-service 0.1.0
+    ├── rust-alert-correlator 0.1.0
+    └── rust-ai-service 0.1.0
+
+[0m[0m[1m[33mCrate:    [0m paste
+[0m[0m[1m[33mVersion:  [0m 1.0.15
+[0m[0m[1m[33mWarning:  [0m unmaintained
+[0m[0m[1m[33mTitle:    [0m paste - no longer maintained
+[0m[0m[1m[33mDate:     [0m 2024-10-07
+[0m[0m[1m[33mID:       [0m RUSTSEC-2024-0436
+[0m[0m[1m[33mURL:      [0m https://rustsec.org/advisories/RUSTSEC-2024-0436
+[0m[0m[1m[33mDependency tree:
+[0mpaste 1.0.15
+└── sqlx-core 0.7.4
+    ├── sqlx-sqlite 0.7.4
+    │   ├── sqlx-macros-core 0.7.4
+    │   │   └── sqlx-macros 0.7.4
+    │   │       └── sqlx 0.7.4
+    │   │           ├── rust-edge-coordinator 0.1.0
+    │   │           ├── rust-edge-agent 0.1.0
+    │   │           ├── rust-dashboard-api 0.1.0
+    │   │           ├── rust-controller 0.1.0
+    │   │           ├── rust-auth-service 0.1.0
+    │   │           ├── rust-asset-service 0.1.0
+    │   │           ├── rust-alert-correlator 0.1.0
+    │   │           └── ndr-storage 0.1.0
+    │   │               ├── rust-parser-normalizer 0.1.0
+    │   │               ├── rust-ingestion-gateway 0.1.0
+    │   │               ├── rust-edge-coordinator 0.1.0
+    │   │               ├── rust-dashboard-api 0.1.0
+    │   │               ├── rust-asset-service 0.1.0
+    │   │               └── rust-alert-correlator 0.1.0
+    │   └── sqlx 0.7.4
+    ├── sqlx-postgres 0.7.4
+    │   ├── sqlx-macros-core 0.7.4
+    │   └── sqlx 0.7.4
+    ├── sqlx-mysql 0.7.4
+    │   ├── sqlx-macros-core 0.7.4
+    │   └── sqlx 0.7.4
+    ├── sqlx-macros-core 0.7.4
+    ├── sqlx-macros 0.7.4
+    └── sqlx 0.7.4
+
+[0m[0m[1m[31merror:[0m 2 vulnerabilities found!
+[0m[0m[1m[33mwarning:[0m 3 allowed warnings found

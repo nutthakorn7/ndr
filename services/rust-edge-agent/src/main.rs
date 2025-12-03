@@ -1,4 +1,7 @@
 mod config;
+mod ioc_store;
+use ioc_store::IocStore;
+
 mod buffer;
 mod forwarder;
 mod detector;
@@ -35,9 +38,12 @@ struct AppState {
     buffer: Arc<Buffer>,
     forwarder: Arc<RwLock<Forwarder>>,
     detector: Arc<RwLock<LocalDetector>>,
+    ioc_store: Arc<IocStore>,
     coordinator_client: Arc<reqwest::Client>,
     is_online: Arc<RwLock<bool>>,
 }
+
+
 
 #[derive(Deserialize, Debug)]
 struct IngestRequest {
@@ -96,6 +102,9 @@ async fn main() -> anyhow::Result<()> {
     let detector = LocalDetector::new();
     let detector = Arc::new(RwLock::new(detector));
 
+    // Initialize IOC store
+    let ioc_store = Arc::new(IocStore::new());
+
     // HTTP client for coordinator communication
     let coordinator_client = Arc::new(reqwest::Client::new());
 
@@ -106,6 +115,7 @@ async fn main() -> anyhow::Result<()> {
         buffer: buffer.clone(),
         forwarder: forwarder.clone(),
         detector,
+        ioc_store: ioc_store.clone(),
         coordinator_client: coordinator_client.clone(),
         is_online: is_online.clone(),
     };
@@ -124,6 +134,16 @@ async fn main() -> anyhow::Result<()> {
     let forwarder_state = state.clone();
     tokio::spawn(async move {
         buffer_forwarder_task(forwarder_state).await;
+    });
+
+    let metrics_state = state.clone();
+    tokio::spawn(async move {
+        metrics_updater_task(metrics_state).await;
+    });
+
+    let rule_updater_state = state.clone();
+    tokio::spawn(async move {
+        rule_updater_task(rule_updater_state).await;
     });
 
     // Initialize Metrics
@@ -227,7 +247,7 @@ async fn ingest_event(
     
     // Analyze event for priority
     let detector = state.detector.read().await;
-    let priority = detector.get_priority(&req.event);
+    let priority = detector.get_priority(&req.event, &state.ioc_store);
     drop(detector);
 
     let event_json = serde_json::to_string(&req.event)
@@ -404,55 +424,101 @@ async fn buffer_forwarder_task(state: AppState) {
             continue;
         }
 
-       // Background task: Update buffer forwarding
-    let forwarder_state = state.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(5)).await;
-            
-            if *forwarder_state.is_online.read().await {
-                if let Ok(count) = forwarder_state.buffer.count().await {
-                    if count > 0 {
-                        debug!("Attempting to forward {} buffered events", count);
-                        let _ = forward_buffered_events(&forwarder_state).await;
+        info!("Forwarding {} buffered events", buffered_count);
+
+        if let Err(e) = forward_buffered_events(&state).await {
+            error!("Failed to forward buffered events: {}", e);
+            *state.is_online.write().await = false;
+        }
+    }
+}
+
+async fn metrics_updater_task(state: AppState) {
+    let mut interval = interval(Duration::from_secs(10));
+
+    loop {
+        interval.tick().await;
+        
+        // Update buffer metrics
+        if let Ok(count) = state.buffer.count().await {
+            metrics::gauge!("edge_agent_buffer_count").set(count as f64);
+        }
+        if let Ok(size_mb) = state.buffer.size_mb().await {
+            metrics::gauge!("edge_agent_buffer_size_bytes").set(size_mb * 1024.0 * 1024.0);
+        }
+        
+        // Update connection status
+        let is_online = *state.is_online.read().await;
+        metrics::gauge!("edge_agent_is_online").set(if is_online { 1.0 } else { 0.0 });
+    }
+}
+
+async fn forward_buffered_events(state: &AppState) -> anyhow::Result<()> {
+    let forwarder = state.forwarder.read().await;
+    let count = forwarder.forward_buffered(&state.buffer).await?;
+    if count > 0 {
+        info!("Successfully forwarded {} buffered events", count);
+    }
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+struct RuleUpdate {
+    name: String,
+    pattern: String,
+    severity: String,
+    enabled: bool,
+}
+
+async fn rule_updater_task(state: AppState) {
+    use rdkafka::consumer::{StreamConsumer, Consumer};
+    use rdkafka::config::ClientConfig;
+    use rdkafka::message::Message;
+
+    let config = state.config.read().await;
+    let brokers = config.kafka_brokers.clone();
+    drop(config);
+
+    let consumer: StreamConsumer = ClientConfig::new()
+        .set("group.id", "edge-agent-rule-updater")
+        .set("bootstrap.servers", &brokers)
+        .set("enable.partition.eof", "false")
+        .set("session.timeout.ms", "6000")
+        .set("enable.auto.commit", "true")
+        .create()
+        .expect("Consumer creation failed");
+
+    consumer
+        .subscribe(&["edge-rules"])
+        .expect("Can't subscribe to specified topic");
+
+    info!("Started rule updater task, listening on edge-rules");
+
+    loop {
+        match consumer.recv().await {
+            Err(e) => warn!("Kafka error: {}", e),
+            Ok(m) => {
+                if let Some(payload) = m.payload_view::<str>() {
+                    match payload {
+                        Ok(text) => {
+                            if let Ok(rule) = serde_json::from_str::<RuleUpdate>(text) {
+                                info!("Received rule update: {}", rule.name);
+                                let mut detector = state.detector.write().await;
+                                let detection_rule = crate::detector::DetectionRule {
+                                    name: rule.name,
+                                    pattern: rule.pattern,
+                                    severity: rule.severity,
+                                    enabled: rule.enabled,
+                                };
+                                detector.add_rule(detection_rule);
+                            } else {
+                                warn!("Failed to parse rule update: {}", text);
+                            }
+                        }
+                        Err(e) => warn!("Error while deserializing message payload: {:?}", e),
                     }
                 }
             }
-        }
-    });
-
-    // Background task: Update metrics gauges
-    let metrics_state = state.clone();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(10)).await;
-            
-            // Update buffer metrics
-            if let Ok(count) = metrics_state.buffer.count().await {
-                metrics::gauge!("edge_agent_buffer_count").set(count as f64);
-            }
-            if let Ok(size_mb) = metrics_state.buffer.size_mb().await {
-                metrics::gauge!("edge_agent_buffer_size_bytes").set(size_mb * 1024.0 * 1024.0);
-            }
-            
-            // Update connection status
-            let is_online = *metrics_state.is_online.read().await;
-            metrics::gauge!("edge_agent_is_online").set(if is_online { 1.0 } else { 0.0 });
-        }
-    });
-        info!("Forwarding {} buffered events", buffered_count);
-
-        let forwarder = state.forwarder.read().await;
-        match forwarder.forward_buffered(&state.buffer).await {
-            Ok(count) => {
-                if count > 0 {
-                    info!("Successfully forwarded {} buffered events", count);
-                }
-            }
-            Err(e) => {
-                error!("Failed to forward buffered events: {}", e);
-                *state.is_online.write().await = false;
-            }
-        }
+        };
     }
 }

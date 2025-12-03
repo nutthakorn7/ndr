@@ -23,20 +23,42 @@ use registration::{register_agent, get_agents, get_agent};
 use health_monitor::update_heartbeat;
 use error::{AppError, Result as AppResult};
 
+mod kafka;
+use kafka::KafkaService;
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
+    pub kafka: KafkaService,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ConfigUpdate {
+    #[serde(flatten)]
+    pub config: Value,
 }
 
 #[derive(Serialize)]
-struct HealthResponse {
-    status: &'static str,
+pub struct HealthResponse {
+    pub status: String,
 }
 
-#[derive(Deserialize)]
-pub struct ConfigUpdate {
-    pub forwarding_policy: Option<Value>,
-    pub detection_rules: Option<Value>,
+#[derive(Deserialize, Serialize, Clone)]
+pub struct RuleUpdate {
+    pub name: String,
+    pub pattern: String,
+    pub severity: String,
+    pub enabled: bool,
+}
+
+#[derive(Serialize, sqlx::FromRow)]
+pub struct DetectionRule {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub pattern: String,
+    pub severity: String,
+    pub enabled: bool,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 #[tokio::main]
@@ -56,6 +78,15 @@ async fn main() -> anyhow::Result<()> {
     let pool = ndr_storage::postgres::create_pool(&database_url).await?;
 
     info!("Connected to database");
+
+    // Initialize Kafka
+    let kafka = match KafkaService::new() {
+        Ok(k) => k,
+        Err(e) => {
+            error!("Failed to initialize Kafka: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     // Run migrations
     sqlx::query(
@@ -97,9 +128,24 @@ async fn main() -> anyhow::Result<()> {
     .execute(&pool)
     .await?;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS detection_rules (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name VARCHAR(255) NOT NULL,
+            pattern TEXT NOT NULL,
+            severity VARCHAR(50) NOT NULL,
+            enabled BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await?;
+
     info!("Database schema initialized");
 
-    let state = Arc::new(AppState { db: pool });
+    let state = Arc::new(AppState { db: pool, kafka });
 
     // API key for authentication
     let api_key_hash = std::env::var("COORDINATOR_API_KEY")
@@ -130,6 +176,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/metrics", get(move || std::future::ready(handle.render())))
         // Protected endpoints - require API key
         .route("/edge/agents/:agent_id/config", post(update_agent_config))
+        .route("/edge/rules", post(create_rule))
+        .route("/edge/rules", get(get_rules))
+        .route("/edge/rules/:rule_id", axum::routing::delete(delete_rule))
         .route_layer(middleware::from_fn_with_state(
             api_key_hash.clone(),
             auth::api_key_auth
@@ -177,7 +226,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn health_check() -> Json<HealthResponse> {
     Json(HealthResponse {
-        status: "healthy",
+        status: "healthy".to_string(),
     })
 }
 
@@ -207,4 +256,73 @@ async fn update_agent_config(
 
     info!("Updated configuration for agent: {}", agent_id);
     Ok(StatusCode::OK)
+}
+
+async fn create_rule(
+    State(state): State<Arc<AppState>>,
+    Json(rule): Json<RuleUpdate>,
+) -> AppResult<StatusCode> {
+    info!("Creating rule: {}", rule.name);
+
+    // 1. Save to Database
+    sqlx::query(
+        "INSERT INTO detection_rules (name, pattern, severity, enabled) VALUES ($1, $2, $3, $4)"
+    )
+    .bind(&rule.name)
+    .bind(&rule.pattern)
+    .bind(&rule.severity)
+    .bind(rule.enabled)
+    .execute(&state.db)
+    .await
+    .map_err(|e| AppError::internal("Failed to save rule to database")
+        .with_context(e.to_string()))?;
+    
+    // 2. Broadcast to Kafka
+    state.kafka.publish_rule_update(&rule).await
+        .map_err(|e| AppError::internal("Failed to publish rule update")
+            .with_context(e.to_string()))?;
+
+    Ok(StatusCode::CREATED)
+}
+
+async fn get_rules(
+    State(state): State<Arc<AppState>>,
+) -> AppResult<Json<Vec<DetectionRule>>> {
+    let rules = sqlx::query_as::<_, DetectionRule>(
+        "SELECT * FROM detection_rules ORDER BY created_at DESC"
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| AppError::internal("Failed to fetch rules")
+        .with_context(e.to_string()))?;
+
+    Ok(Json(rules))
+}
+
+async fn delete_rule(
+    State(state): State<Arc<AppState>>,
+    Path(rule_id): Path<uuid::Uuid>,
+) -> AppResult<StatusCode> {
+    info!("Deleting rule: {}", rule_id);
+
+    // 1. Get rule details before deletion (to broadcast disable/delete if needed)
+    // For now, we'll just delete from DB. In a real system, we might want to broadcast a "delete" event.
+    // Let's at least check if it exists.
+    let result = sqlx::query("DELETE FROM detection_rules WHERE id = $1")
+        .bind(rule_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| AppError::internal("Failed to delete rule")
+            .with_context(e.to_string()))?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::not_found("Rule not found"));
+    }
+
+    // TODO: Broadcast delete event to agents so they can remove it from memory.
+    // For now, agents only support ADD/UPDATE via the `RuleUpdate` struct.
+    // We might need to extend `RuleUpdate` to support deletion or add a new topic.
+    // Given the current scope, we will just delete from DB.
+
+    Ok(StatusCode::NO_CONTENT)
 }

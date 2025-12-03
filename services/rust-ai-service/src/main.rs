@@ -8,16 +8,20 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tower_http::trace::TraceLayer;
-use ndr_telemetry::{init_telemetry, info};
+use ndr_telemetry::{init_telemetry, info, error, warn};
 use linfa::prelude::*;
 use linfa_clustering::KMeans;
-use ndarray::{Array2, ArrayView1, array};
-use rand::prelude::*;
-use rand_distr::{Normal, Distribution};
+use ndarray::{Array2, ArrayView1};
+use ndr_storage::postgres::create_pool;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+mod repository;
+use repository::{Repository, ModelArtifacts};
 
 #[derive(Clone)]
 struct AppState {
     model: Arc<Mutex<AnomalyModel>>,
+    repository: Arc<Repository>,
 }
 
 struct AnomalyModel {
@@ -33,55 +37,72 @@ impl AnomalyModel {
         }
     }
 
-    fn train(&mut self) {
-        info!("Starting model training with K-Means...");
+    fn load_from_artifacts(&mut self, artifacts: ModelArtifacts) {
+        self.centroids = Some(artifacts.centroids);
+        self.threshold = artifacts.threshold;
+    }
+
+    fn train(&mut self, data: Vec<repository::TrainingData>) -> Result<ModelArtifacts, String> {
+        info!("Starting model training with {} records...", data.len());
         
-        // Generate synthetic "normal" traffic data
-        // We simulate 5 features: bytes_sent, bytes_recv, pkts_sent, pkts_recv, duration
-        // We'll generate 2 clusters of "normal" behavior.
-        // Cluster 1: Small flows (e.g., DNS, HTTP keepalive)
-        // Cluster 2: Medium flows (e.g., standard web browsing)
-        
-        let n_samples = 200;
-        let mut data = Vec::with_capacity(n_samples * 5);
-        let mut rng = rand::thread_rng();
-        
-        // Cluster 1: Small flows (log-scaled values around 1.0)
-        let normal1 = Normal::new(1.0, 0.2).unwrap();
-        for _ in 0..n_samples/2 {
-            for _ in 0..5 {
-                data.push(normal1.sample(&mut rng));
-            }
+        if data.is_empty() {
+            return Err("No training data available".to_string());
         }
 
-        // Cluster 2: Medium flows (log-scaled values around 3.0)
-        let normal2 = Normal::new(3.0, 0.5).unwrap();
-        for _ in 0..n_samples/2 {
-            for _ in 0..5 {
-                data.push(normal2.sample(&mut rng));
-            }
+        // Convert to ndarray
+        // Features: log1p(bytes_sent), log1p(bytes_recv), log1p(pkts_sent), log1p(pkts_recv), log1p(duration)
+        let n_samples = data.len();
+        let mut features = Vec::with_capacity(n_samples * 5);
+        
+        for d in &data {
+            features.push(d.bytes_sent.ln_1p());
+            features.push(d.bytes_received.ln_1p());
+            features.push(d.packets_sent.ln_1p());
+            features.push(d.packets_received.ln_1p());
+            features.push(d.duration.ln_1p());
         }
 
-        // Create ndarray
-        let dataset_array = Array2::from_shape_vec((n_samples, 5), data).unwrap();
+        let dataset_array = Array2::from_shape_vec((n_samples, 5), features)
+            .map_err(|e| e.to_string())?;
         let dataset = Dataset::from(dataset_array);
 
-        // Train K-Means with 2 clusters
+        // Train K-Means with 2 clusters (Normal vs Anomalous? Or just clustering normal behavior)
+        // For anomaly detection, we usually cluster "normal" data into K clusters.
         let model = KMeans::params(2)
             .max_n_iterations(100)
             .tolerance(1e-5)
             .fit(&dataset)
-            .expect("KMeans training failed");
+            .map_err(|e| e.to_string())?;
 
-        self.centroids = Some(model.centroids().clone());
+        let centroids = model.centroids().clone();
         
-        // Set threshold based on max distance in training set (plus some margin)
-        // In a real system, we'd calculate the 99th percentile distance.
-        // Here we'll just pick a reasonable heuristic for log-scaled data.
-        // If a point is > 2.0 units away from nearest centroid in log-space, it's likely anomalous.
-        self.threshold = 2.0; 
+        // Calculate threshold (99th percentile distance)
+        let mut distances = Vec::new();
+        for i in 0..n_samples {
+            let point = dataset.records().row(i);
+            let mut min_dist = f64::MAX;
+            for centroid in centroids.outer_iter() {
+                let dist = (&point - &centroid).mapv(|x| x.powi(2)).sum().sqrt();
+                if dist < min_dist {
+                    min_dist = dist;
+                }
+            }
+            distances.push(min_dist);
+        }
         
-        info!("Model trained successfully. Centroids: {:?}", self.centroids.as_ref().unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let threshold_idx = (distances.len() as f64 * 0.99) as usize;
+        let threshold = distances[threshold_idx.min(distances.len() - 1)];
+
+        self.centroids = Some(centroids.clone());
+        self.threshold = threshold;
+        
+        info!("Model trained. Threshold: {}", threshold);
+
+        Ok(ModelArtifacts {
+            centroids,
+            threshold,
+        })
     }
 
     fn predict(&self, features: &[f64]) -> (i32, bool, f64) {
@@ -103,10 +124,6 @@ impl AnomalyModel {
 
         let is_anomaly = min_dist > self.threshold;
         let prediction = if is_anomaly { -1 } else { 1 };
-        
-        // Score: Higher distance = higher anomaly score.
-        // We return negative distance as "confidence" of normality, or just distance as anomaly score.
-        // Let's return distance as the score.
         let score = min_dist;
 
         (prediction, is_anomaly, score)
@@ -137,15 +154,32 @@ async fn main() {
         std::process::exit(1);
     }
 
+    // Connect to database
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let pool = create_pool(&database_url).await.expect("Failed to connect to database");
+    let repository = Arc::new(Repository::new(pool));
+
     let model = Arc::new(Mutex::new(AnomalyModel::new()));
     
-    // Initial training
-    {
-        let mut m = model.lock().unwrap();
-        m.train();
+    // Load existing model
+    match repository.load_active_model().await {
+        Ok(Some(artifacts)) => {
+            let mut m = model.lock().unwrap();
+            m.load_from_artifacts(artifacts);
+            info!("Loaded existing model from database");
+        }
+        Ok(None) => {
+            warn!("No existing model found. Service will need training.");
+        }
+        Err(e) => {
+            error!("Failed to load model: {}", e);
+        }
     }
 
-    let state = AppState { model };
+    let state = AppState { 
+        model,
+        repository 
+    };
 
     let app = Router::new()
         .route("/health", get(health_check))
@@ -181,7 +215,6 @@ async fn analyze_flow(
     }
 
     // Preprocessing: Log scaling (log1p)
-    // This matches the training data distribution assumption
     let features = vec![
         (flow.bytes_sent as f64).ln_1p(),
         (flow.bytes_received as f64).ln_1p(),
@@ -199,8 +232,29 @@ async fn analyze_flow(
     }))
 }
 
-async fn train_model(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let mut model = state.model.lock().unwrap();
-    model.train();
-    Json(serde_json::json!({ "status": "Model retrained successfully" }))
+async fn train_model(State(state): State<AppState>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    // 1. Fetch data
+    let data = state.repository.fetch_training_data(10000).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("DB Error: {}", e)))?;
+
+    if data.len() < 10 {
+        return Err((StatusCode::BAD_REQUEST, "Not enough data to train (need at least 10 records)".to_string()));
+    }
+
+    // 2. Train model
+    let artifacts = {
+        let mut model = state.model.lock().unwrap();
+        model.train(data).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?
+    };
+
+    // 3. Save model
+    let version = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
+    state.repository.save_model(&version, &artifacts).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Save Error: {}", e)))?;
+
+    Ok(Json(serde_json::json!({ 
+        "status": "Model retrained and saved successfully",
+        "version": version,
+        "threshold": artifacts.threshold
+    })))
 }

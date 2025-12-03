@@ -72,9 +72,32 @@ export default function SensorManagement() {
         // Try to fetch real sensor data
         const response = await api.getSensors();
         
-        if (response && response.sensors) {
+        // Handle response from edge-coordinator (proxied via dashboard-api)
+        // Expected format: { agents: [...], total: N }
+        if (response && response.agents) {
           // Transform API response to component format
-          const transformedSensors = response.sensors.map((sensor: any) => ({
+          const transformedSensors = response.agents.map((agent: any) => ({
+            id: agent.agent_id, // Map agent_id to id
+            name: agent.name || agent.agent_id,
+            location: agent.location || 'Unknown',
+            status: agent.status,
+            ip: 'N/A', // IP might not be in the basic agent list, or needs to be extracted from metadata
+            uptime: formatUptime(agent.last_heartbeat),
+            cpu: agent.last_metrics?.cpu || 0,
+            ram: agent.last_metrics?.ram || 0,
+            disk: agent.last_metrics?.disk || 0,
+            interface: 'eth0', // Placeholder
+            traffic: formatTraffic(agent.last_metrics?.bytes_per_sec),
+            version: agent.version || 'Unknown'
+          }));
+          setSensors(transformedSensors);
+          if (transformedSensors.length > 0) {
+            setSelectedSensor(transformedSensors[0]);
+          }
+        } else if (response && response.sensors) {
+           // Fallback for legacy format if any
+           // ... (existing logic)
+           const transformedSensors = response.sensors.map((sensor: any) => ({
             id: sensor.id,
             name: sensor.name,
             location: sensor.location || 'Unknown',
@@ -89,9 +112,6 @@ export default function SensorManagement() {
             version: sensor.version || '2.4.0'
           }));
           setSensors(transformedSensors);
-          if (transformedSensors.length > 0) {
-            setSelectedSensor(transformedSensors[0]);
-          }
         } else {
           throw new Error('Invalid sensor response');
         }

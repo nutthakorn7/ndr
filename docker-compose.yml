@@ -13,27 +13,7 @@ services:
       - dashboard-api
     restart: always
 
-  # Backend API
-  # Backend API
-  # dashboard-api:
-  #   build: ./services/dashboard-api
-  #   ports:
-  #     - "8081:8081"
-  #   environment:
-  #     - PORT=8081
-  #     - OPENSEARCH_URL=http://opensearch:9200
-  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-  #     - SENSOR_CONTROLLER_URL=http://sensor-controller:8084
-  #     - PCAP_SERVICE_URL=http://host.docker.internal:8089
-  #     - AI_SERVICE_URL=http://ai-service:8090
-  #     - JWT_SECRET=ndr-super-secret-key
-  #   depends_on:
-  #     - opensearch
-  #     - postgres
-  #     - redis
-  #     - sensor-controller
-  #   restart: always
-
+  # Backend Services
   dashboard-api:
     build: ./services/rust-dashboard-api
     ports:
@@ -50,21 +30,6 @@ services:
       - rust-controller
     restart: always
 
-  # sensor-controller:
-  #   build: ./services/sensor-controller
-  #   ports:
-  #     - "8084:8084" # Exposed for external sensors to register
-  #   environment:
-  #     - PORT=8084
-  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-  #     - SENSOR_COMMAND_SECRET=ndr-demo-secret
-  #     - KAFKA_BROKERS= # Optional: Add Kafka if needed
-  #   volumes:
-  #     - suricata-rules:/var/lib/suricata/rules
-  #   depends_on:
-  #     - postgres
-  #   restart: always
-
   rust-controller:
     build: ./services/rust-controller
     ports:
@@ -76,18 +41,6 @@ services:
     depends_on:
       - postgres
     restart: always
-
-  # auth-service:
-  #   build: ./services/auth-service
-  #   ports:
-  #     - "8087:8087"
-  #   environment:
-  #     - PORT=8087
-  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-  #     - JWT_SECRET=ndr-demo-secret
-  #   depends_on:
-  #     - postgres
-  #   restart: always
 
   auth-service:
     build: ./services/rust-auth-service
@@ -103,17 +56,6 @@ services:
       - postgres
     restart: always
 
-  # asset-service:
-  #   build: ./services/asset-service
-  #   environment:
-  #     - PORT=8080
-  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-  #     - KAFKA_BROKERS=kafka:9092
-  #   depends_on:
-  #     - postgres
-  #     - kafka
-  #   restart: always
-
   asset-service:
     build: ./services/rust-asset-service
     environment:
@@ -126,56 +68,15 @@ services:
       - kafka
     restart: always
 
-  # soar-orchestrator:
-  #   build: ./services/soar-orchestrator
-  #   environment:
-  #     - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/security_analytics
-  #     - KAFKA_BROKERS= # Optional
-  #     - DRY_RUN=true
-  #   depends_on:
-  #     - postgres
-  #   restart: always
-
-  suricata:
-    image: jasonish/suricata:latest
-    container_name: suricata
-    network_mode: "host" # Linux only. On Mac/Windows, this sees VM traffic only.
-    cap_add:
-      - NET_ADMIN
-      - SYS_NICE
-      - NET_RAW
-    volumes:
-      - suricata-logs:/var/log/suricata
-      - suricata-rules:/var/lib/suricata/rules
-      - ./config/suricata:/etc/suricata
-    command: -i eth0
-    restart: always
-
-  filebeat:
-    image: docker.elastic.co/beats/filebeat-oss:7.12.1
-    container_name: filebeat
-    user: root
-    volumes:
-      - suricata-logs:/var/log/suricata:ro
-      - ./config/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+  rust-soar-orchestrator:
+    build: ./services/rust-soar-orchestrator
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - WEBHOOK_URL=http://host.docker.internal:9000/webhook
+      - RUST_LOG=info
     depends_on:
-      - opensearch
-      - suricata
+      - kafka
     restart: always
-
-  # pcap-service:
-  #   build: ./services/pcap-service
-  #   container_name: pcap-service
-  #   network_mode: "host" # Needs to see the same traffic as Suricata
-  #   cap_add:
-  #     - NET_ADMIN
-  #     - NET_RAW
-  #   volumes:
-  #     - pcap-data:/var/lib/pcap
-  #   environment:
-  #     - PORT=8089
-  #     - INTERFACE=eth0
-  #   restart: always
 
   ai-service:
     build: ./services/rust-ai-service
@@ -200,18 +101,6 @@ services:
       - kafka
     restart: always
 
-  # parser-normalizer:
-  #   build: ./services/parser-normalizer
-  #   environment:
-  #     - KAFKA_BROKERS=kafka:9092
-  #     - OPENSEARCH_URL=http://opensearch:9200
-  #     - ZEEK_TOPIC=zeek-logs
-  #     - SURICATA_TOPIC=suricata-logs
-  #   depends_on:
-  #     - kafka
-  #     - opensearch
-  #   restart: always
-
   parser-normalizer:
     build: ./services/rust-parser-normalizer
     environment:
@@ -222,17 +111,6 @@ services:
     depends_on:
       - kafka
     restart: always
-
-  # alert-correlator:
-  #   build: ./services/alert-correlator
-  #   environment:
-  #     - KAFKA_BROKERS=kafka:9092
-  #     - REDIS_URL=redis://redis:6379
-  #     - DATABASE_URL=postgres://user:password@postgres:5432/ndr
-  #   depends_on:
-  #     - kafka
-  #     - redis
-  #     - postgres
 
   rust-alert-correlator:
     build: ./services/rust-alert-correlator
@@ -245,18 +123,6 @@ services:
       - kafka
       - redis
       - postgres
-
-  # siem-exporter:
-  #   build: ./services/siem-exporter
-  #   environment:
-  #     - KAFKA_BROKERS=kafka:9092
-  #     - SPLUNK_ENABLED=false
-  #     - ELASTIC_ENABLED=false
-  #     - WEBHOOK_1_ENABLED=true
-  #     - WEBHOOK_1_URL=http://host.docker.internal:9000/webhook
-  #   depends_on:
-  #     - kafka
-  #   restart: always
 
   siem-exporter:
     build: ./services/rust-siem-exporter
@@ -275,7 +141,7 @@ services:
     build: ./services/rust-yara-scanner
     volumes:
       - ./data/extracted_files:/data/extracted_files
-      - ./services/yara-scanner/rules:/app/rules
+      # - ./services/yara-scanner/rules:/app/rules # Legacy path, commented out until rules are moved
     environment:
       - KAFKA_BROKERS=kafka:9092
       - WATCH_DIR=/data/extracted_files
@@ -356,17 +222,34 @@ services:
       - kafka
     restart: always
 
-  rust-soar-orchestrator:
-    build: ./services/rust-soar-orchestrator
-    environment:
-      - KAFKA_BROKERS=kafka:9092
-      - WEBHOOK_URL=http://host.docker.internal:9000/webhook
-      - RUST_LOG=info
-    depends_on:
-      - kafka
+  # Infrastructure
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    network_mode: "host" # Linux only. On Mac/Windows, this sees VM traffic only.
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+      - NET_RAW
+    volumes:
+      - suricata-logs:/var/log/suricata
+      - suricata-rules:/var/lib/suricata/rules
+      - ./config/suricata:/etc/suricata
+    command: -i eth0
     restart: always
 
-  # Databases & Infrastructure
+  filebeat:
+    image: docker.elastic.co/beats/filebeat-oss:7.12.1
+    container_name: filebeat
+    user: root
+    volumes:
+      - suricata-logs:/var/log/suricata:ro
+      - ./config/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    depends_on:
+      - opensearch
+      - suricata
+    restart: always
+
   opensearch:
     image: opensearchproject/opensearch:2.11.0
     environment:

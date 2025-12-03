@@ -1,0 +1,143 @@
+warning: unused import: `crate::error::Result`
+ --> services/crates/ndr-core/src/services/correlation.rs:7:5
+  |
+7 | use crate::error::Result;
+  |     ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `alerts`
+  --> services/crates/ndr-core/src/services/correlation.rs:20:36
+   |
+20 | ...relate_alerts(&self, alerts: &[Alert]) -> Vec<CorrelatedGrou...
+   |                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_alerts`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `NotificationChannel` is never used
+  --> services/crates/ndr-core/src/ports/notification.rs:23:10
+   |
+23 | pub enum NotificationChannel {
+   |          ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ndr-core` (lib) generated 3 warnings (run `cargo fix --lib -p ndr-core` to apply 1 suggestion)
+    Checking rust-edge-agent v0.1.0 (/Users/pop7/Code/NDR/services/rust-edge-agent)
+error[E0422]: cannot find struct, variant or union type `AppState` in this scope
+  --> services/rust-edge-agent/src/main.rs:99:17
+   |
+99 |     let state = AppState {
+   |                 ^^^^^^^^ not found in this scope
+
+error[E0423]: expected value, found module `ioc_store`
+   --> services/rust-edge-agent/src/main.rs:104:20
+    |
+104 |         ioc_store: ioc_store.clone(),
+    |                    ^^^^^^^^^
+    |
+help: use the path separator to refer to an item
+    |
+104 -         ioc_store: ioc_store.clone(),
+104 +         ioc_store: ioc_store::clone(),
+    |
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:211:43
+    |
+211 | async fn health_check(State(state): State<AppState>) -> AppResult<Json<HealthResponse>> {
+    |                                           ^^^^^^^^ not found in this scope
+    |
+help: you might be missing a type parameter
+    |
+211 | async fn health_check<AppState>(State(state): State<AppState>) -> AppResult<Json<HealthResponse>> {
+    |                      ++++++++++
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:228:25
+    |
+228 |     State(state): State<AppState>,
+    |                         ^^^^^^^^ not found in this scope
+    |
+help: you might be missing a type parameter
+    |
+227 | async fn ingest_event<AppState>(
+    |                      ++++++++++
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:289:25
+    |
+289 |     State(state): State<AppState>,
+    |                         ^^^^^^^^ not found in this scope
+    |
+help: you might be missing a type parameter
+    |
+288 | async fn update_config<AppState>(
+    |                       ++++++++++
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:313:44
+    |
+313 | async fn register_with_coordinator(state: &AppState) -> anyhow::Result<()> {
+    |                                            ^^^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:344:32
+    |
+344 | async fn heartbeat_task(state: AppState) {
+    |                                ^^^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:390:39
+    |
+390 | async fn buffer_forwarder_task(state: AppState) {
+    |                                       ^^^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:422:38
+    |
+422 | async fn metrics_updater_task(state: AppState) {
+    |                                      ^^^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:442:42
+    |
+442 | async fn forward_buffered_events(state: &AppState) -> anyhow::Result<()> {
+    |                                          ^^^^^^^^ not found in this scope
+
+error[E0412]: cannot find type `AppState` in this scope
+   --> services/rust-edge-agent/src/main.rs:459:35
+    |
+459 | async fn rule_updater_task(state: AppState) {
+    |                                   ^^^^^^^^ not found in this scope
+
+warning: unused import: `ioc_store::IocStore`
+ --> services/rust-edge-agent/src/main.rs:3:5
+  |
+3 | use ioc_store::IocStore;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `rdkafka::util::Timeout`
+ --> services/rust-edge-agent/src/forwarder.rs:3:5
+  |
+3 | use rdkafka::util::Timeout;
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+ --> services/rust-edge-agent/src/forwarder.rs:8:5
+  |
+8 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `BufferedEvent`
+  --> services/rust-edge-agent/src/forwarder.rs:11:29
+   |
+11 | use crate::buffer::{Buffer, BufferedEvent};
+   |                             ^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0412, E0422, E0423.
+For more information about an error, try `rustc --explain E0412`.
+warning: `rust-edge-agent` (bin "rust-edge-agent") generated 4 warnings
+error: could not compile `rust-edge-agent` (bin "rust-edge-agent") due to 11 previous errors; 4 warnings emitted

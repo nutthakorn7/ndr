@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use anyhow::Result;
 use reqwest::Client;
-use tracing::{info, error};
+use ndr_telemetry::{info, error};
 
 #[async_trait]
 pub trait Exporter {

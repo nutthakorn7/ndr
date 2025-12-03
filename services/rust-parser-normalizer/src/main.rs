@@ -3,12 +3,11 @@ use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::message::Message;
 use std::time::Duration;
-use tracing::{info, error, warn};
-use dotenv::dotenv;
+use ndr_telemetry::{init_telemetry, info, error, warn};
+use dotenvy::dotenv;
 
 mod parser;
 mod normalizer;
-mod models;
 
 use parser::LogParser;
 use normalizer::LogNormalizer;
@@ -16,7 +15,12 @@ use normalizer::LogNormalizer;
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    tracing_subscriber::fmt::init();
+    
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("parser-normalizer") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
     info!("Starting Rust Parser Normalizer...");
 

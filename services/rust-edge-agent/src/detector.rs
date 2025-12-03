@@ -1,5 +1,6 @@
 pub use serde::{Deserialize, Serialize};
 pub use serde_json::Value;
+use evalexpr::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetectionRule {
@@ -37,22 +38,19 @@ impl LocalDetector {
             DetectionRule {
                 name: "Known Malicious IP".to_string(),
                 severity: "critical".to_string(),
-                pattern: "threat_intel_match = true".to_string(),
+                pattern: "threat_intel_match == true".to_string(),
                 enabled: true,
             },
         ]
     }
 
-    pub fn analyze(&self, event: &Value) -> Option<DetectionResult> {
-        // Simple pattern matching for now
-        // In a real implementation, this would use a proper rule engine
-
+    pub fn analyze(&self, event: &Value, ioc_store: &crate::ioc_store::IocStore) -> Option<DetectionResult> {
         for rule in &self.rules {
             if !rule.enabled {
                 continue;
             }
 
-            if self.matches_rule(event, rule) {
+            if self.matches_rule(event, rule, ioc_store) {
                 return Some(DetectionResult {
                     rule_name: rule.name.clone(),
                     severity: rule.severity.clone(),
@@ -64,30 +62,50 @@ impl LocalDetector {
         None
     }
 
-    fn matches_rule(&self, event: &Value, rule: &DetectionRule) -> bool {
-        // Simplified rule matching
-        // Real implementation would parse and evaluate the pattern properly
+    fn matches_rule(&self, event: &Value, rule: &DetectionRule, ioc_store: &crate::ioc_store::IocStore) -> bool {
+        let mut context = HashMapContext::new();
         
-        match rule.name.as_str() {
-            "High Volume Traffic" => {
-                if let Some(pps) = event.get("packets_per_second").and_then(|v| v.as_u64()) {
-                    return pps > 10000;
+        let mut threat_match = false;
+
+        // Flatten event into context (shallow flatten for now)
+        if let Some(obj) = event.as_object() {
+            for (k, v) in obj {
+                match v {
+                    Value::Number(n) => {
+                        if let Some(i) = n.as_i64() {
+                            context.set_value(k.clone(), evalexpr::Value::Int(i)).ok();
+                        } else if let Some(f) = n.as_f64() {
+                            context.set_value(k.clone(), evalexpr::Value::Float(f)).ok();
+                        }
+                    },
+                    Value::String(s) => {
+                        context.set_value(k.clone(), evalexpr::Value::String(s.clone())).ok();
+                        // Check IOC
+                        if ioc_store.contains(s) {
+                            threat_match = true;
+                        }
+                    },
+                    Value::Bool(b) => {
+                        context.set_value(k.clone(), evalexpr::Value::Boolean(*b)).ok();
+                    },
+                    _ => {} // Ignore arrays/objects for simple rules for now
                 }
             }
-            "Suspicious Port Scan" => {
-                if let Some(ports) = event.get("unique_ports").and_then(|v| v.as_u64()) {
-                    return ports > 100;
-                }
-            }
-            "Known Malicious IP" => {
-                if let Some(threat) = event.get("threat_intel_match").and_then(|v| v.as_bool()) {
-                    return threat;
-                }
-            }
-            _ => {}
         }
 
-        false
+        // Inject threat_intel_match
+        context.set_value("threat_intel_match".to_string(), evalexpr::Value::Boolean(threat_match)).ok();
+
+        match eval_boolean_with_context(&rule.pattern, &context) {
+            Ok(result) => result,
+            Err(e) => {
+                // Only log if it's not a "variable not found" error, which just means the rule doesn't apply
+                if !e.to_string().contains("Variable identifier not found") {
+                    ndr_telemetry::warn!("Failed to evaluate rule '{}': {}", rule.name, e);
+                }
+                false
+            }
+        }
     }
 
     pub fn update_rules(&mut self, rules: Vec<DetectionRule>) {
@@ -95,8 +113,14 @@ impl LocalDetector {
         ndr_telemetry::info!("Updated {} detection rules", self.rules.len());
     }
 
-    pub fn get_priority(&self, event: &Value) -> i32 {
-        if let Some(result) = self.analyze(event) {
+    pub fn add_rule(&mut self, rule: DetectionRule) {
+        self.rules.retain(|r| r.name != rule.name);
+        self.rules.push(rule);
+        ndr_telemetry::info!("Added/Updated rule: {}", self.rules.last().unwrap().name);
+    }
+
+    pub fn get_priority(&self, event: &Value, ioc_store: &crate::ioc_store::IocStore) -> i32 {
+        if let Some(result) = self.analyze(event, ioc_store) {
             match result.severity.as_str() {
                 "critical" => 100,
                 "high" => 75,

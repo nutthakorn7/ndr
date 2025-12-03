@@ -1,8 +1,8 @@
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
-use tracing::{info, error, warn};
-use dotenv::dotenv;
+use ndr_telemetry::{init_telemetry, info, error, warn};
+use dotenvy::dotenv;
 use std::sync::Arc;
 
 mod exporters;
@@ -11,7 +11,12 @@ use exporters::{Exporter, SplunkExporter, WebhookExporter, ElasticExporter};
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    tracing_subscriber::fmt::init();
+    
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("siem-exporter") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
     info!("Starting Rust SIEM Exporter...");
 

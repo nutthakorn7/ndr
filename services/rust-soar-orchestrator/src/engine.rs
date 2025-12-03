@@ -1,5 +1,5 @@
 use crate::models::{Alert, Playbook, Trigger, ActionType, ActionConfig};
-use crate::actions::{Action, WebhookAction, LogAction};
+use crate::actions::{Action, WebhookAction, LogAction, BlockIPAction};
 use ndr_telemetry::{info, warn};
 use std::sync::Arc;
 use serde_json::json;
@@ -25,6 +25,20 @@ impl PlaybookEngine {
                         params: json!({ 
                             "url": std::env::var("WEBHOOK_URL").unwrap_or("http://localhost:9000/webhook".to_string()) 
                         }),
+                    },
+                ],
+            },
+            Playbook {
+                name: "Ransomware Response".to_string(),
+                trigger: Trigger::Category("Ransomware".to_string()),
+                actions: vec![
+                    ActionConfig {
+                        action_type: ActionType::Log,
+                        params: json!({ "level": "warn" }),
+                    },
+                    ActionConfig {
+                        action_type: ActionType::BlockIP,
+                        params: json!({}),
                     },
                 ],
             },
@@ -55,6 +69,7 @@ impl PlaybookEngine {
             let action: Box<dyn Action + Send + Sync> = match action_config.action_type {
                 ActionType::Webhook => Box::new(WebhookAction::new(action_config.params.clone())),
                 ActionType::Log => Box::new(LogAction::new(action_config.params.clone())),
+                ActionType::BlockIP => Box::new(BlockIPAction::new(action_config.params.clone())),
             };
 
             if let Err(e) = action.execute(alert).await {

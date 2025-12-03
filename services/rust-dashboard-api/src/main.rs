@@ -11,12 +11,15 @@ use opensearch::OpenSearch;
 use opensearch::http::transport::Transport;
 use ndr_telemetry::{init_telemetry, info, error};
 use ndr_storage::postgres::create_pool;
+use tokio::sync::broadcast;
 
 mod handlers;
 mod models;
 mod state;
+mod kafka;
 
 use state::AppState;
+use kafka::KafkaConsumer;
 
 #[tokio::main]
 async fn main() {
@@ -43,10 +46,24 @@ async fn main() {
     let transport = Transport::single_node(&opensearch_url).expect("Failed to create OpenSearch transport");
     let os_client = OpenSearch::new(transport);
 
+    // Broadcast channel for real-time events
+    let (tx, _rx) = broadcast::channel(100);
+
+    // Initialize Kafka Consumer
+    // We spawn it in a background task
+    let kafka_tx = tx.clone();
+    tokio::spawn(async move {
+        match KafkaConsumer::new(kafka_tx) {
+            Ok(consumer) => consumer.run().await,
+            Err(e) => error!("Failed to initialize Kafka consumer: {}", e),
+        }
+    });
+
     let state = Arc::new(AppState {
         db: pool,
         opensearch: os_client,
         http_client: reqwest::Client::new(),
+        tx,
     });
 
     // CORS
@@ -64,6 +81,7 @@ async fn main() {
         .route("/alerts", get(handlers::get_alerts))
         .route("/sensors", get(handlers::proxy_sensors))
         .route("/ai/chat", post(handlers::proxy_ai_chat))
+        .route("/ws", get(handlers::ws_handler))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state);
@@ -72,7 +90,7 @@ async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8081".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     
-    info!("Listening on {}", addr);  // Use ndr_telemetry
+    info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

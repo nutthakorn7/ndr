@@ -1,12 +1,35 @@
 use axum::{
-    extract::{State, Json, Query},
+    extract::{State, Query, Path, ws::{WebSocketUpgrade, WebSocket, Message}},
+    response::IntoResponse,
+    Json,
     http::StatusCode,
 };
 use std::sync::Arc;
 use serde_json::{json, Value};
-use ndr_telemetry::error;  // Add ndr_telemetry
+use ndr_telemetry::{info, error};
+use futures::{sink::SinkExt, stream::StreamExt};
 use crate::state::AppState;
 use crate::models::*;
+
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
+    info!("New WebSocket connection established");
+    let mut rx = state.tx.subscribe();
+
+    while let Ok(msg) = rx.recv().await {
+        if let Err(e) = socket.send(Message::Text(msg)).await {
+            // Client disconnected
+            break;
+        }
+    }
+    info!("WebSocket connection closed");
+}
 
 pub async fn health_check() -> &'static str {
     "OK"
@@ -54,22 +77,23 @@ pub async fn search_events(
 pub async fn get_alerts(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Value>, StatusCode> {
-    let alerts = sqlx::query!("SELECT id, title, severity, status, timestamp, description FROM alerts ORDER BY timestamp DESC LIMIT 50")
+    let alerts = sqlx::query("SELECT id, title, severity, status, timestamp, description FROM alerts ORDER BY timestamp DESC LIMIT 50")
         .fetch_all(&state.db)
         .await
         .map_err(|e| {
-            error!(error = %e, "Failed to fetch alerts");  // Use ndr_telemetry
+            error!(error = %e, "Failed to fetch alerts");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
     let alerts_json: Vec<Value> = alerts.into_iter().map(|row| {
+        use sqlx::Row;
         json!({
-            "id": row.id,
-            "title": row.title,
-            "severity": row.severity,
-            "status": row.status,
-            "timestamp": row.timestamp.map(|t| t.to_rfc3339()),
-            "description": row.description
+            "id": row.get::<i32, _>("id"),
+            "title": row.get::<String, _>("title"),
+            "severity": row.get::<String, _>("severity"),
+            "status": row.get::<String, _>("status"),
+            "timestamp": row.get::<Option<chrono::DateTime<chrono::Utc>>, _>("timestamp").map(|t| t.to_rfc3339()),
+            "description": row.get::<Option<String>, _>("description")
         })
     }).collect();
 
@@ -85,7 +109,7 @@ pub async fn get_alerts(
 pub async fn proxy_sensors(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Value>, StatusCode> {
-    let url = format!("{}/sensors", std::env::var("SENSOR_CONTROLLER_URL").unwrap_or("http://sensor-controller:8084".to_string()));
+    let url = format!("{}/edge/agents", std::env::var("EDGE_COORDINATOR_URL").unwrap_or("http://edge-coordinator:8085".to_string()));
     let resp = state.http_client.get(&url).send().await.map_err(|_| StatusCode::BAD_GATEWAY)?;
     let json: Value = resp.json().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(json))

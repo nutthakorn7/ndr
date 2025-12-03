@@ -51,7 +51,7 @@ async fn main() {
         // Continue anyway, maybe it's already initialized
     }
 
-    let state = Arc::new(AppState { db });
+    let state = AppState { db };
 
     // Spawn Kafka consumer
     let consumer_db = DB::new(pool);

@@ -1,0 +1,353 @@
+warning: unused import: `crate::error::Result`
+ --> services/crates/ndr-core/src/services/correlation.rs:7:5
+  |
+7 | use crate::error::Result;
+  |     ^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `alerts`
+  --> services/crates/ndr-core/src/services/correlation.rs:20:36
+   |
+20 | ...relate_alerts(&self, alerts: &[Alert]) -> Vec<CorrelatedGrou...
+   |                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_alerts`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `NotificationChannel` is never used
+  --> services/crates/ndr-core/src/ports/notification.rs:23:10
+   |
+23 | pub enum NotificationChannel {
+   |          ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ndr-core` (lib) generated 3 warnings (run `cargo fix --lib -p ndr-core` to apply 1 suggestion)
+warning: unused import: `DateTime`
+ --> services/crates/ndr-auth/src/jwt.rs:3:14
+  |
+3 | use chrono::{DateTime, Utc};
+  |              ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `AlertStatus` and `Severity`
+ --> services/crates/ndr-api/src/dto/alert.rs:7:31
+  |
+7 | use ndr_core::domain::{Alert, Severity, AlertStatus};
+  |                               ^^^^^^^^  ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ndr-auth` (lib) generated 1 warning (run `cargo fix --lib -p ndr-auth` to apply 1 suggestion)
+warning: `ndr-api` (lib) generated 1 warning (run `cargo fix --lib -p ndr-api` to apply 1 suggestion)
+warning: unused import: `crate::error::Result`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:11:5
+   |
+11 | use crate::error::Result;
+   |     ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: this function depends on never type fallback being `()`
+  --> services/crates/ndr-storage/src/redis/cache.rs:25:5
+   |
+25 | /     pub fn set_ex<T: Serialize>(
+26 | |         &self,
+27 | |         key: &str,
+28 | |         value: &T,
+29 | |         ttl_seconds: u64,
+30 | |     ) -> Result<()> {
+   | |___________________^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in Rust 2024 and in a future release in all editions!
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+   = help: specify the types explicitly
+note: in edition 2024, the requirement `!: FromRedisValue` will fail
+  --> services/crates/ndr-storage/src/redis/cache.rs:34:14
+   |
+34 |         conn.set_ex(key, serialized, ttl_seconds)?;
+   |              ^^^^^^
+   = note: `#[warn(dependency_on_unit_never_type_fallback)]` (part of `#[warn(rust_2024_compatibility)]`) on by default
+help: use `()` annotations to avoid fallback changes
+   |
+34 |         conn.set_ex::<_, _, ()>(key, serialized, ttl_seconds)?;
+   |                    ++++++++++++
+
+warning: this function depends on never type fallback being `()`
+  --> services/crates/ndr-storage/src/redis/cache.rs:54:5
+   |
+54 |     pub fn delete(&self, key: &str) -> Result<()> {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in Rust 2024 and in a future release in all editions!
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+   = help: specify the types explicitly
+note: in edition 2024, the requirement `!: FromRedisValue` will fail
+  --> services/crates/ndr-storage/src/redis/cache.rs:56:14
+   |
+56 |         conn.del(key)?;
+   |              ^^^
+help: use `()` annotations to avoid fallback changes
+   |
+56 |         conn.del::<_, ()>(key)?;
+   |                 +++++++++
+
+warning: unused variable: `id`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:32:32
+   |
+32 | ...c fn find_by_id(&self, id: Uuid) -> ndr_core::error::Result<...
+   |                           ^^ help: if this is intentional, prefix it with an underscore: `_id`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `limit`
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:39:9
+   |
+39 |         limit: usize,
+   |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_limit`
+
+warning: field `pool` is never read
+  --> services/crates/ndr-storage/src/postgres/alert_repository.rs:15:5
+   |
+14 | pub struct PostgresAlertRepository {
+   |            ----------------------- field in this struct
+15 |     pool: PgPool,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `client` and `index` are never read
+  --> services/crates/ndr-storage/src/opensearch/event_store.rs:16:5
+   |
+15 | pub struct OpenSearchEventStore {
+   |            -------------------- fields in this struct
+16 |     client: OpenSearch,
+   |     ^^^^^^
+17 |     index: String,
+   |     ^^^^^
+
+warning: `ndr-storage` (lib) generated 7 warnings (run `cargo fix --lib -p ndr-storage` to apply 3 suggestions)
+    Checking rust-dashboard-api v0.1.0 (/Users/pop7/Code/NDR/services/rust-dashboard-api)
+error: set `DATABASE_URL` to use query macros online, or run `cargo sqlx prepare` to update the query cache
+  --> services/rust-dashboard-api/src/handlers.rs:80:18
+   |
+80 |     let alerts = sqlx::query!("SELECT id, title, severity, status, timestamp, description FROM alerts ORDER BY timestamp DESC LIMIT 50")
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::sqlx_macros::expand_query` which comes from the expansion of the macro `sqlx::query` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `futures`
+  --> services/rust-dashboard-api/src/handlers.rs:10:5
+   |
+10 | use futures::{sink::SinkExt, stream::StreamExt};
+   |     ^^^^^^^ use of unresolved module or unlinked crate `futures`
+   |
+   = help: if you wanted to use a crate named `futures`, use `cargo add futures` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `axum::extract::ws`
+  --> services/rust-dashboard-api/src/handlers.rs:2:35
+   |
+ 2 |     extract::{State, Query, Path, ws::{WebSocketUpgrade, WebSocket, Message}},
+   |                                   ^^ could not find `ws` in `extract`
+   |
+note: found an item that was configured out
+  --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-0.7.9/src/extract/mod.rs:11:9
+   |
+10 | #[cfg(feature = "ws")]
+   |       -------------- the item is gated behind the `ws` feature
+11 | pub mod ws;
+   |         ^^
+
+error[E0412]: cannot find type `Value` in this scope
+  --> services/rust-dashboard-api/src/handlers.rs:40:11
+   |
+40 | ) -> Json<Value> {
+   |           ^^^^^ not found in this scope
+   |
+help: consider importing one of these items
+   |
+ 1 + use serde_json::Value;
+   |
+ 1 + use sqlx::Value;
+   |
+ 1 + use tracing::Value;
+   |
+
+error[E0412]: cannot find type `Value` in this scope
+  --> services/rust-dashboard-api/src/handlers.rs:79:18
+   |
+79 | ) -> Result<Json<Value>, StatusCode> {
+   |                  ^^^^^ not found in this scope
+   |
+help: consider importing one of these items
+   |
+ 1 + use serde_json::Value;
+   |
+ 1 + use sqlx::Value;
+   |
+ 1 + use tracing::Value;
+   |
+
+error[E0412]: cannot find type `Value` in this scope
+  --> services/rust-dashboard-api/src/handlers.rs:88:26
+   |
+88 |     let alerts_json: Vec<Value> = alerts.into_iter().map(|row| {
+   |                          ^^^^^ not found in this scope
+   |
+help: consider importing one of these items
+   |
+ 1 + use serde_json::Value;
+   |
+ 1 + use sqlx::Value;
+   |
+ 1 + use tracing::Value;
+   |
+
+error[E0412]: cannot find type `Value` in this scope
+   --> services/rust-dashboard-api/src/handlers.rs:110:18
+    |
+110 | ) -> Result<Json<Value>, StatusCode> {
+    |                  ^^^^^ not found in this scope
+    |
+help: consider importing one of these items
+    |
+  1 + use serde_json::Value;
+    |
+  1 + use sqlx::Value;
+    |
+  1 + use tracing::Value;
+    |
+
+error[E0412]: cannot find type `Value` in this scope
+   --> services/rust-dashboard-api/src/handlers.rs:113:15
+    |
+113 |     let json: Value = resp.json().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    |               ^^^^^ not found in this scope
+    |
+help: consider importing one of these items
+    |
+  1 + use serde_json::Value;
+    |
+  1 + use sqlx::Value;
+    |
+  1 + use tracing::Value;
+    |
+
+error[E0412]: cannot find type `Value` in this scope
+   --> services/rust-dashboard-api/src/handlers.rs:119:25
+    |
+119 |     Json(payload): Json<Value>,
+    |                         ^^^^^ not found in this scope
+    |
+help: consider importing one of these items
+    |
+  1 + use serde_json::Value;
+    |
+  1 + use sqlx::Value;
+    |
+  1 + use tracing::Value;
+    |
+
+error[E0412]: cannot find type `Value` in this scope
+   --> services/rust-dashboard-api/src/handlers.rs:120:18
+    |
+120 | ) -> Result<Json<Value>, StatusCode> {
+    |                  ^^^^^ not found in this scope
+    |
+help: consider importing one of these items
+    |
+  1 + use serde_json::Value;
+    |
+  1 + use sqlx::Value;
+    |
+  1 + use tracing::Value;
+    |
+
+error[E0412]: cannot find type `Value` in this scope
+   --> services/rust-dashboard-api/src/handlers.rs:123:15
+    |
+123 |     let json: Value = resp.json().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    |               ^^^^^ not found in this scope
+    |
+help: consider importing one of these items
+    |
+  1 + use serde_json::Value;
+    |
+  1 + use sqlx::Value;
+    |
+  1 + use tracing::Value;
+    |
+
+warning: unused imports: `Path` and `Query`
+ --> services/rust-dashboard-api/src/handlers.rs:2:22
+  |
+2 |     extract::{State, Query, Path, ws::{WebSocketUpgrade, WebSocket, Message}},
+  |                      ^^^^^  ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `warn`
+ --> services/rust-dashboard-api/src/kafka.rs:6:34
+  |
+6 | use ndr_telemetry::{info, error, warn};
+  |                                  ^^^^
+
+warning: unused variable: `state`
+  --> services/rust-dashboard-api/src/handlers.rs:64:11
+   |
+64 |     State(state): State<Arc<AppState>>,
+   |           ^^^^^ help: if this is intentional, prefix it with an underscore: `_state`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `e`
+  --> services/rust-dashboard-api/src/kafka.rs:41:44
+   |
+41 | ...                   if let Err(e) = self.tx.send(text.to_string()) {
+   |                                  ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+error[E0277]: the trait bound `fn({type error}, State<Arc<...>>) -> ... {ws_handler}: Handler<_, _>` is not satisfied
+   --> services/rust-dashboard-api/src/main.rs:84:27
+    |
+ 84 |         .route("/ws", get(handlers::ws_handler))
+    |                       --- ^^^^^^^^^^^^^^^^^^^^ the trait `Handler<_, _>` is not implemented for fn item `fn({type error}, State<Arc<AppState>>) -> ... {ws_handler}`
+    |                       |
+    |                       required by a bound introduced by this call
+    |
+    = note: Consider using `#[axum::debug_handler]` to improve the error message
+note: there are multiple different versions of crate `axum` in the dependency graph
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-0.7.9/src/handler/mod.rs:134:1
+    |
+134 | pub trait Handler<T, S>: Clone + Send + Sized + 'static {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is the required trait
+    |
+   ::: services/rust-dashboard-api/src/main.rs:1:5
+    |
+  1 | use axum::{
+    |     ---- one version of crate `axum` used here, as a direct dependency of the current crate
+...
+ 12 | use ndr_telemetry::{init_telemetry, info, error};
+    |     ------------- one version of crate `axum` used here, as a dependency of crate `tonic`
+    |
+   ::: /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-0.6.20/src/boxed.rs:66:1
+    |
+ 66 | pub(crate) trait ErasedIntoRoute<S, B, E>: Send {
+    | ----------------------------------------------- this is the found trait
+    = help: you can use `cargo tree` to explore your dependency tree
+note: required by a bound in `axum::routing::get`
+   --> /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/axum-0.7.9/src/routing/method_routing.rs:439:1
+    |
+439 | top_level_handler_fn!(get, GET);
+    | ^^^^^^^^^^^^^^^^^^^^^^---^^^^^^
+    | |                     |
+    | |                     required by a bound in this function
+    | required by this bound in `get`
+    = note: the full name for the type has been written to '/Users/pop7/Code/NDR/target/debug/deps/rust_dashboard_api-4e43762b5ca0ec1f.long-type-2837126251528432074.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+    = note: this error originates in the macro `top_level_handler_fn` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+Some errors have detailed explanations: E0277, E0412, E0432, E0433.
+For more information about an error, try `rustc --explain E0277`.
+warning: `rust-dashboard-api` (bin "rust-dashboard-api") generated 4 warnings
+error: could not compile `rust-dashboard-api` (bin "rust-dashboard-api") due to 12 previous errors; 4 warnings emitted

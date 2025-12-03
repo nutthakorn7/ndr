@@ -65,3 +65,34 @@ impl Action for LogAction {
         Ok(())
     }
 }
+
+pub struct BlockIPAction {
+    params: Value,
+}
+
+impl BlockIPAction {
+    pub fn new(params: Value) -> Self {
+        Self { params }
+    }
+}
+
+#[async_trait]
+impl Action for BlockIPAction {
+    async fn execute(&self, alert: &Alert) -> anyhow::Result<()> {
+        let ip_to_block = if let Some(source) = &alert.source {
+            source.ip.clone()
+        } else {
+            None
+        };
+
+        if let Some(ip) = ip_to_block {
+            ndr_telemetry::info!("Executing BlockIP Action: Blocking IP {}", ip);
+            // In a real implementation, this would call the firewall API or edge-agent config
+            // For now, we simulate it
+            Ok(())
+        } else {
+            ndr_telemetry::warn!("BlockIP Action failed: No source IP in alert '{}'", alert.title);
+            Ok(())
+        }
+    }
+}

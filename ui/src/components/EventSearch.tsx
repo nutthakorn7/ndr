@@ -66,7 +66,7 @@ export default function EventSearch() {
         : { structuredQuery: clauses, timeRange };
       
       const data = await api.searchEvents(searchParams);
-      setResults(data || []);
+      setResults(data.events || []);
     } catch (error) {
       console.error('Search failed:', error);
       setResults([]);

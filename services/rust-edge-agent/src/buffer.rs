@@ -60,7 +60,7 @@ impl Buffer {
         sqlx::query("INSERT INTO buffered_events (event_data, priority) VALUES (?, ?)")
             .bind(event_data)
             .bind(priority)
-            .execute(&self.pool)
+            .execute(&*self.pool)
             .await?;
 
         metrics::counter!("edge_agent_events_buffered").increment(1);
@@ -72,7 +72,7 @@ impl Buffer {
             "SELECT id, event_data, created_at, priority FROM buffered_events ORDER BY priority DESC, created_at ASC LIMIT ?"
         )
         .bind(batch_size as i64)
-        .fetch_all(&self.pool)
+        .fetch_all(&*self.pool)
         .await?;
 
         let events: Vec<BufferedEvent> = rows
@@ -100,7 +100,7 @@ impl Buffer {
         for id in ids {
             q = q.bind(id);
         }
-        q.execute(&self.pool).await?;
+        q.execute(&*self.pool).await?;
 
         metrics::counter!("edge_agent_events_forwarded").increment(ids.len() as u64);
         Ok(())
@@ -108,14 +108,14 @@ impl Buffer {
 
     pub async fn count(&self) -> Result<i64> {
         let row = sqlx::query("SELECT COUNT(*) as count FROM buffered_events")
-            .fetch_one(&self.pool)
+            .fetch_one(&*self.pool)
             .await?;
         Ok(row.get("count"))
     }
 
     pub async fn size_mb(&self) -> Result<f64> {
         let row = sqlx::query("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()")
-            .fetch_one(&self.pool)
+            .fetch_one(&*self.pool)
             .await?;
         let size_bytes: i64 = row.get("size");
         Ok(size_bytes as f64 / 1024.0 / 1024.0)
@@ -139,7 +139,7 @@ impl Buffer {
                     )
                 )"
             )
-            .execute(&self.pool)
+            .execute(&*self.pool)
             .await?;
 
             metrics::counter!("edge_agent_events_dropped").increment(1);

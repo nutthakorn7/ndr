@@ -13,7 +13,7 @@ use chrono::Utc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
     
     // Initialize telemetry
     if let Err(e) = init_telemetry("yara-scanner") {

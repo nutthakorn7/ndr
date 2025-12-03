@@ -8,11 +8,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use ndr_telemetry::{init_telemetry, info, error};
 use tower_http::trace::TraceLayer;
 use chrono::Utc;
 
 mod kafka;
+mod threat_feed;
 use kafka::KafkaService;
 
 #[derive(Clone)]
@@ -39,26 +40,45 @@ struct BatchLogRequest {
 
 #[tokio::main]
 async fn main() {
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("ingestion-gateway") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
-    tracing::info!("Starting Rust Ingestion Gateway...");
+    info!("Starting Rust Ingestion Gateway...");
 
     // Initialize Kafka
     let kafka = match KafkaService::new() {
         Ok(k) => k,
         Err(e) => {
-            tracing::error!("Failed to initialize Kafka: {}", e);
+            error!(error = %e, "Failed to initialize Kafka");
             std::process::exit(1);
         }
     };
 
     let state = Arc::new(AppState { kafka });
+
+    // Initialize Threat Feed Fetcher
+    let feed_url = std::env::var("THREAT_FEED_URL").unwrap_or("http://mock-feed/v1/indicators".to_string());
+    let kafka_brokers = std::env::var("KAFKA_BROKERS").unwrap_or("kafka:9092".to_string());
+    
+    match crate::threat_feed::ThreatFeedFetcher::new(&kafka_brokers, "threat-intel", &feed_url) {
+        Ok(fetcher) => {
+            let fetcher = Arc::new(fetcher);
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(300)); // 5 minutes
+                loop {
+                    interval.tick().await;
+                    if let Err(e) = fetcher.fetch_and_publish().await {
+                        error!("Threat feed fetch failed: {}", e);
+                    }
+                }
+            });
+            info!("Threat feed fetcher started");
+        },
+        Err(e) => error!("Failed to initialize threat feed fetcher: {}", e),
+    }
 
     // Initialize Metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
@@ -77,7 +97,7 @@ async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     
-    tracing::info!("listening on {}", addr);
+    info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
@@ -96,7 +116,7 @@ async fn ingest_log(
     
     state.kafka.send(&log.tenant_id, &payload).await
         .map_err(|e| {
-            tracing::error!("Failed to send log: {}", e);
+            error!(error = %e, "Failed to send log");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -120,7 +140,7 @@ async fn ingest_batch(
         // In a real high-perf scenario, we might want to parallelize this or use send_batch
         // But rdkafka is async and buffers internally, so this is already quite fast.
         if let Err(e) = state.kafka.send(&log.tenant_id, &payload).await {
-            tracing::error!("Failed to send log in batch: {}", e);
+            error!(error = %e, "Failed to send log in batch");
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
