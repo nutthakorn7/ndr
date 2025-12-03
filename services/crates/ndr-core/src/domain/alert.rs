@@ -109,6 +109,21 @@ impl Alert {
             AlertStatus::Closed | AlertStatus::Resolved { .. } | AlertStatus::FalsePositive
         )
     }
+    
+    /// Get source IP (compatibility helper)
+    pub fn source_ip(&self) -> Option<&str> {
+        Some(&self.source.source_ip)
+    }
+    
+    /// Get destination IP (compatibility helper)
+    pub fn dest_ip(&self) -> Option<&str> {
+        self.source.dest_ip.as_deref()
+    }
+    
+    /// Get rule name (compatibility helper)
+    pub fn rule_name(&self) -> &str {
+        &self.title // Use title as rule name for now
+    }
 }
 
 #[cfg(test)]

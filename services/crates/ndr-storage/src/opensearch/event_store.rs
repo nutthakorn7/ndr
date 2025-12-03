@@ -5,12 +5,13 @@ use chrono::{DateTime, Utc};
 use opensearch::OpenSearch;
 use uuid::Uuid;
 
+
 use ndr_core::{
     domain::Event,
     ports::{EventStore, EventFilters},
 };
 
-/// OpenSearch implementation of EventStore
+///Open Search implementation of EventStore
 pub struct OpenSearchEventStore {
     client: OpenSearch,
     index: String,
@@ -24,17 +25,17 @@ impl OpenSearchEventStore {
 
 #[async_trait]
 impl EventStore for OpenSearchEventStore {
-    async fn store(&self, event: Event) -> ndr_core::error::Result<()> {
+    async fn store(&self, _event: Event) -> ndr_core::error::Result<()> {
         // Placeholder implementation
         Ok(())
     }
 
-    async fn store_bulk(&self, events: Vec<Event>) -> ndr_core::error::Result<()> {
+    async fn store_bulk(&self, _events: Vec<Event>) -> ndr_core::error::Result<()> {
         // Placeholder implementation
         Ok(())
     }
 
-    async fn find_by_id(&self, id: Uuid) -> ndr_core::error::Result<Option<Event>> {
+    async fn find_by_id(&self, _id: Uuid) -> ndr_core::error::Result<Option<Event>> {
         // Placeholder implementation
         Ok(None)
     }
@@ -64,3 +65,4 @@ impl EventStore for OpenSearchEventStore {
         Ok(Vec::new())
     }
 }
+

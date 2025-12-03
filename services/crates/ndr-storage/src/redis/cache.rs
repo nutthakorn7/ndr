@@ -26,7 +26,7 @@ impl RedisCache {
         &self,
         key: &str,
         value: &T,
-        ttl_seconds: usize,
+        ttl_seconds: u64,
     ) -> Result<()> {
         let mut conn = self.get_connection()?;
         let serialized = serde_json::to_string(value)
