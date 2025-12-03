@@ -5,6 +5,7 @@ import BulkActionBar from '../components/BulkActionBar';
 import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import { FilterBar, FilterConfig } from '../components/FilterBar';
+import { useToast } from '../components/Toast';
 
 const EventSearch = lazy(() => import('../components/EventSearch'));
 const FileAnalysis = lazy(() => import('../components/FileAnalysis'));
@@ -12,6 +13,7 @@ const SSLAnalysis = lazy(() => import('../components/SSLAnalysis'));
 const DNSIntelligence = lazy(() => import('../components/DNSIntelligence'));
 
 export default function Alerts() {
+  const { addToast } = useToast();
   const [selectedAlertId, setSelectedAlertId] = useState<string | number | null>(null);
   const [activeView, setActiveView] = useState<'alerts' | 'search' | 'files'>('alerts');
   const [activeAnalysis, setActiveAnalysis] = useState<'file' | 'ssl' | 'dns' | null>(null);

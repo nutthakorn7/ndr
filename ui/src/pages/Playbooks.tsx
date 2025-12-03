@@ -115,7 +115,10 @@ export default function Playbooks() {
                <FileText className="w-4 h-4" />
                View Logs
              </button>
-             <button className="px-4 py-2 bg-[var(--sev-info)] text-white rounded text-sm hover:opacity-90 flex items-center gap-2">
+             <button 
+               onClick={handleRunPlaybook}
+               className="px-4 py-2 bg-[var(--sev-info)] text-white rounded text-sm hover:opacity-90 flex items-center gap-2"
+             >
                <Play className="w-4 h-4" />
                Run Now
              </button>

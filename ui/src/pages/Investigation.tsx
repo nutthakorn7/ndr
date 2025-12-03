@@ -13,6 +13,7 @@ import EmptyState from '../components/EmptyState';
 import { useSavedQueries, SavedQuery } from '../hooks/useSavedQueries';
 import { SavedQueriesMenu } from '../components/SavedQueriesMenu';
 import { FilterBar, FilterConfig } from '../components/FilterBar';
+import { useToast } from '../components/Toast';
 
 interface LogEntry {
   id: string;
