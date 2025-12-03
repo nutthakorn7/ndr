@@ -1,17 +1,16 @@
 use axum::{
     routing::{get, post},
     Router,
-    http::{Method, StatusCode},
+    http::Method,
 };
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use sqlx::postgres::PgPoolOptions;
 use opensearch::OpenSearch;
 use opensearch::http::transport::Transport;
-use dotenv::dotenv;
 use ndr_telemetry::{init_telemetry, info, error};
+use ndr_storage::postgres::create_pool;
 
 mod handlers;
 mod models;
@@ -21,15 +20,23 @@ use state::AppState;
 
 #[tokio::main]
 async fn main() {
-    tracing::info!("Starting Rust Dashboard API...");
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("dashboard-api") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
+    
+    info!("Starting Rust Dashboard API...");
 
-    // Database Connection
+    // Database Connection using shared pool
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = PgPoolOptions::new()
-        .max_connections(50)
-        .connect(&database_url)
-        .await
-        .expect("Failed to connect to database");
+    let pool = match create_pool(&database_url).await {
+        Ok(p) => p,
+        Err(e) => {
+            error!(error = %e, "Failed to connect to database");
+            std::process::exit(1);
+        }
+    };
 
     // OpenSearch Connection
     let opensearch_url = std::env::var("OPENSEARCH_URL").unwrap_or_else(|_| "http://opensearch:9200".to_string());
@@ -65,7 +72,7 @@ async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8081".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     
-    tracing::info!("listening on {}", addr);
+    info!("Listening on {}", addr);  // Use ndr_telemetry
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

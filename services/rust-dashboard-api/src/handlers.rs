@@ -4,6 +4,7 @@ use axum::{
 };
 use std::sync::Arc;
 use serde_json::{json, Value};
+use ndr_telemetry::error;  // Add ndr_telemetry
 use crate::state::AppState;
 use crate::models::*;
 
@@ -57,7 +58,7 @@ pub async fn get_alerts(
         .fetch_all(&state.db)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to fetch alerts: {}", e);
+            error!(error = %e, "Failed to fetch alerts");  // Use ndr_telemetry
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
