@@ -189,21 +189,32 @@ export default function Alerts() {
       {/* Alerts View */}
       {activeView === 'alerts' && (
         <>
-          {/* Filter Bar */}
-          <div className="bg-[var(--bg-panel)] p-4 border border-[var(--border-subtle)] rounded flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Detections</h2>
-              <div className="text-xs text-[var(--text-secondary)]">
-                Showing {filteredAlerts.length} items
-              </div>
+          {/* Filters & Actions */}
+          <div className="flex justify-between items-center gap-4">
+            <div className="flex-1">
+              <FilterBar
+                config={filterConfig}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onClearAll={clearFilters}
+              />
             </div>
-            
-            <FilterBar 
-              config={filterConfig}
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              onClearAll={clearFilters}
-            />
+            <div className="flex gap-2">
+              <ColumnCustomizer
+                allColumns={defaultColumns}
+                preferences={preferences}
+                onToggle={toggleColumn}
+                onMove={moveColumn}
+                onReset={resetPreferences}
+              />
+              <button
+                onClick={handleExportAlerts}
+                className="px-3 py-1.5 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-secondary)] flex items-center gap-2 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            </div>
           </div>
 
           {/* Split View Content */}
@@ -224,8 +235,9 @@ export default function Alerts() {
                 />
               ) : (
                 <Suspense fallback={<SkeletonLoader variant="table" rows={10} />}>
-            <AlertTable 
+            <AlertTable
               alerts={filteredAlerts}
+              columns={visibleColumns} // Pass dynamic columns
               onSelectAlert={setSelectedAlertId}
               selectedAlertId={selectedAlertId}
               selectedAlerts={selectedAlerts}
