@@ -11,7 +11,7 @@ import './styles/themes.css';
 import { ToastProvider } from './components/Toast';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
-import { LoadingSpinner } from './components/LoadingSpinner';
+import LoadingSpinner from './components/LoadingSpinner';
 import { ShortcutsHelp } from './components/ShortcutsHelp';
 import AiChatWidget from './components/AiChatWidget';
 
