@@ -48,11 +48,17 @@ function App() {
       <ThemeProvider>
         <ToastProvider>
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/event-search" element={<Dashboard initialSearch={true} />} />
-              <Route path="/:tab" element={<Dashboard />} />
-            </Routes>
+            <Suspense fallback={<LoadingSpinner size="large" message="Loading page..." />}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/event-search" element={<Dashboard initialSearch={true} />} />
+                <Route path="/:tab" element={<Dashboard />} />
+                <Route path="investigation" element={<Investigation />} />
+                <Route path="alerts" element={<Alerts />} />
+                <Route path="playbooks" element={<Playbooks />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
             <AiChatWidget />
           </BrowserRouter>
         </ToastProvider>

@@ -1,5 +1,20 @@
+```typescript
 import React from 'react';
-import { Shield, Activity, AlertTriangle, Network, Settings, Search, Menu, ClipboardList, Zap, Server } from 'lucide-react';
+import {
+  Shield,
+  Activity,
+  AlertTriangle,
+  Network,
+  Settings,
+  Search,
+  Menu,
+  ClipboardList,
+  Zap,
+  Server,
+  LayoutDashboard, // Added
+  Bell, // Added
+  Workflow // Added
+} from 'lucide-react';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -9,15 +24,16 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
   const navItems = [
-    { id: 'dashboard', icon: Activity, label: 'Dashboard' },
-    { id: 'alerts', icon: AlertTriangle, label: 'Detections' },
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+    { id: 'investigation', icon: Search, label: 'Investigation', path: '/investigation' },
+    { id: 'alerts', icon: Bell, label: 'Alerts', path: '/alerts' },
+    { id: 'playbooks', icon: Workflow, label: 'Playbooks', path: '/playbooks' },
     { id: 'incidents', icon: ClipboardList, label: 'Incidents' },
-    { id: 'investigation', icon: Search, label: 'Investigation' },
     { id: 'automation', icon: Zap, label: 'Automation (SOAR)' },
     { id: 'edge', icon: Server, label: 'Edge Management' },
     { id: 'hosts', icon: Shield, label: 'Host Management' },
     { id: 'network', icon: Network, label: 'Network' },
-    { id: 'config', icon: Settings, label: 'Configuration' },
+    { id: 'settings', icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
   return (
