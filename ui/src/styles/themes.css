@@ -6,6 +6,11 @@
   --bg-tertiary: #f1f5f9;
   --bg-overlay: rgba(0, 0, 0, 0.5);
   
+  /* Design System Aliases */
+  --bg-app: var(--bg-secondary);
+  --bg-panel: var(--bg-primary);
+  --bg-hover: var(--bg-tertiary);
+  
   /* Text Colors */
   --text-primary: #0f172a;
   --text-secondary: #475569;
@@ -16,6 +21,10 @@
   --border-primary: #e2e8f0;
   --border-secondary: #cbd5e1;
   --border-hover: #94a3b8;
+  
+  /* Design System Aliases */
+  --border-subtle: var(--border-primary);
+  --border-strong: var(--border-secondary);
   
   /* Component Backgrounds */
   --card-bg: #ffffff;
@@ -37,6 +46,13 @@
   --severity-medium: #3b82f6;
   --severity-low: #22c55e;
   
+  /* Design System Severity Aliases */
+  --sev-critical: var(--severity-critical);
+  --sev-high: var(--severity-high);
+  --sev-medium: var(--severity-medium);
+  --sev-low: var(--severity-low);
+  --sev-info: var(--color-info);
+  
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
@@ -51,6 +67,11 @@
   --bg-tertiary: #334155;
   --bg-overlay: rgba(0, 0, 0, 0.75);
   
+  /* Design System Aliases */
+  --bg-app: var(--bg-primary);
+  --bg-panel: var(--bg-secondary);
+  --bg-hover: var(--bg-tertiary);
+  
   /* Text Colors */
   --text-primary: #f1f5f9;
   --text-secondary: #e2e8f0;
@@ -61,6 +82,10 @@
   --border-primary: #334155;
   --border-secondary: #475569;
   --border-hover: #64748b;
+  
+  /* Design System Aliases */
+  --border-subtle: var(--border-primary);
+  --border-strong: var(--border-secondary);
   
   /* Component Backgrounds */
   --card-bg: #1e293b;
@@ -82,10 +107,26 @@
   --severity-medium: #3b82f6;
   --severity-low: #22c55e;
   
+  /* Design System Severity Aliases */
+  --sev-critical: var(--severity-critical);
+  --sev-high: var(--severity-high);
+  --sev-medium: var(--severity-medium);
+  --sev-low: var(--severity-low);
+  --sev-info: var(--color-info);
+  
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Global border-radius standardization */
+button, .btn, input, .input, select, textarea {
+  border-radius: var(--button-radius) !important;
+}
+
+.panel, .card, [class*="panel"], [class*="card"] {
+  border-radius: var(--panel-radius);
 }
 
 /* Smooth theme transition */
