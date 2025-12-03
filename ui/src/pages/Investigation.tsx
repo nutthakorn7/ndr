@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
-  Search, Filter, Download, ChevronDown, ChevronRight, X, RefreshCw, AlertTriangle 
+  Search, Filter, Download, ChevronDown, ChevronRight, X, RefreshCw, AlertTriangle,
+  Save, FolderOpen, Share2, Link
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '../utils/api';
@@ -8,6 +10,8 @@ import { ThreatEvent } from '../schemas';
 import BulkActionBar from '../components/BulkActionBar';
 import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
+import { useSavedQueries, SavedQuery } from '../hooks/useSavedQueries';
+import { SavedQueriesMenu } from '../components/SavedQueriesMenu';
 
 interface LogEntry {
   id: string;
@@ -24,24 +28,69 @@ interface LogEntry {
 }
 
 export default function Investigation() {
+  // URL Params
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // State
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(searchParams.get('q') || '');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [selectedLogs, setSelectedLogs] = useState(new Set<string>());
   const [showFilters, setShowFilters] = useState(true);
+  
+  // Saved Queries State
+  const { savedQueries, saveQuery, deleteQuery, toggleFavorite } = useSavedQueries();
+  const [showSavedQueries, setShowSavedQueries] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [newQueryName, setNewQueryName] = useState('');
+  const [showShareTooltip, setShowShareTooltip] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
-    timeRange: '24h',
-    severity: 'all',
-    eventType: 'all',
-    protocol: 'all',
-    srcIp: '',
-    dstIp: '',
+    timeRange: searchParams.get('timeRange') || '24h',
+    severity: searchParams.get('severity') || 'all',
+    eventType: searchParams.get('type') || 'all',
+    protocol: searchParams.get('protocol') || 'all',
+    srcIp: searchParams.get('src') || '',
+    dstIp: searchParams.get('dst') || '',
   });
+
+  // Sync state to URL
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (query) params.q = query;
+    if (filters.timeRange !== '24h') params.timeRange = filters.timeRange;
+    if (filters.severity !== 'all') params.severity = filters.severity;
+    if (filters.eventType !== 'all') params.type = filters.eventType;
+    if (filters.protocol !== 'all') params.protocol = filters.protocol;
+    if (filters.srcIp) params.src = filters.srcIp;
+    if (filters.dstIp) params.dst = filters.dstIp;
+    setSearchParams(params, { replace: true });
+  }, [query, filters, setSearchParams]);
+
+  // Handle Save Query
+  const handleSaveQuery = () => {
+    if (!newQueryName.trim()) return;
+    saveQuery(newQueryName, query, filters);
+    setNewQueryName('');
+    setShowSaveDialog(false);
+  };
+
+  // Handle Load Query
+  const handleLoadQuery = (saved: SavedQuery) => {
+    setQuery(saved.query);
+    setFilters(saved.filters as any);
+    // Trigger fetch automatically via useEffect dependency on filters/query
+  };
+
+  // Handle Share
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShowShareTooltip(true);
+    setTimeout(() => setShowShareTooltip(false), 2000);
+  };
 
   // Fetch logs from API
   const fetchLogs = async () => {
@@ -90,10 +139,13 @@ export default function Investigation() {
     }
   };
 
-  // Load data on mount
+  // Load data on mount and when filters change
   useEffect(() => {
-    fetchLogs();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchLogs();
+    }, 500); // Debounce
+    return () => clearTimeout(timer);
+  }, [query, filters]);
 
   // Client-side filtering for quick UX
   useEffect(() => {
@@ -234,36 +286,121 @@ export default function Investigation() {
       </div>
 
       {/* Query Bar */}
-      <form onSubmit={handleSearch} className="flex gap-2">
+      {/* Search & Toolbar */}
+      <div className="flex gap-4 mb-6">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
           <input
             type="text"
+            placeholder="Search logs (e.g. source:192.168.1.1 OR type:dns)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Query DSL: event.severity:critical OR source.ip:192.168.1.* OR type:dns_query"
-            className="w-full pl-10 pr-4 py-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:border-[var(--sev-info)] focus:outline-none"
+            onKeyDown={(e) => e.key === 'Enter' && fetchLogs()}
+            className="w-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded pl-10 pr-4 py-2 text-[var(--text-primary)] focus:border-[var(--sev-info)] outline-none"
           />
         </div>
-        <button
-          type="submit"
-          className="px-6 py-3 bg-[var(--sev-info)] text-white font-medium rounded hover:opacity-90 transition-opacity"
-        >
-          Search
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          className={`px-4 py-3 border border-[var(--border-subtle)] rounded text-sm flex items-center gap-2 transition-colors ${
-            showFilters 
-              ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]' 
-              : 'bg-[var(--bg-panel)] text-[var(--text-secondary)]'
-          }`}
-        >
-          <Filter className="w-4 h-4" />
-          Filters
-        </button>
-      </form>
+        
+        <div className="flex gap-2">
+          {/* Saved Queries Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSavedQueries(!showSavedQueries)}
+              className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
+              title="Saved Queries"
+            >
+              <FolderOpen className="w-5 h-5" />
+            </button>
+            <SavedQueriesMenu
+              isOpen={showSavedQueries}
+              onClose={() => setShowSavedQueries(false)}
+              queries={savedQueries}
+              onLoad={handleLoadQuery}
+              onDelete={deleteQuery}
+              onToggleFavorite={toggleFavorite}
+            />
+          </div>
+
+          {/* Save Query Button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSaveDialog(!showSaveDialog)}
+              className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
+              title="Save Current Query"
+            >
+              <Save className="w-5 h-5" />
+            </button>
+            
+            {/* Save Dialog */}
+            {showSaveDialog && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSaveDialog(false)} />
+                <div className="absolute top-full right-0 mt-2 w-72 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg shadow-xl z-50 p-4">
+                  <h3 className="text-sm font-semibold mb-3 text-[var(--text-primary)]">Save Query</h3>
+                  <input
+                    type="text"
+                    placeholder="Query Name"
+                    value={newQueryName}
+                    onChange={(e) => setNewQueryName(e.target.value)}
+                    className="w-full bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm mb-3 focus:border-[var(--sev-info)] outline-none"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setShowSaveDialog(false)}
+                      className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveQuery}
+                      disabled={!newQueryName.trim()}
+                      className="px-3 py-1.5 text-xs bg-[var(--sev-info)] text-white rounded hover:opacity-90 disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Share Button */}
+          <div className="relative">
+            <button
+              onClick={handleShare}
+              className="h-full px-3 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--sev-info)] transition-colors"
+              title="Share Query Link"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+            {showShareTooltip && (
+              <div className="absolute top-full right-0 mt-2 px-2 py-1 bg-black text-white text-xs rounded whitespace-nowrap z-50 animate-fade-in">
+                Link copied!
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`h-full px-4 border rounded flex items-center gap-2 transition-colors ${
+              showFilters
+                ? 'bg-[var(--sev-info)] border-[var(--sev-info)] text-white'
+                : 'bg-[var(--bg-panel)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+          </button>
+          
+          <button 
+            onClick={fetchLogs}
+            className="h-full px-4 bg-[var(--sev-info)] text-white rounded hover:opacity-90 flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" />
+            Search
+          </button>
+        </div>
+      </div>
 
       {/* Filter Panel */}
       {showFilters && (
