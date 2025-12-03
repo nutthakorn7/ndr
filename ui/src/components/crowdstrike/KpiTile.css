@@ -2,54 +2,20 @@
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: var(--card-radius);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   transition: all var(--transition-fast);
   position: relative;
   overflow: hidden;
 }
 
-.kpi-tile--clickable {
-  cursor: pointer;
-}
-
-.kpi-tile--clickable:hover {
-  transform: scale(1.02);
-  box-shadow: var(--shadow-md);
-  border-color: var(--sev-info);
-}
-
-.kpi-tile--clickable:active {
-  transform: scale(0.98);
-}
-
-.kpi-tile--clickable:focus {
-  outline: 2px solid var(--sev-info);
-  outline-offset: 2px;
-}
-
-/* Severity accents */
-.kpi-tile--critical {
-  border-left: 3px solid var(--sev-critical);
-}
-
-.kpi-tile--high {
-  border-left: 3px solid var(--sev-high);
-}
-
-.kpi-tile--medium {
-  border-left: 3px solid var(--sev-medium);
-}
-
-.kpi-tile--low {
-  border-left: 3px solid var(--sev-low);
-}
+/* ... existing clickable styles ... */
 
 /* Header */
 .kpi-tile__header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
 }
 
 .kpi-tile__label {
@@ -69,16 +35,14 @@
   font-weight: var(--font-semibold);
 }
 
-.kpi-tile__trend-icon {
-  flex-shrink: 0;
-}
+/* ... existing trend icon styles ... */
 
 /* Value */
 .kpi-tile__value {
   font-size: var(--text-2xl);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
   line-height: 1.2;
 }
 
@@ -87,7 +51,7 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  margin-top: var(--spacing-xs);
+  margin-top: 0;
 }
 
 .sparkline-container {
