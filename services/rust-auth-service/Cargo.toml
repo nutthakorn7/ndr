@@ -7,6 +7,7 @@ edition = "2021"
 # Shared NDR crates (auth-service mainly uses ndr-auth)
 ndr-core = { path = "../crates/ndr-core" }
 ndr-telemetry = { path = "../crates/ndr-telemetry" }
+ndr-storage = { path = "../crates/ndr-storage" }
 ndr-api = { path = "../crates/ndr-api" }
 ndr-auth = { path = "../crates/ndr-auth" }
 

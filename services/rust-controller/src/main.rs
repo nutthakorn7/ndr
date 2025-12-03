@@ -31,7 +31,7 @@ struct RegisterSensorRequest {
     config: Option<Value>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, sqlx::FromRow)]
 struct Sensor {
     id: String,
     name: Option<String>,
@@ -108,8 +108,7 @@ async fn health_check() -> &'static str {
 async fn list_sensors(
     State(state): State<AppState>,
 ) -> Result<Json<ListSensorsResponse>, StatusCode> {
-    let sensors = sqlx::query_as!(
-        Sensor,
+    let sensors = sqlx::query_as::<_, Sensor>(
         r#"
         SELECT 
             id, name, location, tenant_id, status, 
@@ -140,8 +139,7 @@ async fn register_sensor(
     let config = payload.config.unwrap_or_else(|| serde_json::json!({}));
 
     // Upsert sensor
-    let sensor = sqlx::query_as!(
-        Sensor,
+    let sensor = sqlx::query_as::<_, Sensor>(
         r#"
         INSERT INTO sensors (id, name, location, tenant_id, metadata, config, status, last_heartbeat, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, 'registered', $7, $7)
@@ -157,15 +155,15 @@ async fn register_sensor(
             id, name, location, tenant_id, status, 
             last_heartbeat, last_metrics, config, metadata, 
             created_at, updated_at
-        "#,
-        sensor_id,
-        payload.name,
-        payload.location,
-        tenant_id,
-        metadata,
-        config,
-        now
+        "#
     )
+    .bind(&sensor_id)
+    .bind(payload.name)
+    .bind(payload.location)
+    .bind(&tenant_id)
+    .bind(&metadata)
+    .bind(&config)
+    .bind(&now)
     .fetch_one(&state.db)
     .await
     .map_err(|e| {
@@ -185,8 +183,7 @@ async fn heartbeat(
     let status = payload.status.unwrap_or_else(|| "online".to_string());
     let metrics = payload.metrics.unwrap_or_else(|| serde_json::json!({}));
 
-    let sensor = sqlx::query_as!(
-        Sensor,
+    let sensor = sqlx::query_as::<_, Sensor>(
         r#"
         UPDATE sensors 
         SET last_heartbeat = $2, status = $3, last_metrics = $4, updated_at = $2 
@@ -195,12 +192,12 @@ async fn heartbeat(
         id, name, location, tenant_id, status, 
         last_heartbeat, last_metrics, config, metadata, 
         created_at, updated_at
-        "#,
-        id,
-        now,
-        status,
-        metrics
+        "#
     )
+    .bind(&id)
+    .bind(&now)
+    .bind(&status)
+    .bind(&metrics)
     .fetch_optional(&state.db)
     .await
     .map_err(|e| {
