@@ -88,34 +88,42 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
   return (
     <FalconLayout activeTab={activeTab} onTabChange={handleTabChange}>
       {/* KPI Row - Dense 4px gap */}
-      <div className="flex gap-1 mb-4 overflow-x-auto pb-2">
-        <KpiTile 
-          label="Total Events" 
-          value={stats.total_events.toLocaleString()} 
-          trend="+12%" 
-        />
-        <KpiTile 
-          label="Critical Alerts" 
-          value={stats.critical_alerts.toString()} 
-          trend="+2" 
-          severity="critical"
-        />
-        <KpiTile 
-          label="High Severity" 
-          value={stats.open_alerts.toString()} 
-          trend="-1" 
-          severity="high"
-        />
-        <KpiTile 
-          label="Active Hosts" 
-          value={stats.assets_count.toString()} 
-          trend="+3" 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" style={{ gap: 'var(--spacing-lg)' }}>
+        <KpiTile
+          label="Total Events"
+          value={stats.total_events.toLocaleString()}
+          trendDirection="up"
+          trendPercentage={12.5}
+          sparklineData={[850, 920, 880, 1050, 1100, 1020, 1150]}
+          onClick={() => handleTabChange('investigation')}
           severity="low"
         />
-        <KpiTile 
-          label="EPS" 
-          value="4.2k" 
-          trend="Stable" 
+        <KpiTile
+          label="Critical Alerts"
+          value={stats.critical_alerts.toString()}
+          trendDirection="down"
+          trendPercentage={8.3}
+          sparklineData={[15, 18, 14, 12, 10, 9, 7]}
+          onClick={() => handleTabChange('alerts')}
+          severity="critical"
+        />
+        <KpiTile
+          label="Open Alerts"
+          value={stats.open_alerts.toString()}
+          trendDirection="down"
+          trendPercentage={5.2}
+          sparklineData={[45, 48, 42, 40, 38, 35, 33]}
+          onClick={() => handleTabChange('alerts')}
+          severity="high"
+        />
+        <KpiTile
+          label="Active Hosts"
+          value={stats.assets_count.toString()}
+          trendDirection="up"
+          trendPercentage={3.1}
+          sparklineData={[280, 282, 285, 287, 288, 289, 290]}
+          onClick={() => handleTabChange('network')}
+          severity="low"
         />
       </div>
 
