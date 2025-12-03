@@ -45,15 +45,18 @@ impl DB {
         let hash = hash_password(password)?;
         let id = Uuid::new_v4();
         
-        let user = sqlx::query_as!(
-            User,
+        let user = sqlx::query_as::<_, User>(
             r#"
             INSERT INTO users (id, email, password_hash, role, tenant_id)
             VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, email, role, tenant_id, created_at
-            "#,
-            id, email, hash, role, tenant_id
+            RETURNING id, email, password_hash, role, tenant_id, created_at
+            "#
         )
+        .bind(id)
+        .bind(email)
+        .bind(hash)
+        .bind(role)
+        .bind(tenant_id)
         .fetch_one(&self.pool)
         .await?;
 
@@ -61,25 +64,19 @@ impl DB {
     }
 
     pub async fn get_user_by_email(&self, email: &str) -> Result<Option<(User, String)>> {
-        let record = sqlx::query!(
+        let record = sqlx::query_as::<_, crate::models::UserRow>(
             r#"
             SELECT id, email, password_hash, role, tenant_id, created_at
             FROM users WHERE email = $1
-            "#,
-            email
+            "#
         )
+        .bind(email)
         .fetch_optional(&self.pool)
         .await?;
 
         if let Some(r) = record {
             Ok(Some((
-                User {
-                    id: r.id,
-                    email: r.email,
-                    role: r.role,
-                    tenant_id: r.tenant_id,
-                    created_at: r.created_at.unwrap_or_else(chrono::Utc::now),
-                },
+                User::from(r.clone()),
                 r.password_hash
             )))
         } else {
@@ -89,15 +86,19 @@ impl DB {
 
     pub async fn create_api_key(&self, name: &str, key_hash: &str, permissions: &[String], tenant_id: &str, created_by: Uuid) -> Result<ApiKey> {
         let id = Uuid::new_v4();
-        let api_key = sqlx::query_as!(
-            ApiKey,
+        let api_key = sqlx::query_as::<_, ApiKey>(
             r#"
             INSERT INTO api_keys (id, name, key_hash, permissions, tenant_id, created_by)
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id, name, key_hash, permissions, tenant_id, created_by, created_at
-            "#,
-            id, name, key_hash, permissions, tenant_id, created_by
+            "#
         )
+        .bind(id)
+        .bind(name)
+        .bind(key_hash)
+        .bind(permissions)
+        .bind(tenant_id)
+        .bind(created_by)
         .fetch_one(&self.pool)
         .await?;
 
@@ -105,21 +106,21 @@ impl DB {
     }
 
     pub async fn list_api_keys(&self, user_id: Uuid) -> Result<Vec<ApiKey>> {
-        let keys = sqlx::query_as!(
-            ApiKey,
-            "SELECT * FROM api_keys WHERE created_by = $1 ORDER BY created_at DESC",
-            user_id
+        let keys = sqlx::query_as::<_, ApiKey>(
+            "SELECT * FROM api_keys WHERE created_by = $1 ORDER BY created_at DESC"
         )
+        .bind(user_id)
         .fetch_all(&self.pool)
         .await?;
         Ok(keys)
     }
 
     pub async fn delete_api_key(&self, id: Uuid, user_id: Uuid) -> Result<()> {
-        sqlx::query!(
-            "DELETE FROM api_keys WHERE id = $1 AND created_by = $2",
-            id, user_id
+        sqlx::query(
+            "DELETE FROM api_keys WHERE id = $1 AND created_by = $2"
         )
+        .bind(id)
+        .bind(user_id)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -127,11 +128,10 @@ impl DB {
     
     // For validation (internal use)
     pub async fn get_api_key_by_hash(&self, hash: &str) -> Result<Option<ApiKey>> {
-        let key = sqlx::query_as!(
-            ApiKey,
-            "SELECT * FROM api_keys WHERE key_hash = $1",
-            hash
+        let key = sqlx::query_as::<_, ApiKey>(
+            "SELECT * FROM api_keys WHERE key_hash = $1"
         )
+        .bind(hash)
         .fetch_optional(&self.pool)
         .await?;
         Ok(key)

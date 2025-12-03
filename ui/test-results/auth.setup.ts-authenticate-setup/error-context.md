@@ -1,0 +1,57 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e6]
+      - navigation [ref=e8]:
+        - button "Dashboard" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - button "Detections" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+        - button "Threat Hunting" [ref=e15] [cursor=pointer]:
+          - img [ref=e16]
+        - button "Log Viewer" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+        - button "Host Management" [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+        - button "Network" [ref=e27] [cursor=pointer]:
+          - img [ref=e28]
+        - button "Configuration" [ref=e33] [cursor=pointer]:
+          - img [ref=e34]
+      - button [ref=e38] [cursor=pointer]:
+        - img [ref=e39]
+    - main [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]: FALCON CONSOLE
+        - generic [ref=e46]: JD
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - generic [ref=e50]:
+            - generic [ref=e51]: Total Events
+            - generic [ref=e52]: "0"
+            - generic [ref=e53]: +12%
+          - generic [ref=e55]:
+            - generic [ref=e56]: Critical Alerts
+            - generic [ref=e57]: "0"
+            - generic [ref=e58]: "+2"
+          - generic [ref=e60]:
+            - generic [ref=e61]: High Severity
+            - generic [ref=e62]: "0"
+            - generic [ref=e63]: "-1"
+          - generic [ref=e65]:
+            - generic [ref=e66]: Active Hosts
+            - generic [ref=e67]: "0"
+            - generic [ref=e68]: "+3"
+          - generic [ref=e70]:
+            - generic [ref=e71]: EPS
+            - generic [ref=e72]: 4.2k
+            - generic [ref=e73]: Stable
+        - button "AI Analyst" [ref=e75] [cursor=pointer]:
+          - img [ref=e77]
+          - generic [ref=e81]: AI Analyst
+  - button "AI Analyst" [ref=e83] [cursor=pointer]:
+    - img [ref=e85]
+    - generic [ref=e89]: AI Analyst
+```

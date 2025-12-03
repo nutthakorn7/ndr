@@ -1,9 +1,10 @@
-# Unit tests for detector module
+// Unit tests for detector module
 
 use serde_json::json;
+use rust_edge_agent::ioc_store::IocStore;
 
 // Re-export for testing
-pub use crate::detector::{LocalDetector, DetectionRule, DetectionResult};
+pub use rust_edge_agent::detector::{LocalDetector, DetectionRule, DetectionResult};
 
 #[test]
 fn test_detector_creation() {
@@ -15,6 +16,7 @@ fn test_detector_creation() {
 #[test]
 fn test_high_volume_traffic_detection() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Event with high packet rate
     let event = json!({
@@ -22,7 +24,7 @@ fn test_high_volume_traffic_detection() {
         "source_ip": "10.0.0.1"
     });
     
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     assert!(result.is_some(), "Should detect high volume traffic");
     
     let detection = result.unwrap();
@@ -33,6 +35,7 @@ fn test_high_volume_traffic_detection() {
 #[test]
 fn test_no_detection_for_normal_traffic() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Normal traffic event
     let event = json!({
@@ -40,13 +43,14 @@ fn test_no_detection_for_normal_traffic() {
         "source_ip": "10.0.0.1"
     });
     
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     assert!(result.is_none(), "Should not detect normal traffic");
 }
 
 #[test]
 fn test_port_scan_detection() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Event indicating port scan
     let event = json!({
@@ -54,7 +58,7 @@ fn test_port_scan_detection() {
         "source_ip": "192.168.1.100"
     });
     
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     assert!(result.is_some(), "Should detect port scan");
     
     let detection = result.unwrap();
@@ -65,6 +69,7 @@ fn test_port_scan_detection() {
 #[test]
 fn test_threat_intel_match_detection() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Event with threat intel match
     let event = json!({
@@ -72,7 +77,7 @@ fn test_threat_intel_match_detection() {
         "source_ip": "1.2.3.4"
     });
     
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     assert!(result.is_some(), "Should detect threat intel match");
     
     let detection = result.unwrap();
@@ -83,42 +88,46 @@ fn test_threat_intel_match_detection() {
 #[test]
 fn test_get_priority_critical() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     let event = json!({
         "threat_intel_match": true
     });
     
-    let priority = detector.get_priority(&event);
+    let priority = detector.get_priority(&event, &ioc_store);
     assert_eq!(priority, 100, "Critical events should have priority 100");
 }
 
 #[test]
 fn test_get_priority_high() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     let event = json!({
         "unique_ports": 200
     });
     
-    let priority = detector.get_priority(&event);
+    let priority = detector.get_priority(&event, &ioc_store);
     assert_eq!(priority, 75, "High severity should have priority 75");
 }
 
 #[test]
 fn test_get_priority_medium() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     let event = json!({
         "packets_per_second": 12000
     });
     
-    let priority = detector.get_priority(&event);
+    let priority = detector.get_priority(&event, &ioc_store);
     assert_eq!(priority, 50, "Medium severity should have priority 50");
 }
 
 #[test]
 fn test_get_priority_normal() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Event that doesn't match any rules
     let event = json!({
@@ -126,7 +135,7 @@ fn test_get_priority_normal() {
         "normal": true
     });
     
-    let priority = detector.get_priority(&event);
+    let priority = detector.get_priority(&event, &ioc_store);
     assert_eq!(priority, 0, "Normal events should have priority 0");
 }
 
@@ -153,6 +162,7 @@ fn test_update_rules() {
 #[test]
 fn test_disabled_rule_not_triggered() {
     let mut detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Create a disabled rule
     let rules = vec![
@@ -168,7 +178,7 @@ fn test_disabled_rule_not_triggered() {
     
     // Even if we had matching data, disabled rule shouldn't trigger
     let event = json!({"test": "data"});
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     
     // Since all rules are disabled, nothing should match
     assert!(result.is_none());
@@ -177,6 +187,7 @@ fn test_disabled_rule_not_triggered() {
 #[test]
 fn test_multiple_rule_matches_returns_first() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Event that could match multiple rules
     let event = json!({
@@ -186,13 +197,14 @@ fn test_multiple_rule_matches_returns_first() {
     });
     
     // Should return the first matching rule
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     assert!(result.is_some());
 }
 
 #[test]
 fn test_priority_levels() {
     let detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     
     // Test all priority levels
     let test_cases = vec![
@@ -203,7 +215,7 @@ fn test_priority_levels() {
     ];
     
     for (event, expected_priority) in test_cases {
-        let priority = detector.get_priority(&event);
+        let priority = detector.get_priority(&event, &ioc_store);
         assert_eq!(priority, expected_priority, "Priority mismatch for event: {:?}", event);
     }
 }

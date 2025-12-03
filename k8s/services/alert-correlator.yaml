@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-correlator
+  namespace: default
+  labels:
+    app: alert-correlator
+spec:
+  ports:
+  - port: 8090
+    name: http
+  selector:
+    app: alert-correlator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-correlator
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: alert-correlator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: alert-correlator
+    spec:
+      containers:
+      - name: alert-correlator
+        image: ndr/rust-alert-correlator:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8090"
+        ports:
+        - containerPort: 8082
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8082
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

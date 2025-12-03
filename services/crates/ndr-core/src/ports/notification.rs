@@ -20,6 +20,7 @@ pub trait NotificationService: Send + Sync {
 
 /// Notification channels
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum NotificationChannel {
     Email,
     Slack,

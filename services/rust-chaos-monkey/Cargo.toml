@@ -1,0 +1,15 @@
+[package]
+name = "rust-chaos-monkey"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+rand = "0.8"
+clap = { version = "4.4", features = ["derive"] }
+kube = { version = "0.87", features = ["runtime", "derive"] }
+k8s-openapi = { version = "0.20", features = ["v1_28"] }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+ndr-telemetry = { path = "../crates/ndr-telemetry" }

@@ -215,17 +215,50 @@ async fn main() -> anyhow::Result<()> {
                 error!("Failed to load TLS config: {}. Falling back to HTTP.", e);
                 warn!("Running without TLS - communication is NOT encrypted!");
                 let listener = tokio::net::TcpListener::bind(addr).await?;
-                axum::serve(listener, app).await?;
+                axum::serve(listener, app)
+                    .with_graceful_shutdown(shutdown_signal())
+                    .await?;
             }
         }
     } else {
         warn!("TLS disabled - running HTTP only. Set TLS_ENABLED=true to enable HTTPS.");
         let listener = tokio::net::TcpListener::bind(addr).await?;
-        axum::serve(listener, app).await?;
+        axum::serve(listener, app)
+            .with_graceful_shutdown(shutdown_signal())
+            .await?;
     }
 
+    info!("Edge Agent stopped gracefully");
     Ok(())
 }
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    info!("Signal received, starting graceful shutdown...");
+}
+
+
 
 async fn health_check(State(state): State<AppState>) -> AppResult<Json<HealthResponse>> {
     let config = state.config.read().await;

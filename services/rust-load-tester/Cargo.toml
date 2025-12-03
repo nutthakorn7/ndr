@@ -1,0 +1,14 @@
+[package]
+name = "rust-load-tester"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+clap = { version = "4.4", features = ["derive"] }
+hdrhistogram = "7.5"
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }

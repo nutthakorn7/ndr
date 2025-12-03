@@ -45,3 +45,22 @@ spec:
         ports:
         - containerPort: 8087
           name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8087
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8087
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

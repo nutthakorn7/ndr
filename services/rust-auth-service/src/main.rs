@@ -14,14 +14,10 @@ mod handlers;
 mod models;
 mod auth;
 mod db;
+mod state;
 
 use db::DB;
-
-#[derive(Clone)]
-pub struct AppState {
-    pub db: DB,
-    pub jwt_secret: String,
-}
+use state::AppState;
 
 #[tokio::main]
 async fn main() {

@@ -41,6 +41,16 @@ async fn main() -> anyhow::Result<()> {
         .subscribe(&["correlated-alerts", "security-alerts"])
         .expect("Can't subscribe to alerts");
 
+    // Spawn health check server
+    tokio::spawn(async {
+        let app = axum::Router::new().route("/health", axum::routing::get(|| async { "OK" }));
+        let port = std::env::var("HEALTH_PORT").unwrap_or_else(|_| "8091".to_string());
+        let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+        info!("Health check server listening on {}", addr);
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        axum::serve(listener, app).await.unwrap();
+    });
+
     info!("SOAR Orchestrator listening for alerts...");
 
     loop {

@@ -24,13 +24,15 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
 
     consumer
         .subscribe(&["alerts", "security-alerts"])
-        .map_err(|e| anyhow::anyhow!("Failed to subscribe to alerts topic: {}", e))?
+        .map_err(|e| anyhow::anyhow!("Failed to subscribe to alerts topic: {}", e))?;
 
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", &brokers)
         .set("message.timeout.ms", "5000")
         .create()
-        .map_err(|e| anyhow::anyhow!("Failed to create Kafka producer: {}", e))?
+        .map_err(|e| anyhow::anyhow!("Failed to create Kafka producer: {}", e))?;
+
+    let producer_cb = ndr_core::circuit_breaker::CircuitBreaker::new("kafka-producer", 5, 30);
 
     info!("Alert Correlator Consumer started. Listening on 'alerts'...");
 
@@ -55,6 +57,12 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
                     Ok(alert) => {
                         match engine.process_alert(alert).await {
                             Ok(Some(enriched_alert)) => {
+                                // Check circuit breaker before processing/sending
+                                if producer_cb.is_open().await {
+                                    warn!("Circuit breaker open, skipping alert publication");
+                                    continue;
+                                }
+
                                 let output_json = match serde_json::to_string(&enriched_alert) {
                                     Ok(json) => json,
                                     Err(e) => {
@@ -64,16 +72,21 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
                                 };
                                 
                                 // Send to correlated-alerts
-                                let _ = producer
+                                match producer
                                     .send(
                                         FutureRecord::to("correlated-alerts")
                                             .payload(&output_json)
                                             .key("default"),
                                         Duration::from_secs(0),
                                     )
-                                    .await;
-                                    
-                                debug!("Published correlated alert");
+                                    .await 
+                                {
+                                    Ok(_) => producer_cb.record_success().await,
+                                    Err((e, _)) => {
+                                        error!("Failed to send to Kafka: {}", e);
+                                        producer_cb.record_failure().await;
+                                    }
+                                }
                             }
                             Ok(None) => {
                                 // Duplicate or filtered

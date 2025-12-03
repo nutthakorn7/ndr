@@ -1,9 +1,11 @@
 use rust_edge_agent::detector::{LocalDetector, DetectionRule};
+use rust_edge_agent::ioc_store::IocStore;
 use serde_json::json;
 
 #[test]
 fn test_dynamic_rule_evaluation() {
     let mut detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
 
     let rules = vec![
         DetectionRule {
@@ -33,7 +35,7 @@ fn test_dynamic_rule_evaluation() {
         "packets": 1500,
         "protocol": "UDP"
     });
-    let result1 = detector.analyze(&event1);
+    let result1 = detector.analyze(&event1, &ioc_store);
     assert!(result1.is_some());
     assert_eq!(result1.unwrap().rule_name, "High Traffic");
 
@@ -42,7 +44,7 @@ fn test_dynamic_rule_evaluation() {
         "port": 22,
         "failed_attempts": 3
     });
-    let result2 = detector.analyze(&event2);
+    let result2 = detector.analyze(&event2, &ioc_store);
     assert!(result2.is_none());
 
     // Test Case 3: SSH Attack (Match)
@@ -50,7 +52,7 @@ fn test_dynamic_rule_evaluation() {
         "port": 22,
         "failed_attempts": 10
     });
-    let result3 = detector.analyze(&event3);
+    let result3 = detector.analyze(&event3, &ioc_store);
     assert!(result3.is_some());
     assert_eq!(result3.unwrap().rule_name, "SSH Attack");
 
@@ -59,7 +61,7 @@ fn test_dynamic_rule_evaluation() {
         "protocol": "TCP",
         "packets": 100
     });
-    let result4 = detector.analyze(&event4);
+    let result4 = detector.analyze(&event4, &ioc_store);
     assert!(result4.is_some());
     assert_eq!(result4.unwrap().rule_name, "String Match");
 }
@@ -67,6 +69,7 @@ fn test_dynamic_rule_evaluation() {
 #[test]
 fn test_missing_fields() {
     let mut detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
     let rules = vec![
         DetectionRule {
             name: "Field Check".to_string(),
@@ -78,6 +81,6 @@ fn test_missing_fields() {
     detector.update_rules(rules);
 
     let event = json!({ "other_field": 100 });
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     assert!(result.is_none()); // Should gracefully fail to match
 }

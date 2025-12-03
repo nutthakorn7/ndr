@@ -26,6 +26,8 @@ members = [
     "services/rust-soar-orchestrator",
     "services/rust-edge-agent",
     "services/rust-edge-coordinator",
+    "services/rust-load-tester",
+    "services/rust-chaos-monkey",
 ]
 
 [workspace.package]

@@ -7,6 +7,7 @@ pub mod domain;
 pub mod error;
 pub mod ports;
 pub mod services;
+pub mod circuit_breaker;
 
 // Re-export commonly used types
 pub use domain::{Alert, Event, Asset, Detection, Severity};

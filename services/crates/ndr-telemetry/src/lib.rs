@@ -9,18 +9,38 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 
 /// Initialize telemetry for a service
 pub fn init_telemetry(service_name: &str) -> Result<()> {
+    // Check if OTLP endpoint is set
+    if let Ok(endpoint) = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT") {
+        return init_with_tracing(service_name, &endpoint);
+    }
+
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"));
 
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(tracing_subscriber::fmt::layer()
-            .with_target(true)
-            .with_level(true)
-            .with_thread_ids(true))
-        .init();
+    let format = std::env::var("RUST_LOG_FORMAT").unwrap_or_else(|_| "full".to_string());
 
-    tracing::info!(service = service_name, "Telemetry initialized");
+    if format.to_lowercase() == "json" {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tracing_subscriber::fmt::layer()
+                .json()
+                .with_target(true)
+                .with_level(true)
+                .with_thread_ids(true)
+                .with_current_span(true)
+                .with_span_list(true))
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_level(true)
+                .with_thread_ids(true))
+            .init();
+    }
+
+    tracing::info!(service = service_name, format = %format, "Telemetry initialized (Logging only)");
     Ok(())
 }
 
@@ -47,15 +67,26 @@ pub fn init_with_tracing(service_name: &str, endpoint: &str) -> Result<()> {
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"));
 
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(telemetry)
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let format = std::env::var("RUST_LOG_FORMAT").unwrap_or_else(|_| "full".to_string());
+
+    if format.to_lowercase() == "json" {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(telemetry)
+            .with(tracing_subscriber::fmt::layer().json())
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(telemetry)
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 
     tracing::info!(
         service = service_name,
         endpoint = endpoint,
+        format = %format,
         "Telemetry with OTLP tracing initialized"
     );
     

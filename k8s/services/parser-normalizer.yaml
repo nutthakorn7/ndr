@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: parser-normalizer
+  namespace: default
+  labels:
+    app: parser-normalizer
+spec:
+  ports:
+  - port: 8082
+    name: http
+  selector:
+    app: parser-normalizer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parser-normalizer
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: parser-normalizer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: parser-normalizer
+    spec:
+      containers:
+      - name: parser-normalizer
+        image: ndr/rust-parser-normalizer:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8082"
+        ports:
+        - containerPort: 8083
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8083
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8083
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

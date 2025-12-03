@@ -4,7 +4,7 @@ use std::time::Duration;
 use uuid::Uuid;
 
 use crate::domain::{Alert, Event};
-use crate::error::Result;
+// use crate::error::Result;
 
 /// Service for correlating related alerts and events
 pub struct CorrelationService {
@@ -16,12 +16,7 @@ impl CorrelationService {
         Self { time_window }
     }
     
-    /// Correlate alerts within time window
-    pub fn correlate_alerts(&self, alerts: &[Alert]) -> Vec<CorrelatedGroup> {
-        // Placeholder implementation
-        // In production, this would use sophisticated ML/rules
-        Vec::new()
-    }
+
     
     /// Find related events for an alert
     pub fn find_related_events(&self, alert: &Alert, events: &[Event]) -> Vec<Uuid> {

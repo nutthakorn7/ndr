@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: yara-scanner
+  namespace: default
+  labels:
+    app: yara-scanner
+spec:
+  ports:
+  - port: 8088
+    name: http
+  selector:
+    app: yara-scanner
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yara-scanner
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: yara-scanner
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: yara-scanner
+    spec:
+      containers:
+      - name: yara-scanner
+        image: ndr/rust-yara-scanner:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8088"
+        ports:
+        - containerPort: 8091
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8091
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8091
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"

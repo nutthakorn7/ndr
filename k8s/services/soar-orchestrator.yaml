@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: soar-orchestrator
+  namespace: default
+  labels:
+    app: soar-orchestrator
+spec:
+  ports:
+  - port: 8091
+    name: http
+  selector:
+    app: soar-orchestrator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soar-orchestrator
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: soar-orchestrator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: soar-orchestrator
+    spec:
+      containers:
+      - name: soar-orchestrator
+        image: ndr/rust-soar-orchestrator:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8091"
+        ports:
+        - containerPort: 8090
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

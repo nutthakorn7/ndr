@@ -32,7 +32,7 @@ impl Forwarder {
             producer,
             topic: config.kafka_topic.clone(),
             policy: config.forwarding_policy.clone(),
-            circuit_breaker: CircuitBreaker::new(5, 60), // Added circuit_breaker initialization
+            circuit_breaker: CircuitBreaker::new("edge-agent-kafka", 5, 60), // Added circuit_breaker initialization
         })
     }
 

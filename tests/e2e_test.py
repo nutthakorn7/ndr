@@ -104,6 +104,19 @@ def main():
     if not wait_for_service(API_URL, "Dashboard API"):
         sys.exit(1)
         
+    # Check other critical services
+    services = [
+        ("http://localhost:8082", "Parser Normalizer"),
+        ("http://localhost:8090", "Alert Correlator"),
+        ("http://localhost:8087", "Auth Service"),
+        ("http://localhost:8084", "Asset Service"),
+        ("http://localhost:8091", "SOAR Orchestrator")
+    ]
+    
+    for url, name in services:
+        if not wait_for_service(url, name):
+            log(f"Warning: {name} is not reachable (skipping strict check for now)", "WARN")
+        
     # 2. Test Pipeline
     test_id = test_ingestion()
     if not test_id:

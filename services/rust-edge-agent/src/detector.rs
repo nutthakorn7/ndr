@@ -65,7 +65,9 @@ impl LocalDetector {
     fn matches_rule(&self, event: &Value, rule: &DetectionRule, ioc_store: &crate::ioc_store::IocStore) -> bool {
         let mut context = HashMapContext::new();
         
-        let mut threat_match = false;
+        let mut threat_match = event.get("threat_intel_match")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
         // Flatten event into context (shallow flatten for now)
         if let Some(obj) = event.as_object() {

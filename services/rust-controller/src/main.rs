@@ -16,9 +16,12 @@ use ndr_storage::postgres::create_pool;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
+use ndr_core::circuit_breaker::CircuitBreaker;
+
 #[derive(Clone)]
 struct AppState {
     db: PgPool,
+    circuit_breaker: CircuitBreaker,
 }
 
 #[derive(Deserialize, Debug)]
@@ -82,7 +85,8 @@ async fn main() {
         .await
         .expect("Failed to connect to database");
 
-    let state = AppState { db: pool };
+    let circuit_breaker = CircuitBreaker::new("postgres", 5, 30);
+    let state = AppState { db: pool, circuit_breaker };
 
     // Build our application with routes matching Node.js API
     let app = Router::new()
@@ -108,7 +112,11 @@ async fn health_check() -> &'static str {
 async fn list_sensors(
     State(state): State<AppState>,
 ) -> Result<Json<ListSensorsResponse>, StatusCode> {
-    let sensors = sqlx::query_as::<_, Sensor>(
+    if state.circuit_breaker.is_open().await {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    let sensors = match sqlx::query_as::<_, Sensor>(
         r#"
         SELECT 
             id, name, location, tenant_id, status, 
@@ -119,11 +127,17 @@ async fn list_sensors(
         "#
     )
     .fetch_all(&state.db)
-    .await
-    .map_err(|e| {
-        error!(error = %e, "Failed to list sensors");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .await {
+        Ok(s) => {
+            state.circuit_breaker.record_success().await;
+            s
+        }
+        Err(e) => {
+            state.circuit_breaker.record_failure().await;
+            error!(error = %e, "Failed to list sensors");
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
     Ok(Json(ListSensorsResponse { sensors }))
 }
@@ -132,6 +146,10 @@ async fn register_sensor(
     State(state): State<AppState>,
     Json(payload): Json<RegisterSensorRequest>,
 ) -> Result<(StatusCode, Json<RegisterResponse>), StatusCode> {
+    if state.circuit_breaker.is_open().await {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
+
     let sensor_id = payload.id.unwrap_or_else(|| Uuid::new_v4().to_string());
     let now = Utc::now();
     let tenant_id = payload.tenant_id.unwrap_or_else(|| "default".to_string());
@@ -139,7 +157,7 @@ async fn register_sensor(
     let config = payload.config.unwrap_or_else(|| serde_json::json!({}));
 
     // Upsert sensor
-    let sensor = sqlx::query_as::<_, Sensor>(
+    let sensor = match sqlx::query_as::<_, Sensor>(
         r#"
         INSERT INTO sensors (id, name, location, tenant_id, metadata, config, status, last_heartbeat, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, 'registered', $7, $7)
@@ -165,11 +183,17 @@ async fn register_sensor(
     .bind(&config)
     .bind(&now)
     .fetch_one(&state.db)
-    .await
-    .map_err(|e| {
-        error!(error = %e, "Failed to register sensor");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .await {
+        Ok(s) => {
+            state.circuit_breaker.record_success().await;
+            s
+        }
+        Err(e) => {
+            state.circuit_breaker.record_failure().await;
+            error!(error = %e, "Failed to register sensor");
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
     Ok((StatusCode::CREATED, Json(RegisterResponse { sensor })))
 }
@@ -179,11 +203,15 @@ async fn heartbeat(
     Path(id): Path<String>,
     Json(payload): Json<HeartbeatRequest>,
 ) -> Result<Json<HeartbeatResponse>, StatusCode> {
+    if state.circuit_breaker.is_open().await {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
+
     let now = Utc::now();
     let status = payload.status.unwrap_or_else(|| "online".to_string());
     let metrics = payload.metrics.unwrap_or_else(|| serde_json::json!({}));
 
-    let sensor = sqlx::query_as::<_, Sensor>(
+    let sensor = match sqlx::query_as::<_, Sensor>(
         r#"
         UPDATE sensors 
         SET last_heartbeat = $2, status = $3, last_metrics = $4, updated_at = $2 
@@ -199,12 +227,29 @@ async fn heartbeat(
     .bind(&status)
     .bind(&metrics)
     .fetch_optional(&state.db)
-    .await
-    .map_err(|e| {
-        error!(error = %e, "Failed to update heartbeat");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?
+    .await {
+        Ok(s) => {
+            state.circuit_breaker.record_success().await;
+            s
+        }
+        Err(e) => {
+            state.circuit_breaker.record_failure().await;
+            error!(error = %e, "Failed to update heartbeat");
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
     .ok_or(StatusCode::NOT_FOUND)?;
 
     Ok(Json(HeartbeatResponse { sensor }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_health_check() {
+        let response = health_check().await;
+        assert_eq!(response, "OK");
+    }
 }

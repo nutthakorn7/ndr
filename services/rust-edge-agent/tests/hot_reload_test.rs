@@ -1,13 +1,15 @@
 use rust_edge_agent::detector::{LocalDetector, DetectionRule};
+use rust_edge_agent::ioc_store::IocStore;
 use serde_json::json;
 
 #[test]
 fn test_add_rule() {
     let mut detector = LocalDetector::new();
+    let ioc_store = IocStore::new();
 
     // Initial check
     let event = json!({ "test_val": 100 });
-    assert!(detector.analyze(&event).is_none());
+    assert!(detector.analyze(&event, &ioc_store).is_none());
 
     // Add new rule
     let new_rule = DetectionRule {
@@ -20,7 +22,7 @@ fn test_add_rule() {
     detector.add_rule(new_rule);
 
     // Verify rule works
-    let result = detector.analyze(&event);
+    let result = detector.analyze(&event, &ioc_store);
     assert!(result.is_some());
     let result = result.unwrap();
     assert_eq!(result.rule_name, "Test Rule");
@@ -37,5 +39,5 @@ fn test_add_rule() {
     detector.add_rule(updated_rule);
 
     // Verify rule is disabled
-    assert!(detector.analyze(&event).is_none());
+    assert!(detector.analyze(&event, &ioc_store).is_none());
 }

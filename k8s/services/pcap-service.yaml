@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pcap-service
+  namespace: default
+  labels:
+    app: pcap-service
+spec:
+  ports:
+  - port: 8083
+    name: http
+  selector:
+    app: pcap-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pcap-service
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: pcap-service
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pcap-service
+    spec:
+      containers:
+      - name: pcap-service
+        image: ndr/rust-pcap-service:latest
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: ndr-config
+        env:
+        - name: PORT
+          value: "8083"
+        ports:
+        - containerPort: 8088
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8088
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8088
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

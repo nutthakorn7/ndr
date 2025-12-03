@@ -1,6 +1,6 @@
 //! JWT validation
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 

@@ -11,11 +11,15 @@ import {
   type DashboardAnalytics,
   type Alert,
   type ThreatEvent,
-  type Sensor
+  type Sensor,
+  type TrafficStat,
+  type ProtocolStat,
+  type TopTalker
 } from '../schemas';
 import { z } from 'zod';
 
-export type { DashboardAnalytics, Alert, ThreatEvent, Sensor };
+export type { DashboardAnalytics, Alert, ThreatEvent, Sensor, TrafficStat, ProtocolStat, TopTalker };
+type AiChatResponse = z.infer<typeof AiChatResponseSchema>;
 
 class ApiClient {
   private client: AxiosInstance;
@@ -62,7 +66,7 @@ class ApiClient {
     }
   }
 
-  async searchEvents(params: any): Promise<{ events: ThreatEvent[], total: number }> {
+  async searchEvents(params: Record<string, unknown>): Promise<{ events: ThreatEvent[], total: number }> {
     try {
       const response = await this.client.post('/events', params);
       return SearchEventsResponseSchema.parse(response.data);
@@ -84,7 +88,7 @@ class ApiClient {
   }
 
   // AI Chat
-  async chatWithAI(message: string, context?: any): Promise<any> {
+  async chatWithAI(message: string, context?: Record<string, unknown>): Promise<AiChatResponse> {
     try {
       const response = await this.client.post('/ai/chat', { message, context });
       return AiChatResponseSchema.parse(response.data);
@@ -95,7 +99,7 @@ class ApiClient {
   }
 
   // Analytics
-  async getTrafficStats(timeRange: string): Promise<any[]> {
+  async getTrafficStats(timeRange: string): Promise<TrafficStat[]> {
     try {
       const response = await this.client.get(`/stats/traffic?range=${timeRange}`);
       return z.array(TrafficStatSchema).parse(response.data);
@@ -105,7 +109,7 @@ class ApiClient {
     }
   }
 
-  async getProtocolStats(): Promise<any[]> {
+  async getProtocolStats(): Promise<ProtocolStat[]> {
     try {
       const response = await this.client.get('/stats/protocols');
       return z.array(ProtocolStatSchema).parse(response.data);
@@ -115,7 +119,7 @@ class ApiClient {
     }
   }
 
-  async getTopTalkers(): Promise<any[]> {
+  async getTopTalkers(): Promise<TopTalker[]> {
     try {
       const response = await this.client.get('/stats/top-talkers');
       return z.array(TopTalkerSchema).parse(response.data);

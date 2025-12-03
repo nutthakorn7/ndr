@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -11,10 +11,33 @@ pub struct User {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
+pub struct UserRow {
+    pub id: Uuid,
+    pub email: String,
+    pub password_hash: String,
+    pub role: String,
+    pub tenant_id: String,
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<UserRow> for User {
+    fn from(row: UserRow) -> Self {
+        Self {
+            id: row.id,
+            email: row.email,
+            role: row.role,
+            tenant_id: row.tenant_id,
+            created_at: row.created_at,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct ApiKey {
     pub id: Uuid,
     pub name: String,
+    #[serde(skip)]
     pub key_hash: String,
     pub permissions: Vec<String>,
     pub tenant_id: String,

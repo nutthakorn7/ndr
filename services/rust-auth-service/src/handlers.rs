@@ -5,17 +5,9 @@ use axum::{
 use std::sync::Arc;
 use serde_json::{json, Value};
 use uuid::Uuid;
-use crate::state::AppState; // Wait, I defined AppState in main.rs, need to move it or use crate::AppState
-use crate::models::*;
+use crate::state::AppState;
+use crate::models::{RegisterRequest, LoginRequest, AuthResponse, CreateApiKeyRequest, ApiKeyResponse, ApiKey};
 use crate::auth;
-
-// Re-import AppState from main if it's public there, or better, move it to a separate file.
-// For now, let's assume I'll fix main.rs to export it or move it.
-// Actually, let's just define the handler signature generic or use crate::AppState if I move it.
-// I will move AppState to a new file `state.rs` to avoid circular deps or visibility issues.
-
-use crate::AppState; 
-
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterRequest>,
@@ -117,7 +109,7 @@ pub async fn create_api_key(
     
     let permissions = payload.permissions.unwrap_or_else(|| vec!["logs:create".to_string(), "events:create".to_string(), "alerts:read".to_string()]);
     let tenant_id = payload.tenant_id.unwrap_or(claims.tenant_id);
-    let user_id = Uuid::parse_str(&claims.sub).unwrap();
+    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Invalid user ID in token" }))))?;
 
     let api_key = state.db.create_api_key(&payload.name, &key_hash, &permissions, &tenant_id, user_id)
         .await
@@ -147,7 +139,7 @@ pub async fn list_api_keys(
     let claims = auth::verify_token(token, &state.jwt_secret)
         .map_err(|_| (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Invalid token" }))))?;
 
-    let user_id = Uuid::parse_str(&claims.sub).unwrap();
+    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Invalid user ID in token" }))))?;
     let keys = state.db.list_api_keys(user_id).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": "DB error" }))))?;
 
     Ok(Json(keys))
@@ -166,7 +158,7 @@ pub async fn revoke_api_key(
     let claims = auth::verify_token(token, &state.jwt_secret)
         .map_err(|_| (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Invalid token" }))))?;
 
-    let user_id = Uuid::parse_str(&claims.sub).unwrap();
+    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| (StatusCode::UNAUTHORIZED, Json(json!({ "error": "Invalid user ID in token" }))))?;
     state.db.delete_api_key(id, user_id).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": "DB error" }))))?;
 
     Ok(StatusCode::NO_CONTENT)

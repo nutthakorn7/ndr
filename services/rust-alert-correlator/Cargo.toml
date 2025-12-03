@@ -32,6 +32,7 @@ anyhow = { workspace = true }
 
 # HTTP/Web (for future API)
 dotenvy = "0.15"
+axum = { workspace = true }
 
 # Kafka
 rdkafka = { version = "0.36", features = ["cmake-build"] }

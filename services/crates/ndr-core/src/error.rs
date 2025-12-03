@@ -25,6 +25,8 @@ pub enum CoreError {
     Internal(String),
 }
 
+pub type AppError = CoreError;
+
 impl CoreError {
     pub fn validation(msg: impl Into<String>) -> Self {
         Self::Validation(msg.into())
@@ -36,5 +38,27 @@ impl CoreError {
     
     pub fn invalid_state(msg: impl Into<String>) -> Self {
         Self::InvalidState(msg.into())
+    }
+
+    pub fn internal(msg: impl Into<String>) -> Self {
+        Self::Internal(msg.into())
+    }
+}
+
+impl From<anyhow::Error> for CoreError {
+    fn from(err: anyhow::Error) -> Self {
+        Self::Internal(err.to_string())
+    }
+}
+
+impl From<uuid::Error> for CoreError {
+    fn from(err: uuid::Error) -> Self {
+        Self::Validation(format!("Invalid UUID: {}", err))
+    }
+}
+
+impl From<std::io::Error> for CoreError {
+    fn from(err: std::io::Error) -> Self {
+        Self::Internal(format!("IO Error: {}", err))
     }
 }

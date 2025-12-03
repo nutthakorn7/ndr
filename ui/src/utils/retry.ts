@@ -13,8 +13,8 @@ export interface RetryOptions {
   initialDelay?: number;
   maxDelay?: number;
   backoffFactor?: number;
-  shouldRetry?: (error: any, attempt: number) => boolean;
-  onRetry?: (error: any, attempt: number, delay: number) => void;
+  shouldRetry?: (error: unknown, attempt: number) => boolean;
+  onRetry?: (error: unknown, attempt: number, delay: number) => void;
 }
 
 /**
@@ -30,7 +30,7 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, options: RetryOp
     onRetry = () => {}
   } = options;
 
-  let lastError: any;
+  let lastError: unknown;
   let delay = initialDelay;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -71,32 +71,34 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, options: RetryOp
 export async function retryFetch<T>(fetchFn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   return retryWithBackoff(fetchFn, {
     ...options,
-    shouldRetry: (error: any, attempt: number) => {
+    shouldRetry: (error: unknown, attempt: number) => {
       // Custom retry logic can be passed in
       if (options.shouldRetry) {
         return options.shouldRetry(error, attempt);
       }
 
       // Default: retry on network errors and 5xx server errors
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      const err = error as any; // Type assertion needed for property access
+      if (err.name === 'TypeError' && err.message?.includes('fetch')) {
         return true; // Network error
       }
 
-      if (error.status && error.status >= 500) {
+      if (err.status && err.status >= 500) {
         return true; // Server error
       }
 
       // Don't retry on 4xx client errors (except 429 Too Many Requests)
-      if (error.status && error.status >= 400 && error.status < 500) {
-        return error.status === 429; // Retry on rate limit
+      if (err.status && err.status >= 400 && err.status < 500) {
+        return err.status === 429; // Retry on rate limit
       }
 
       return true; // Retry by default for unknown errors
     },
-    onRetry: (error: any, attempt: number, delay: number) => {
+    onRetry: (error: unknown, attempt: number, delay: number) => {
+      const err = error as any;
       console.warn(
         `Request failed (attempt ${attempt}). Retrying in ${delay}ms...`,
-        error.message || error
+        err.message || err
       );
       
       // Call custom onRetry if provided

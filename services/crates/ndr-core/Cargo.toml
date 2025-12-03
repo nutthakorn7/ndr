@@ -16,3 +16,15 @@ anyhow = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[dependencies.ndr-telemetry]
+path = "../ndr-telemetry"
+
+[dependencies.tokio]
+workspace = true
+
+[dependencies.tokio-retry]
+version = "0.3"
+
+[dependencies.metrics]
+version = "0.21"

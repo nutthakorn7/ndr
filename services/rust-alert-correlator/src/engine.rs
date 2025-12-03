@@ -29,7 +29,7 @@ impl CorrelationEngine {
     }
 
     pub async fn process_alert(&self, mut alert: Alert) -> Result<Option<Alert>> {
-        let alert_key = self.generate_alert_key(&alert);
+        let alert_key = Self::generate_alert_key(&alert);
 
         // Check for duplicate
         let existing_meta_id = self.cache.get_duplicate_alert(&alert_key).await?;
@@ -74,7 +74,7 @@ impl CorrelationEngine {
         // Set pending in cache
         self.cache.set_pending_alert(key, self.aggregation_window as u64).await?;
 
-        let severity_score = self.calculate_severity_score(alert);
+        let severity_score = Self::calculate_severity_score(alert);
         let attack_chain = self.detect_attack_chain(alert).await?;
         
         let alert_id = alert.id.to_string(); // id is now Uuid, convert to String
@@ -95,7 +95,7 @@ impl CorrelationEngine {
         Ok(meta_id)
     }
 
-    fn generate_alert_key(&self, alert: &Alert) -> String {
+    pub(crate) fn generate_alert_key(alert: &Alert) -> String {
         let rule_id = alert.rule_name();
         let src_ip = alert.source_ip().unwrap_or("");
         let dst_ip = alert.dest_ip().unwrap_or("");
@@ -108,7 +108,7 @@ impl CorrelationEngine {
         format!("{:x}", hash)
     }
 
-    fn calculate_severity_score(&self, alert: &Alert) -> i32 {
+    pub(crate) fn calculate_severity_score(alert: &Alert) -> i32 {
         let mut score = 0.0;
 
         // Rule severity (40%)
@@ -159,5 +159,78 @@ impl CorrelationEngine {
         } else {
             Ok(Vec::new())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndr_core::domain::{Alert, Severity, EventSource};
+
+    #[test]
+    fn test_severity_calculation() {
+        let source = EventSource {
+            source_ip: "1.2.3.4".to_string(),
+            dest_ip: None,
+            protocol: None,
+            event_type: "test".to_string(),
+        };
+
+        let alert = Alert::new(
+            Severity::High,
+            "Test Alert".to_string(),
+            source,
+        );
+        
+        let score = CorrelationEngine::calculate_severity_score(&alert);
+        // High = 75 * 0.4 = 30
+        // Freq = 10 * 0.1 = 1
+        // Total = 31
+        assert_eq!(score, 31);
+    }
+
+    #[test]
+    fn test_severity_calculation_critical_asset() {
+        let source = EventSource {
+            source_ip: "1.2.3.4".to_string(),
+            dest_ip: Some("10.0.0.5".to_string()),
+            protocol: None,
+            event_type: "test".to_string(),
+        };
+
+        let alert = Alert::new(
+            Severity::Critical,
+            "Test Alert".to_string(),
+            source,
+        );
+        
+        let score = CorrelationEngine::calculate_severity_score(&alert);
+        // Critical = 100 * 0.4 = 40
+        // Asset (10.0.0.x) = 100 * 0.2 = 20
+        // Freq = 10 * 0.1 = 1
+        // Total = 61
+        assert_eq!(score, 61);
+    }
+
+    #[test]
+    fn test_alert_key_generation() {
+        let source = EventSource {
+            source_ip: "1.2.3.4".to_string(),
+            dest_ip: Some("5.6.7.8".to_string()),
+            protocol: None,
+            event_type: "test".to_string(),
+        };
+
+        let alert = Alert::new(
+            Severity::High,
+            "Test Alert".to_string(),
+            source,
+        );
+
+        let key1 = CorrelationEngine::generate_alert_key(&alert);
+        let key2 = CorrelationEngine::generate_alert_key(&alert);
+        
+        assert_eq!(key1, key2);
+        assert!(!key1.is_empty());
     }
 }
