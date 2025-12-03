@@ -4,7 +4,7 @@ mod watcher;
 use scanner::Scanner;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{info, error, warn};
+use ndr_telemetry::{init_telemetry, info, error, warn};
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use std::time::Duration;
@@ -14,7 +14,12 @@ use chrono::Utc;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    tracing_subscriber::fmt::init();
+    
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("yara-scanner") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
     info!("Starting YARA Scanner Service...");
 

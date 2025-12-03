@@ -1,7 +1,7 @@
 use yara::{Compiler, Rules};
 use std::path::Path;
 use anyhow::{Result, Context};
-use tracing::{info, warn, error};
+use ndr_telemetry::{info, warn, error};
 use serde::{Serialize, Deserialize};
 use sha2::{Sha256, Digest};
 use std::fs::File;

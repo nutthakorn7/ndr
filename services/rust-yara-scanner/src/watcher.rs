@@ -2,7 +2,7 @@ use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher, Event, EventKin
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{info, error, warn};
+use ndr_telemetry::{info, error, warn};
 use std::time::Duration;
 
 pub async fn start_watcher(
