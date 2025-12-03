@@ -1,9 +1,10 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useMemo } from 'react';
 import { AlertTable, Alert } from '../components/crowdstrike/AlertTable';
 import { Filter, X, Search, FileCode, Download, AlertTriangle } from 'lucide-react';
 import BulkActionBar from '../components/BulkActionBar';
 import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
+import { FilterBar, FilterConfig } from '../components/FilterBar';
 
 const EventSearch = lazy(() => import('../components/EventSearch'));
 const FileAnalysis = lazy(() => import('../components/FileAnalysis'));
@@ -16,6 +17,13 @@ export default function Alerts() {
   const [activeAnalysis, setActiveAnalysis] = useState<'file' | 'ssl' | 'dns' | null>(null);
   const [selectedAlerts, setSelectedAlerts] = useState(new Set<string | number>());
   const [loading, setLoading] = useState(false);
+
+  // Filters State
+  const [filters, setFilters] = useState({
+    severity: 'all',
+    status: 'all',
+    host: ''
+  });
 
   // Mock Data
   const alerts: Alert[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => ({
@@ -31,6 +39,54 @@ export default function Alerts() {
         ? [{ id: 'T1059.001', name: 'PowerShell', url: 'https://attack.mitre.org/techniques/T1059/001/' }]
         : [{ id: 'T1046', name: 'Network Service Scanning', url: 'https://attack.mitre.org/techniques/T1046/' }]
   }));
+
+  // Filter Configuration
+  const filterConfig: FilterConfig[] = [
+    {
+      key: 'severity',
+      label: 'Severity',
+      type: 'select',
+      options: [
+        { value: 'critical', label: 'Critical' },
+        { value: 'high', label: 'High' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'low', label: 'Low' }
+      ]
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { value: 'NEW', label: 'New' },
+        { value: 'IN PROGRESS', label: 'In Progress' },
+        { value: 'RESOLVED', label: 'Resolved' }
+      ]
+    },
+    { key: 'host', label: 'Host', type: 'text', placeholder: 'e.g. WKSTN-FIN-01' }
+  ];
+
+  // Filter Logic
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter(alert => {
+      if (filters.severity !== 'all' && alert.severity !== filters.severity) return false;
+      if (filters.status !== 'all' && alert.status !== filters.status) return false;
+      if (filters.host && !alert.host.toLowerCase().includes(filters.host.toLowerCase())) return false;
+      return true;
+    });
+  }, [alerts, filters]);
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      severity: 'all',
+      status: 'all',
+      host: ''
+    });
+  };
 
   const selectedAlert = alerts.find(a => a.id === selectedAlertId);
 
@@ -128,26 +184,21 @@ export default function Alerts() {
       {activeView === 'alerts' && (
         <>
           {/* Filter Bar */}
-          <div className="flex justify-between items-center bg-[var(--bg-panel)] p-4 border border-[var(--border-subtle)] rounded">
-            <div className="flex items-center gap-4">
+          <div className="bg-[var(--bg-panel)] p-4 border border-[var(--border-subtle)] rounded flex flex-col gap-4">
+            <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-[var(--text-primary)]">Detections</h2>
-              <div className="h-6 w-px bg-[var(--border-subtle)]" />
-              <div className="flex gap-2">
-                <button className="px-3 py-1.5 bg-[var(--bg-hover)] rounded text-xs text-[var(--text-secondary)] border border-[var(--border-subtle)] flex items-center gap-2 hover:text-[var(--text-primary)] transition-colors">
-                  <Filter className="w-3 h-3" />
-                  Severity: All
-                </button>
-                <button className="px-3 py-1.5 bg-[var(--bg-hover)] rounded text-xs text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:text-[var(--text-primary)] transition-colors">
-                  Status: New
-                </button>
-                <button className="px-3 py-1.5 bg-[var(--bg-hover)] rounded text-xs text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:text-[var(--text-primary)] transition-colors">
-                  Time: Last 24h
-                </button>
+              <div className="text-xs text-[var(--text-secondary)]">
+                Showing {filteredAlerts.length} items
               </div>
             </div>
-            <div className="text-xs text-[var(--text-secondary)]">
-              Showing {alerts.length} items
-            </div>
+            
+            <FilterBar 
+              config={filterConfig}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onClearAll={clearFilters}
+            />
+          </div>
           </div>
 
           {/* Split View Content */}
@@ -167,17 +218,16 @@ export default function Alerts() {
                   }}
                 />
               ) : (
-                <Suspense fallback={<SkeletonLoader variant="table" rows={15} columns={5} />}>
-                  <AlertTable
-                    alerts={alerts}
-                    onSelectAlert={setSelectedAlertId}
-                    selectedAlertId={selectedAlertId}
-                  />
-                </Suspense>
-              )}
-            </div>
-
-            {/* Right: Details Pane (Visible when selected) */}
+                <Suspense fallback={<SkeletonLoader variant="table" rows={10} />}>
+            <AlertTable 
+              alerts={filteredAlerts}
+              onSelectAlert={setSelectedAlertId}
+              selectedAlertId={selectedAlertId}
+              selectedAlerts={selectedAlerts}
+              onToggleSelectAll={toggleSelectAll}
+              onToggleSelectAlert={toggleSelectAlert}
+            />
+          </Suspense>   {/* Right: Details Pane (Visible when selected) */}
             {selectedAlertId && selectedAlert && (
               <div className="w-[600px] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded flex flex-col animate-in slide-in-from-right-4 duration-200">
                 <div className="p-4 border-b border-[var(--border-subtle)] flex justify-between items-start">
