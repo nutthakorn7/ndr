@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use ndr_telemetry::{init_telemetry, info};
 use linfa::prelude::*;
 use linfa_clustering::KMeans;
 use ndarray::{Array2, ArrayView1, array};
@@ -34,7 +34,7 @@ impl AnomalyModel {
     }
 
     fn train(&mut self) {
-        tracing::info!("Starting model training with K-Means...");
+        info!("Starting model training with K-Means...");
         
         // Generate synthetic "normal" traffic data
         // We simulate 5 features: bytes_sent, bytes_recv, pkts_sent, pkts_recv, duration
@@ -81,7 +81,7 @@ impl AnomalyModel {
         // If a point is > 2.0 units away from nearest centroid in log-space, it's likely anomalous.
         self.threshold = 2.0; 
         
-        tracing::info!("Model trained successfully. Centroids: {:?}", self.centroids.as_ref().unwrap());
+        info!("Model trained successfully. Centroids: {:?}", self.centroids.as_ref().unwrap());
     }
 
     fn predict(&self, features: &[f64]) -> (i32, bool, f64) {
@@ -131,12 +131,11 @@ struct Prediction {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("ai-service") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
     let model = Arc::new(Mutex::new(AnomalyModel::new()));
     
@@ -158,7 +157,7 @@ async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8090".into());
     let addr = format!("0.0.0.0:{}", port);
     
-    tracing::info!("listening on {}", addr);
+    info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
