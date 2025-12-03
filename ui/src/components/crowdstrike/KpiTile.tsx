@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import './KpiTile.css';
 
@@ -15,6 +15,10 @@ interface KpiTileProps {
 }
 
 const Sparkline: React.FC<{ data: number[]; color: string }> = ({ data, color }) => {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
+
   if (!data || data.length < 2) return null;
 
   const width = 60;
@@ -28,30 +32,101 @@ const Sparkline: React.FC<{ data: number[]; color: string }> = ({ data, color })
   const points = data.map((value, index) => {
     const x = (index / (data.length - 1)) * (width - padding * 2) + padding;
     const y = height - padding - ((value - min) / range) * (height - padding * 2);
-    return `${x},${y}`;
-  }).join(' ');
+    return { x, y, value };
+  });
 
-  const pathData = `M ${points}`;
-  const areaData = `M ${padding},${height - padding} L ${points} L ${width - padding},${height - padding} Z`;
+  const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
+  const areaData = `M ${padding},${height - padding} L ${points.map(p => `${p.x},${p.y}`).join(' L ')} L ${width - padding},${height - padding} Z`;
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    
+    // Find closest point
+    const closestIndex = points.reduce((closest, point, index) => {
+      const distance = Math.abs(point.x - x);
+      const closestDistance = Math.abs(points[closest].x - x);
+      return distance < closestDistance ? index : closest;
+    }, 0);
+
+    setHoveredIndex(closestIndex);
+    setTooltipPos({ x: points[closestIndex].x, y: points[closestIndex].y });
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredIndex(null);
+  };
+
+  // Generate date labels (7 days ago, 6 days ago, etc.)
+  const getDateLabel = (index: number) => {
+    const daysAgo = data.length - 1 - index;
+    if (daysAgo === 0) return 'Today';
+    if (daysAgo === 1) return 'Yesterday';
+    return `${daysAgo}d ago`;
+  };
 
   return (
-    <svg width={width} height={height} className="sparkline">
-      <defs>
-        <linearGradient id={`gradient-${color}`} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.05" />
-        </linearGradient>
-      </defs>
-      <path d={areaData} fill={`url(#gradient-${color})`} />
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <div className="sparkline-container">
+      <svg 
+        ref={svgRef}
+        width={width} 
+        height={height} 
+        className="sparkline"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <defs>
+          <linearGradient id={`gradient-${color}`} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+        <path d={areaData} fill={`url(#gradient-${color})`} />
+        <path
+          d={pathData}
+          fill="none"
+          stroke={color}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Hover point highlight */}
+        {hoveredIndex !== null && (
+          <>
+            <circle
+              cx={points[hoveredIndex].x}
+              cy={points[hoveredIndex].y}
+              r="4"
+              fill={color}
+              className="sparkline-point"
+            />
+            <circle
+              cx={points[hoveredIndex].x}
+              cy={points[hoveredIndex].y}
+              r="2"
+              fill="white"
+            />
+          </>
+        )}
+      </svg>
+      
+      {/* Tooltip */}
+      {hoveredIndex !== null && (
+        <div 
+          className="sparkline-tooltip"
+          style={{
+            left: `${tooltipPos.x}px`,
+            top: `${tooltipPos.y - 8}px`
+          }}
+        >
+          <div className="sparkline-tooltip__value">{points[hoveredIndex].value.toLocaleString()}</div>
+          <div className="sparkline-tooltip__label">{getDateLabel(hoveredIndex)}</div>
+        </div>
+      )}
+    </div>
   );
 };
 
