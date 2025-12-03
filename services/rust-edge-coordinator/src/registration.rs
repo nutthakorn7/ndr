@@ -78,7 +78,7 @@ pub async fn register_agent(
         .with_context(format!("Agent ID: {}, Error: {}", req.agent_id, e)))?;
 
     metrics::counter!("edge_coordinator_agents_registered").increment(1);
-    tracing::info!("Agent registered: {} at {}", req.agent_id, req.location.as_deref().unwrap_or("unknown"));
+    ndr_telemetry::info!("Agent registered: {} at {}", req.agent_id, req.location.as_deref().unwrap_or("unknown"));
 
     Ok((
         StatusCode::CREATED,

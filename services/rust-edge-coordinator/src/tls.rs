@@ -17,7 +17,7 @@ pub async fn load_tls_config(cert_path: &str, key_path: &str) -> Result<RustlsCo
         .await
         .context("Failed to load TLS certificates")?;
 
-    tracing::info!("TLS configuration loaded successfully");
+    ndr_telemetry::info!("TLS configuration loaded successfully");
     Ok(config)
 }
 

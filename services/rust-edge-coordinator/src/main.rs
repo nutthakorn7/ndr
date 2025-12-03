@@ -16,8 +16,8 @@ use serde_json::Value;
 use sqlx::postgres::PgPool;
 use std::sync::Arc;
 use std::net::SocketAddr;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tower_http::trace::TraceLayer;
+use ndr_telemetry::{init_telemetry, info, warn, error};
 
 use registration::{register_agent, get_agents, get_agent};
 use health_monitor::update_heartbeat;
@@ -41,26 +41,21 @@ pub struct ConfigUpdate {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("edge-coordinator") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
-    tracing::info!("Starting Rust Edge Coordinator...");
+    info!("Starting Rust Edge Coordinator...");
 
     // Database connection
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/security_analytics".to_string());
     
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(50)
-        .connect(&database_url)
-        .await?;
+    let pool = ndr_storage::postgres::create_pool(&database_url).await?;
 
-    tracing::info!("Connected to database");
+    info!("Connected to database");
 
     // Run migrations
     sqlx::query(
@@ -102,7 +97,7 @@ async fn main() -> anyhow::Result<()> {
     .execute(&pool)
     .await?;
 
-    tracing::info!("Database schema initialized");
+    info!("Database schema initialized");
 
     let state = Arc::new(AppState { db: pool });
 
@@ -119,9 +114,9 @@ async fn main() -> anyhow::Result<()> {
     let api_key_hash = Arc::new(api_key_hash);
     
     if api_key_hash.is_some() {
-        tracing::info!("Coordinator API key authentication enabled");
+        info!("Coordinator API key authentication enabled");
     } else {
-        tracing::warn!("Coordinator API key authentication disabled - set COORDINATOR_API_KEY to enable");
+        warn!("Coordinator API key authentication disabled - set COORDINATOR_API_KEY to enable");
     }
 
     // Initialize Metrics
@@ -150,7 +145,7 @@ async fn main() -> anyhow::Result<()> {
     // Run server
     let port = std::env::var("PORT").unwrap_or_else(|_| "8085".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
-    tracing::info!("Edge Coordinator listening on {}", addr);
+    info!("Edge Coordinator listening on {}", addr);
     
     // Check if TLS is enabled
     if tls::is_tls_enabled() {
@@ -159,20 +154,20 @@ async fn main() -> anyhow::Result<()> {
         
         match tls::load_tls_config(&cert_path, &key_path).await {
             Ok(tls_config) => {
-                tracing::info!("Starting Edge Coordinator with TLS/HTTPS on https://{}", addr);
+                info!("Starting Edge Coordinator with TLS/HTTPS on https://{}", addr);
                 axum_server::bind_rustls(addr, tls_config)
                     .serve(app.into_make_service())
                     .await?;
             }
             Err(e) => {
-                tracing::error!("Failed to load TLS config: {}. Falling back to HTTP.", e);
-                tracing::warn!("Running without TLS - communication is NOT encrypted!");
+                error!("Failed to load TLS config: {}. Falling back to HTTP.", e);
+                warn!("Running without TLS - communication is NOT encrypted!");
                 let listener = tokio::net::TcpListener::bind(addr).await?;
                 axum::serve(listener, app).await?;
             }
         }
     } else {
-        tracing::warn!("TLS disabled - running HTTP only. Set TLS_ENABLED=true to enable HTTPS.");
+        warn!("TLS disabled - running HTTP only. Set TLS_ENABLED=true to enable HTTPS.");
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app).await?;
     }
@@ -193,7 +188,7 @@ async fn update_agent_config(
 ) -> AppResult<StatusCode> {
     let config_json = serde_json::to_value(&config)
         .map_err(|e| AppError::bad_request("Invalid configuration format")
-            .with_context(e.to_string()))?;
+        .with_context(e.to_string()))?;
 
     let result = sqlx::query(
         "UPDATE edge_agents SET config = $1, updated_at = NOW() WHERE agent_id = $2"
@@ -210,6 +205,6 @@ async fn update_agent_config(
             .with_context("The agent may have been removed or never registered"));
     }
 
-    tracing::info!("Updated configuration for agent: {}", agent_id);
+    info!("Updated configuration for agent: {}", agent_id);
     Ok(StatusCode::OK)
 }

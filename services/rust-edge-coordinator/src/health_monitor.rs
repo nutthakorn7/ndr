@@ -61,7 +61,7 @@ pub async fn update_heartbeat(
     }
 
     metrics::counter!("edge_coordinator_heartbeats_received").increment(1);
-    tracing::debug!("Heartbeat received from agent: {}", agent_id);
+    ndr_telemetry::debug!("Heartbeat received from agent: {}", agent_id);
 
     Ok(Json(HeartbeatResponse {
         message: "Heartbeat acknowledged".to_string(),

@@ -65,7 +65,7 @@ impl std::error::Error for AppError {}
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         // Log the error with full context
-        tracing::error!(
+        ndr_telemetry::error!(
             status = %self.status,
             message = %self.message,
             context = ?self.context,
