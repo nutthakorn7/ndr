@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use crate::models::Alert;
-use tracing::{info, error};
+use ndr_telemetry::{info, error, warn};
 use serde_json::Value;
 
 #[async_trait]
@@ -59,7 +59,7 @@ impl Action for LogAction {
         let msg = format!("SOAR Action Log: Alert '{}' (Severity: {})", alert.title, alert.severity);
         match self.level.as_str() {
             "error" => error!("{}", msg),
-            "warn" => tracing::warn!("{}", msg),
+            "warn" => warn!("{}", msg),
             _ => info!("{}", msg),
         }
         Ok(())

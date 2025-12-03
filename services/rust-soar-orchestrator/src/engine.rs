@@ -1,6 +1,6 @@
 use crate::models::{Alert, Playbook, Trigger, ActionType, ActionConfig};
 use crate::actions::{Action, WebhookAction, LogAction};
-use tracing::{info, warn};
+use ndr_telemetry::{info, warn};
 use std::sync::Arc;
 use serde_json::json;
 

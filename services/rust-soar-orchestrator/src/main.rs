@@ -5,14 +5,19 @@ mod models;
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
-use tracing::{info, warn, error};
+use ndr_telemetry::{init_telemetry, info, warn, error};
 use std::sync::Arc;
 use crate::engine::PlaybookEngine;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    tracing_subscriber::fmt::init();
+    
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("soar-orchestrator") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
     info!("Starting Rust SOAR Orchestrator...");
 
