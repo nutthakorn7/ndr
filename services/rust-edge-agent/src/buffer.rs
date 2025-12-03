@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use anyhow::Result;
 use std::sync::Arc;
+use ndr_telemetry::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BufferedEvent {
@@ -124,7 +125,7 @@ impl Buffer {
         let current_size = self.size_mb().await?;
         
         if current_size > self.max_size_mb as f64 {
-            tracing::warn!(
+            warn!(
                 "Buffer size ({:.2} MB) exceeds limit ({} MB), removing oldest events",
                 current_size,
                 self.max_size_mb

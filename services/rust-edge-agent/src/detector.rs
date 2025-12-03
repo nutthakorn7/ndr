@@ -92,7 +92,7 @@ impl LocalDetector {
 
     pub fn update_rules(&mut self, rules: Vec<DetectionRule>) {
         self.rules = rules;
-        tracing::info!("Updated {} detection rules", self.rules.len());
+        ndr_telemetry::info!("Updated {} detection rules", self.rules.len());
     }
 
     pub fn get_priority(&self, event: &Value) -> i32 {

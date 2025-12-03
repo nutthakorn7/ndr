@@ -6,9 +6,11 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::io::Write;
 use std::time::Duration;
+use ndr_telemetry::{info, error};
 
 use crate::buffer::{Buffer, BufferedEvent};
 use crate::config::{Config, ForwardingPolicy};
+use crate::circuit_breaker::CircuitBreaker;
 
 pub struct Forwarder {
     producer: FutureProducer,
@@ -61,7 +63,7 @@ impl Forwarder {
                     forwarded_ids.push(event.id);
                 }
                 Err(e) => {
-                    tracing::error!("Failed to forward buffered event {}: {}", event.id, e);
+                    error!("Failed to forward buffered event {}: {}", event.id, e);
                     // Stop on first failure to preserve order
                     break;
                 }
@@ -127,6 +129,6 @@ impl Forwarder {
 
     pub fn update_policy(&mut self, policy: ForwardingPolicy) {
         self.policy = policy;
-        tracing::info!("Updated forwarding policy: {:?}", self.policy);
+        info!("Updated forwarding policy: {:?}", self.policy);
     }
 }

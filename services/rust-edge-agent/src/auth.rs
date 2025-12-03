@@ -6,6 +6,7 @@ use axum::{
 };
 use sha2::{Sha256, Digest};
 use std::sync::Arc;
+use ndr_telemetry::warn;
 
 /// API key authentication middleware
 pub async fn api_key_auth(
@@ -16,7 +17,7 @@ pub async fn api_key_auth(
 ) -> Result<Response, StatusCode> {
     // If no API key is configured, allow the request (for backwards compatibility)
     let Some(expected_hash) = api_key_hash.as_ref() else {
-        tracing::warn!("No API key configured - authentication disabled");
+        warn!("No API key configured - authentication disabled");
         return Ok(next.run(request).await);
     };
 
@@ -33,7 +34,7 @@ pub async fn api_key_auth(
         });
 
     let Some(key) = api_key else {
-        tracing::warn!("Missing API key in request");
+        warn!("Missing API key in request");
         metrics::counter!("edge_agent_auth_failed").increment(1);
         return Err(StatusCode::UNAUTHORIZED);
     };
@@ -44,7 +45,7 @@ pub async fn api_key_auth(
     let key_hash = hex::encode(hasher.finalize());
 
     if key_hash != *expected_hash {
-        tracing::warn!("Invalid API key provided");
+        warn!("Invalid API key provided");
         metrics::counter!("edge_agent_auth_failed").increment(1);
         return Err(StatusCode::UNAUTHORIZED);
     }

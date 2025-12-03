@@ -1,6 +1,7 @@
 use anyhow::Result;
 use tokio_retry::{strategy::ExponentialBackoff, Retry};
 use std::time::Duration;
+use ndr_telemetry::{info, warn, debug};
 
 /// Circuit breaker state for Kafka connections
 #[derive(Debug, Clone)]
@@ -31,7 +32,7 @@ impl CircuitBreaker {
                     // Reset circuit breaker
                     *self.failure_count.write().await = 0;
                     *self.last_failure.write().await = None;
-                    tracing::info!(\"Circuit breaker reset after timeout\");
+                    info!("Circuit breaker reset after timeout");
                     return false;
                 }
             }
@@ -54,12 +55,12 @@ impl CircuitBreaker {
         *self.last_failure.write().await = Some(std::time::Instant::now());
         
         if *count >= self.max_failures {
-            tracing::warn!(
-                \"Circuit breaker opened after {} failures. Will retry after {:?}\",
+            warn!(
+                "Circuit breaker opened after {} failures. Will retry after {:?}",
                 count,
                 self.reset_timeout
             );
-            metrics::counter!(\"edge_agent_circuit_breaker_opened\").increment(1);
+            metrics::counter!("edge_agent_circuit_breaker_opened").increment(1);
         }
     }
 
@@ -84,7 +85,7 @@ where
 
     Retry::spawn(retry_strategy, || async {
         operation().await.map_err(|e| {
-            tracing::debug!(\"Retry attempt failed: {}\", e);
+            debug!("Retry attempt failed: {}", e);
             e
         })
     })

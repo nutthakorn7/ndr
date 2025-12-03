@@ -20,8 +20,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tower_http::trace::TraceLayer;
+use ndr_telemetry::{init_telemetry, info, warn, error, debug};
 
 use config::Config;
 use buffer::Buffer;
@@ -70,29 +70,27 @@ struct RegistrationRequest {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("edge-agent") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
-    tracing::info!("Starting Rust Edge Agent...");
+    info!("Starting Rust Edge Agent...");
 
     // Load configuration
     let config = Config::from_env()?;
-    tracing::info!("Agent ID: {}, Location: {}", config.agent_id, config.location);
+    info!("Agent ID: {}, Location: {}", config.agent_id, config.location);
 
     // Initialize buffer
     let buffer = Buffer::new(&config.buffer_db_path, config.max_buffer_size_mb).await?;
     let buffer = Arc::new(buffer);
-    tracing::info!("Buffer initialized at {}", config.buffer_db_path);
+    info!("Buffer initialized at {}", config.buffer_db_path);
 
     // Initialize forwarder
     let forwarder = Forwarder::new(&config)?;
     let forwarder = Arc::new(RwLock::new(forwarder));
-    tracing::info!("Kafka forwarder initialized");
+    info!("Kafka forwarder initialized");
 
     // Initialize detector
     let detector = LocalDetector::new();
@@ -114,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Register with coordinator
     if let Err(e) = register_with_coordinator(&state).await {
-        tracing::warn!("Failed to register with coordinator: {}", e);
+        warn!("Failed to register with coordinator: {}", e);
     }
 
     // Start background tasks
@@ -154,9 +152,9 @@ async fn main() -> anyhow::Result<()> {
     let api_key_hash = Arc::new(config.api_key_hash.clone());
     
     if api_key_hash.is_some() {
-        tracing::info!("API key authentication enabled");
+        info!("API key authentication enabled");
     } else {
-        tracing::warn!("API key authentication disabled - set API_KEY environment variable to enable");
+        warn!("API key authentication disabled - set API_KEY environment variable to enable");
     }
 
     // Build application with routes
@@ -174,7 +172,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Run server
     let addr: SocketAddr = format!("0.0.0.0:{}", config.port).parse()?;
-    tracing::info!("Edge Agent listening on {}", addr);
+    info!("Edge Agent listening on {}", addr);
     
     // Check if TLS is enabled
     if tls::is_tls_enabled() {
@@ -183,20 +181,20 @@ async fn main() -> anyhow::Result<()> {
         
         match tls::load_tls_config(&cert_path, &key_path).await {
             Ok(tls_config) => {
-                tracing::info!("Starting Edge Agent with TLS/HTTPS on https://{}", addr);
+                info!("Starting Edge Agent with TLS/HTTPS on https://{}", addr);
                 axum_server::bind_rustls(addr, tls_config)
                     .serve(app.into_make_service())
                     .await?;
             }
             Err(e) => {
-                tracing::error!("Failed to load TLS config: {}. Falling back to HTTP.", e);
-                tracing::warn!("Running without TLS - communication is NOT encrypted!");
+                error!("Failed to load TLS config: {}. Falling back to HTTP.", e);
+                warn!("Running without TLS - communication is NOT encrypted!");
                 let listener = tokio::net::TcpListener::bind(addr).await?;
                 axum::serve(listener, app).await?;
             }
         }
     } else {
-        tracing::warn!("TLS disabled - running HTTP only. Set TLS_ENABLED=true to enable HTTPS.");
+        warn!("TLS disabled - running HTTP only. Set TLS_ENABLED=true to enable HTTPS.");
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app).await?;
     }
@@ -258,7 +256,7 @@ async fn ingest_event(
                 }))));
             }
             Err(e) => {
-                tracing::warn!("Failed to forward event, will buffer: {}", e);
+                warn!("Failed to forward event, will buffer: {}", e);
             }
         }
     }
@@ -285,7 +283,7 @@ async fn update_config(
     State(state): State<AppState>,
     Json(new_config): Json<Value>,
 ) -> AppResult<StatusCode> {
-    tracing::info!("Received configuration update");
+    info!("Received configuration update");
     
     // Update forwarding policy if provided
     if let Some(policy) = new_config.get("forwarding_policy") {
@@ -329,7 +327,7 @@ async fn register_with_coordinator(state: &AppState) -> anyhow::Result<()> {
         .await?;
 
     if response.status().is_success() {
-        tracing::info!("Successfully registered with coordinator");
+        info!("Successfully registered with coordinator");
         *state.is_online.write().await = true;
         Ok(())
     } else {
@@ -369,14 +367,14 @@ async fn heartbeat_task(state: AppState) {
         {
             Ok(response) if response.status().is_success() => {
                 *state.is_online.write().await = true;
-                tracing::debug!("Heartbeat sent successfully");
+                debug!("Heartbeat sent successfully");
             }
             Ok(response) => {
-                tracing::warn!("Heartbeat failed with status: {}", response.status());
+                warn!("Heartbeat failed with status: {}", response.status());
                 *state.is_online.write().await = false;
             }
             Err(e) => {
-                tracing::warn!("Heartbeat error: {}", e);
+                warn!("Heartbeat error: {}", e);
                 *state.is_online.write().await = false;
             }
         }
@@ -397,7 +395,7 @@ async fn buffer_forwarder_task(state: AppState) {
         let buffered_count = match state.buffer.count().await {
             Ok(count) => count,
             Err(e) => {
-                tracing::error!("Failed to get buffer count: {}", e);
+                error!("Failed to get buffer count: {}", e);
                 continue;
             }
         };
@@ -415,7 +413,7 @@ async fn buffer_forwarder_task(state: AppState) {
             if *forwarder_state.is_online.read().await {
                 if let Ok(count) = forwarder_state.buffer.count().await {
                     if count > 0 {
-                        tracing::debug!("Attempting to forward {} buffered events", count);
+                        debug!("Attempting to forward {} buffered events", count);
                         let _ = forward_buffered_events(&forwarder_state).await;
                     }
                 }
@@ -442,17 +440,17 @@ async fn buffer_forwarder_task(state: AppState) {
             metrics::gauge!("edge_agent_is_online").set(if is_online { 1.0 } else { 0.0 });
         }
     });
-        tracing::info!("Forwarding {} buffered events", buffered_count);
+        info!("Forwarding {} buffered events", buffered_count);
 
         let forwarder = state.forwarder.read().await;
         match forwarder.forward_buffered(&state.buffer).await {
             Ok(count) => {
                 if count > 0 {
-                    tracing::info!("Successfully forwarded {} buffered events", count);
+                    info!("Successfully forwarded {} buffered events", count);
                 }
             }
             Err(e) => {
-                tracing::error!("Failed to forward buffered events: {}", e);
+                error!("Failed to forward buffered events: {}", e);
                 *state.is_online.write().await = false;
             }
         }
