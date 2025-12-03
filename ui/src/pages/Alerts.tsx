@@ -224,9 +224,12 @@ export default function Alerts() {
               selectedAlertId={selectedAlertId}
               selectedAlerts={selectedAlerts}
               onToggleSelectAll={toggleSelectAll}
-              onToggleSelectAlert={toggleSelectAlert}
             />
-          </Suspense>   {/* Right: Details Pane (Visible when selected) */}
+          </Suspense>
+        )}
+      </div>
+
+      {/* Right: Details Pane (Visible when selected) */}
             {selectedAlertId && selectedAlert && (
               <div className="w-[600px] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded flex flex-col animate-in slide-in-from-right-4 duration-200">
                 <div className="p-4 border-b border-[var(--border-subtle)] flex justify-between items-start">
