@@ -8,8 +8,7 @@ use tower_http::trace::TraceLayer;
 use tower_http::services::ServeDir;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing::{info, error};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use ndr_telemetry::{init_telemetry, info, error};
 
 mod capture;
 mod api;
@@ -22,12 +21,12 @@ pub struct AppState {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    
+    // Initialize telemetry
+    if let Err(e) = init_telemetry("pcap-service") {
+        eprintln!("Failed to initialize telemetry: {}", e);
+        std::process::exit(1);
+    }
 
     info!("Starting Rust PCAP Service...");
 

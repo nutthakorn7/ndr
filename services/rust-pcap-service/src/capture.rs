@@ -1,7 +1,7 @@
 use pcap::{Capture, Device};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{info, warn, error};
+use ndr_telemetry::{info, warn, error};
 use anyhow::{Result, Context};
 use chrono::Local;
 
