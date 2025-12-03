@@ -121,9 +121,9 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
 
       {/* Main Content Area - Split View */}
       {activeTab === 'dashboard' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 h-[600px]" style={{ gap: 'var(--spacing-lg)' }}>
           {/* Traffic Chart (2/3 width) */}
-          <div className="lg:col-span-2 h-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4">
+          <div className="lg:col-span-2 h-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded" style={{ borderRadius: 'var(--panel-radius)', padding: 'var(--panel-padding)' }}>
             <div className="label-text mb-4">Threat Activity</div>
             <Suspense fallback={<div className="h-full animate-pulse bg-[var(--bg-hover)] rounded" />}>
               <NetworkAnalytics />
@@ -131,8 +131,8 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
           </div>
 
           {/* Recent Alerts (1/3 width) */}
-          <div className="h-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded flex flex-col">
-            <div className="p-3 border-b border-[var(--border-subtle)] flex justify-between items-center">
+          <div className="h-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col" style={{ borderRadius: 'var(--panel-radius)' }}>
+            <div className="border-b border-[var(--border-subtle)] flex justify-between items-center" style={{ padding: 'var(--spacing-md)' }}>
                <div className="label-text">Recent Detections</div>
                <button className="text-xs text-[var(--sev-info)] hover:underline" onClick={() => handleTabChange('alerts')}>View All</button>
             </div>
