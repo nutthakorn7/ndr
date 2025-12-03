@@ -21,8 +21,7 @@ const NetworkTopology = lazy(() => import('../components/NetworkTopology'));
 const IncidentBoard = lazy(() => import('../components/IncidentBoard'));
 const RuleAnalytics = lazy(() => import('../components/RuleAnalytics'));
 const CommandPalette = lazy(() => import('../components/CommandPalette'));
-const ThreatHunting = lazy(() => import('./ThreatHunting'));
-const LogViewer = lazy(() => import('./LogViewer'));
+const Investigation = lazy(() => import('./Investigation'));
 const SoarIntegration = lazy(() => import('../components/SoarIntegration'));
 const EdgeManagement = lazy(() => import('../components/EdgeManagement'));
 const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
@@ -181,18 +180,19 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
         </div>
       )}
 
-      {activeTab === 'hunting' && (
+      {activeTab === 'investigation' && (
         <div className="h-full overflow-hidden">
           <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
-            <ThreatHunting />
+            <Investigation />
           </Suspense>
         </div>
       )}
 
-      {activeTab === 'logs' && (
+      {/* Backward compatibility: redirect hunting and logs to investigation */}
+      {(activeTab === 'hunting' || activeTab === 'logs') && (
         <div className="h-full overflow-hidden">
           <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
-            <LogViewer />
+            <Investigation />
           </Suspense>
         </div>
       )}
