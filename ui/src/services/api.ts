@@ -1,39 +1,21 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
+import { 
+  DashboardAnalyticsSchema, 
+  AlertSchema, 
+  SearchEventsResponseSchema,
+  SensorSchema,
+  TrafficStatSchema,
+  ProtocolStatSchema,
+  TopTalkerSchema,
+  AiChatResponseSchema,
+  type DashboardAnalytics,
+  type Alert,
+  type ThreatEvent,
+  type Sensor
+} from '../schemas';
+import { z } from 'zod';
 
-// Define types matching backend responses
-export interface DashboardAnalytics {
-  summary: {
-    total_events: number;
-    open_alerts: number;
-    critical_alerts: number;
-    assets_count: number;
-  };
-  trends: {
-    events_over_time: any[];
-  };
-  top_sources: any[];
-}
-
-export interface Alert {
-  id: string;
-  title: string;
-  severity: 'Critical' | 'High' | 'Medium' | 'Low';
-  status: string;
-  timestamp: string;
-  description: string;
-}
-
-export interface ThreatEvent {
-  id: number;
-  timestamp: string;
-  type: string;
-  severity: 'Critical' | 'High' | 'Medium' | 'Low';
-  source: string;
-  destination: string;
-  protocol?: string;
-  description: string;
-  details?: any;
-}
+export type { DashboardAnalytics, Alert, ThreatEvent, Sensor };
 
 class ApiClient {
   private client: AxiosInstance;
@@ -60,10 +42,10 @@ class ApiClient {
   // Dashboard Analytics
   async getDashboardAnalytics(): Promise<DashboardAnalytics> {
     try {
-      const response = await this.client.get<DashboardAnalytics>('/analytics/dashboard');
-      return response.data;
+      const response = await this.client.get('/analytics/dashboard');
+      return DashboardAnalyticsSchema.parse(response.data);
     } catch (error) {
-      console.warn('Failed to fetch analytics, using fallback');
+      console.warn('Failed to fetch analytics or validation failed', error);
       throw error;
     }
   }
@@ -71,10 +53,11 @@ class ApiClient {
   // Alerts & Events
   async getAlerts(): Promise<Alert[]> {
     try {
-      const response = await this.client.get<{ alerts: Alert[] }>('/alerts');
-      return response.data.alerts;
+      const response = await this.client.get('/alerts');
+      // Validate array of alerts
+      return z.array(AlertSchema).parse(response.data.alerts);
     } catch (error) {
-      console.warn('Failed to fetch alerts');
+      console.warn('Failed to fetch alerts or validation failed', error);
       throw error;
     }
   }
@@ -82,32 +65,42 @@ class ApiClient {
   async searchEvents(params: any): Promise<{ events: ThreatEvent[], total: number }> {
     try {
       const response = await this.client.post('/events', params);
-      return response.data;
+      return SearchEventsResponseSchema.parse(response.data);
     } catch (error) {
-      console.warn('Failed to search events');
+      console.warn('Failed to search events or validation failed', error);
       throw error;
     }
   }
 
   // Sensors
-  async getSensors(): Promise<any> {
-    const response = await this.client.get('/sensors');
-    return response.data;
+  async getSensors(): Promise<Sensor[]> {
+    try {
+      const response = await this.client.get('/sensors');
+      return z.array(SensorSchema).parse(response.data);
+    } catch (error) {
+      console.warn('Failed to fetch sensors or validation failed', error);
+      throw error;
+    }
   }
 
   // AI Chat
   async chatWithAI(message: string, context?: any): Promise<any> {
-    const response = await this.client.post('/ai/chat', { message, context });
-    return response.data;
+    try {
+      const response = await this.client.post('/ai/chat', { message, context });
+      return AiChatResponseSchema.parse(response.data);
+    } catch (error) {
+      console.warn('AI chat failed', error);
+      throw error;
+    }
   }
 
   // Analytics
   async getTrafficStats(timeRange: string): Promise<any[]> {
     try {
       const response = await this.client.get(`/stats/traffic?range=${timeRange}`);
-      return response.data;
+      return z.array(TrafficStatSchema).parse(response.data);
     } catch (error) {
-      console.warn('Failed to fetch traffic stats');
+      console.warn('Failed to fetch traffic stats', error);
       throw error;
     }
   }
@@ -115,9 +108,9 @@ class ApiClient {
   async getProtocolStats(): Promise<any[]> {
     try {
       const response = await this.client.get('/stats/protocols');
-      return response.data;
+      return z.array(ProtocolStatSchema).parse(response.data);
     } catch (error) {
-      console.warn('Failed to fetch protocol stats');
+      console.warn('Failed to fetch protocol stats', error);
       throw error;
     }
   }
@@ -125,9 +118,9 @@ class ApiClient {
   async getTopTalkers(): Promise<any[]> {
     try {
       const response = await this.client.get('/stats/top-talkers');
-      return response.data;
+      return z.array(TopTalkerSchema).parse(response.data);
     } catch (error) {
-      console.warn('Failed to fetch top talkers');
+      console.warn('Failed to fetch top talkers', error);
       throw error;
     }
   }
