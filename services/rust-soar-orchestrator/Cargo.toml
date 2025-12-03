@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Shared NDR crates
+ndr-core = { path = "../crates/ndr-core" }
+ndr-telemetry = { path = "../crates/ndr-telemetry" }
+ndr-api = { path = "../crates/ndr-api" }
+
+# Service-specific dependencies
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

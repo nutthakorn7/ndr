@@ -1,0 +1,17 @@
+/Users/pop7/Code/NDR/target/debug/deps/thiserror_impl-358d7fe5dc1b2066.d: /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/lib.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/ast.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/attr.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/expand.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/fallback.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/fmt.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/generics.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/prop.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/scan_expr.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/unraw.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/valid.rs
+
+/Users/pop7/Code/NDR/target/debug/deps/libthiserror_impl-358d7fe5dc1b2066.dylib: /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/lib.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/ast.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/attr.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/expand.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/fallback.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/fmt.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/generics.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/prop.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/scan_expr.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/unraw.rs /Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/valid.rs
+
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/lib.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/ast.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/attr.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/expand.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/fallback.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/fmt.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/generics.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/prop.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/scan_expr.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/unraw.rs:
+/Users/pop7/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-impl-2.0.17/src/valid.rs:
+
+# env-dep:CARGO_PKG_VERSION_PATCH=17

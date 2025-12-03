@@ -7,10 +7,11 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use sqlx::postgres::PgPoolOptions;
 use opensearch::OpenSearch;
 use opensearch::http::transport::Transport;
+use dotenv::dotenv;
+use ndr_telemetry::{init_telemetry, info, error};
 
 mod handlers;
 mod models;
@@ -20,14 +21,6 @@ use state::AppState;
 
 #[tokio::main]
 async fn main() {
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
     tracing::info!("Starting Rust Dashboard API...");
 
     // Database Connection

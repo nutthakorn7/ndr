@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Shared NDR crates
+ndr-core = { path = "../crates/ndr-core" }
+ndr-telemetry = { path = "../crates/ndr-telemetry" }
+ndr-storage = { path = "../crates/ndr-storage" }
+
+# Service-specific dependencies
 tokio = { version = "1", features = ["full"] }
 rdkafka = { version = "0.36", features = ["cmake-build"] }
 serde = { version = "1.0", features = ["derive"] }
