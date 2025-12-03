@@ -34,7 +34,11 @@ export default function Alerts() {
     title: i % 4 === 0 ? 'Ransomware Activity Detected' : i % 3 === 0 ? 'Suspicious PowerShell Execution' : 'Port Scan Detected',
     host: `WKSTN-FIN-0${i}`,
     time: `${i * 12}m ago`,
-    status: i < 5 ? "NEW" : "IN PROGRESS",
+    status: i < 5 ? "NEW" : i < 10 ? "INVESTIGATING" : "RESOLVED",
+    assignee: i % 3 === 0 ? 'Jane Smith' : i % 2 === 0 ? 'John Doe' : undefined,
+    comments: i % 3 === 0 ? [
+      { id: 'c1', author: 'Jane Smith', text: 'Investigating this suspicious activity.', timestamp: '10m ago' }
+    ] : [],
     mitre: i % 4 === 0 
       ? [{ id: 'T1486', name: 'Data Encrypted for Impact', url: 'https://attack.mitre.org/techniques/T1486/' }]
       : i % 3 === 0 
@@ -297,7 +301,92 @@ export default function Alerts() {
                     </div>
                   </div>
 
-                  {/* Deep Analysis */}
+                  {/* Workflow Actions */}
+                  <div className="p-4 bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded-lg space-y-4">
+                    <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase">Workflow</h4>
+                    
+                    {/* Status & Assignee */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-[var(--text-secondary)] mb-1 block">Status</label>
+                        <select 
+                          className="w-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-sm text-[var(--text-primary)] focus:border-[var(--sev-info)] outline-none"
+                          value={selectedAlert.status}
+                          onChange={(e) => {
+                            // In a real app, this would update state/backend
+                            addToast(`Status updated to ${e.target.value}`, 'success');
+                          }}
+                        >
+                          <option value="NEW">New</option>
+                          <option value="INVESTIGATING">Investigating</option>
+                          <option value="RESOLVED">Resolved</option>
+                          <option value="CLOSED">Closed</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-[var(--text-secondary)] mb-1 block">Assignee</label>
+                        <select 
+                          className="w-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-sm text-[var(--text-primary)] focus:border-[var(--sev-info)] outline-none"
+                          value={selectedAlert.assignee || ''}
+                          onChange={(e) => {
+                            addToast(`Assigned to ${e.target.value || 'Unassigned'}`, 'info');
+                          }}
+                        >
+                          <option value="">Unassigned</option>
+                          <option value="Jane Smith">Jane Smith</option>
+                          <option value="John Doe">John Doe</option>
+                          <option value="Analyst Team">Analyst Team</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comments Section */}
+                  <div className="flex-1 flex flex-col min-h-[200px]">
+                    <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3">Comments</h4>
+                    <div className="flex-1 space-y-4 mb-4">
+                      {selectedAlert.comments.length > 0 ? (
+                        selectedAlert.comments.map(comment => (
+                          <div key={comment.id} className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[var(--sev-info)] flex items-center justify-center text-xs text-white font-bold">
+                              {comment.author.charAt(0)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-baseline mb-1">
+                                <span className="text-sm font-medium text-[var(--text-primary)]">{comment.author}</span>
+                                <span className="text-xs text-[var(--text-secondary)]">{comment.timestamp}</span>
+                              </div>
+                              <p className="text-sm text-[var(--text-secondary)] bg-[var(--bg-app)] p-2 rounded border border-[var(--border-subtle)]">
+                                {comment.text}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-[var(--text-secondary)] text-sm italic">
+                          No comments yet. Start the discussion.
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Add Comment */}
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Add a comment..." 
+                        className="flex-1 bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--sev-info)] outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            addToast('Comment added', 'success');
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }}
+                      />
+                      <button className="px-4 py-2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--border-subtle)]">
+                        Post
+                      </button>
+                    </div>
+                  </div>
                   <div className="deep-analysis-section">
                     <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3">Deep Analysis</h4>
                     <div className="flex gap-3">

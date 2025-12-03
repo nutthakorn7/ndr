@@ -2,13 +2,22 @@ import React from 'react';
 import { BaseTable, Column } from '../base';
 import './AlertTable.css';
 
+export interface Comment {
+  id: string;
+  author: string;
+  text: string;
+  timestamp: string;
+}
+
 export interface Alert {
   id: string | number;
   severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   host: string;
   time: string;
-  status: string;
+  status: 'NEW' | 'INVESTIGATING' | 'RESOLVED' | 'CLOSED';
+  assignee?: string;
+  comments: Comment[];
   mitre?: {
     id: string;
     name: string;
