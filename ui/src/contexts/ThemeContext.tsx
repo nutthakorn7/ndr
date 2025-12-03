@@ -13,7 +13,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<Theme>(() => {
     // Load theme from localStorage or default to dark
     const savedTheme = localStorage.getItem('ndr-theme') as Theme;
-    return savedTheme || 'dark';
+    return savedTheme || 'dark'; // Default to dark theme
   });
 
   useEffect(() => {
