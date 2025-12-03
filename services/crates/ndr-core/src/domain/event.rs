@@ -71,12 +71,7 @@ pub struct Enrichment {
 }
 
 impl Event {
-    pub fn new(
-        source_ip: String,
-        dest_ip: String,
-        protocol: Protocol,
-        event_type: String,
-    ) -> Self {
+    pub fn new(source_ip: String, dest_ip: String, protocol: Protocol, event_type: String) -> Self {
         Self {
             id: Uuid::new_v4(),
             timestamp: Utc::now(),

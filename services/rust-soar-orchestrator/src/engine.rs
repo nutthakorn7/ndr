@@ -1,8 +1,8 @@
-use crate::models::{Alert, Playbook, Trigger, ActionType, ActionConfig};
-use crate::actions::{Action, WebhookAction, LogAction, BlockIPAction};
+use crate::actions::{Action, BlockIPAction, LogAction, WebhookAction};
+use crate::models::{ActionConfig, ActionType, Alert, Playbook, Trigger};
 use ndr_telemetry::{info, warn};
-use std::sync::Arc;
 use serde_json::json;
+use std::sync::Arc;
 
 pub struct PlaybookEngine {
     playbooks: Vec<Playbook>,
@@ -22,8 +22,8 @@ impl PlaybookEngine {
                     },
                     ActionConfig {
                         action_type: ActionType::Webhook,
-                        params: json!({ 
-                            "url": std::env::var("WEBHOOK_URL").unwrap_or("http://localhost:9000/webhook".to_string()) 
+                        params: json!({
+                            "url": std::env::var("WEBHOOK_URL").unwrap_or("http://localhost:9000/webhook".to_string())
                         }),
                     },
                 ],
@@ -50,7 +50,10 @@ impl PlaybookEngine {
     pub async fn process_alert(&self, alert: Alert) -> anyhow::Result<()> {
         for playbook in &self.playbooks {
             if self.matches(&alert, &playbook.trigger) {
-                info!("Triggering playbook '{}' for alert '{}'", playbook.name, alert.title);
+                info!(
+                    "Triggering playbook '{}' for alert '{}'",
+                    playbook.name, alert.title
+                );
                 self.execute_playbook(playbook, &alert).await?;
             }
         }

@@ -1,20 +1,20 @@
 mod scanner;
 mod watcher;
 
-use scanner::Scanner;
-use std::sync::Arc;
-use tokio::sync::mpsc;
-use ndr_telemetry::{init_telemetry, info, error, warn};
+use chrono::Utc;
+use ndr_telemetry::{error, info, init_telemetry, warn};
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord};
-use std::time::Duration;
+use scanner::Scanner;
 use serde_json::json;
-use chrono::Utc;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-    
+
     // Initialize telemetry
     if let Err(e) = init_telemetry("yara-scanner") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -24,8 +24,10 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting YARA Scanner Service...");
 
     let rules_path = std::env::var("RULES_PATH").unwrap_or_else(|_| "/app/rules".to_string());
-    let watch_dir = std::env::var("WATCH_DIR").unwrap_or_else(|_| "/data/extracted_files".to_string());
-    let kafka_brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
+    let watch_dir =
+        std::env::var("WATCH_DIR").unwrap_or_else(|_| "/data/extracted_files".to_string());
+    let kafka_brokers =
+        std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
 
     // Initialize Scanner
     let scanner = Arc::new(Scanner::new(&rules_path)?);
@@ -69,8 +71,12 @@ async fn main() -> anyhow::Result<()> {
 async fn process_file(path: &std::path::Path, scanner: &Scanner, producer: &FutureProducer) {
     match scanner.scan_file(path) {
         Ok(Some(result)) => {
-            info!("Malware detected in {}: {:?}", result.file_path, result.matches.iter().map(|m| &m.rule).collect::<Vec<_>>());
-            
+            info!(
+                "Malware detected in {}: {:?}",
+                result.file_path,
+                result.matches.iter().map(|m| &m.rule).collect::<Vec<_>>()
+            );
+
             // Construct Alert
             let alert = json!({
                 "timestamp": Utc::now().to_rfc3339(),

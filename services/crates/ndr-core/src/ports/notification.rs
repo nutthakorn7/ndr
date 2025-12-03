@@ -10,10 +10,10 @@ use crate::error::Result;
 pub trait NotificationService: Send + Sync {
     /// Send alert notification
     async fn send_alert(&self, alert: &Alert) -> Result<()>;
-    
+
     /// Send alert to specific analyst
     async fn notify_analyst(&self, analyst: &str, alert: &Alert) -> Result<()>;
-    
+
     /// Send bulk notifications
     async fn send_bulk(&self, alerts: &[Alert]) -> Result<()>;
 }

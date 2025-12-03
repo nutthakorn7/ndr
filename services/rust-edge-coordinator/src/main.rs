@@ -1,27 +1,27 @@
-mod registration;
-mod health_monitor;
 mod auth;
 mod error;
+mod health_monitor;
+mod registration;
 mod tls;
 
 use axum::{
-    extract::{State, Path, Json},
+    extract::{Json, Path, State},
     http::StatusCode,
+    middleware,
     routing::{get, post},
     Router,
-    middleware,
 };
+use ndr_telemetry::{error, info, init_telemetry, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::postgres::PgPool;
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use ndr_telemetry::{init_telemetry, info, warn, error};
 
-use registration::{register_agent, get_agents, get_agent};
-use health_monitor::update_heartbeat;
 use error::{AppError, Result as AppResult};
+use health_monitor::update_heartbeat;
+use registration::{get_agent, get_agents, register_agent};
 
 mod kafka;
 use kafka::KafkaService;
@@ -72,9 +72,10 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting Rust Edge Coordinator...");
 
     // Database connection
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/security_analytics".to_string());
-    
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgresql://postgres:postgres@localhost:5432/security_analytics".to_string()
+    });
+
     let pool = ndr_storage::postgres::create_pool(&database_url).await?;
 
     info!("Connected to database");
@@ -148,17 +149,15 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState { db: pool, kafka });
 
     // API key for authentication
-    let api_key_hash = std::env::var("COORDINATOR_API_KEY")
-        .ok()
-        .map(|key| {
-            use sha2::{Sha256, Digest};
-            let mut hasher = Sha256::new();
-            hasher.update(key.as_bytes());
-            hex::encode(hasher.finalize())
-        });
-    
+    let api_key_hash = std::env::var("COORDINATOR_API_KEY").ok().map(|key| {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(key.as_bytes());
+        hex::encode(hasher.finalize())
+    });
+
     let api_key_hash = Arc::new(api_key_hash);
-    
+
     if api_key_hash.is_some() {
         info!("Coordinator API key authentication enabled");
     } else {
@@ -167,7 +166,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize Metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
-    let handle = builder.install_recorder()
+    let handle = builder
+        .install_recorder()
         .expect("failed to install Prometheus recorder");
 
     // Build application with routes
@@ -181,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/edge/rules/:rule_id", axum::routing::delete(delete_rule))
         .route_layer(middleware::from_fn_with_state(
             api_key_hash.clone(),
-            auth::api_key_auth
+            auth::api_key_auth,
         ))
         // Public endpoints - no auth required (agents need to register/heartbeat)
         .route("/edge/register", post(register_agent))
@@ -195,15 +195,18 @@ async fn main() -> anyhow::Result<()> {
     let port = std::env::var("PORT").unwrap_or_else(|_| "8085".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
     info!("Edge Coordinator listening on {}", addr);
-    
+
     // Check if TLS is enabled
     if tls::is_tls_enabled() {
         let cert_path = tls::get_cert_path();
         let key_path = tls::get_key_path();
-        
+
         match tls::load_tls_config(&cert_path, &key_path).await {
             Ok(tls_config) => {
-                info!("Starting Edge Coordinator with TLS/HTTPS on https://{}", addr);
+                info!(
+                    "Starting Edge Coordinator with TLS/HTTPS on https://{}",
+                    addr
+                );
                 axum_server::bind_rustls(addr, tls_config)
                     .serve(app.into_make_service())
                     .await?;
@@ -235,23 +238,26 @@ async fn update_agent_config(
     Path(agent_id): Path<String>,
     Json(config): Json<ConfigUpdate>,
 ) -> AppResult<StatusCode> {
-    let config_json = serde_json::to_value(&config)
-        .map_err(|e| AppError::bad_request("Invalid configuration format")
-        .with_context(e.to_string()))?;
+    let config_json = serde_json::to_value(&config).map_err(|e| {
+        AppError::bad_request("Invalid configuration format").with_context(e.to_string())
+    })?;
 
-    let result = sqlx::query(
-        "UPDATE edge_agents SET config = $1, updated_at = NOW() WHERE agent_id = $2"
-    )
-    .bind(&config_json)
-    .bind(&agent_id)
-    .execute(&state.db)
-    .await
-    .map_err(|e| AppError::internal("Failed to update agent configuration")
-        .with_context(format!("Agent: {}, Error: {}", agent_id, e)))?;
+    let result =
+        sqlx::query("UPDATE edge_agents SET config = $1, updated_at = NOW() WHERE agent_id = $2")
+            .bind(&config_json)
+            .bind(&agent_id)
+            .execute(&state.db)
+            .await
+            .map_err(|e| {
+                AppError::internal("Failed to update agent configuration")
+                    .with_context(format!("Agent: {}, Error: {}", agent_id, e))
+            })?;
 
     if result.rows_affected() == 0 {
-        return Err(AppError::not_found(format!("Edge agent '{}' not found", agent_id))
-            .with_context("The agent may have been removed or never registered"));
+        return Err(
+            AppError::not_found(format!("Edge agent '{}' not found", agent_id))
+                .with_context("The agent may have been removed or never registered"),
+        );
     }
 
     info!("Updated configuration for agent: {}", agent_id);
@@ -266,7 +272,7 @@ async fn create_rule(
 
     // 1. Save to Database
     sqlx::query(
-        "INSERT INTO detection_rules (name, pattern, severity, enabled) VALUES ($1, $2, $3, $4)"
+        "INSERT INTO detection_rules (name, pattern, severity, enabled) VALUES ($1, $2, $3, $4)",
     )
     .bind(&rule.name)
     .bind(&rule.pattern)
@@ -274,27 +280,25 @@ async fn create_rule(
     .bind(rule.enabled)
     .execute(&state.db)
     .await
-    .map_err(|e| AppError::internal("Failed to save rule to database")
-        .with_context(e.to_string()))?;
-    
+    .map_err(|e| {
+        AppError::internal("Failed to save rule to database").with_context(e.to_string())
+    })?;
+
     // 2. Broadcast to Kafka
-    state.kafka.publish_rule_update(&rule).await
-        .map_err(|e| AppError::internal("Failed to publish rule update")
-            .with_context(e.to_string()))?;
+    state.kafka.publish_rule_update(&rule).await.map_err(|e| {
+        AppError::internal("Failed to publish rule update").with_context(e.to_string())
+    })?;
 
     Ok(StatusCode::CREATED)
 }
 
-async fn get_rules(
-    State(state): State<Arc<AppState>>,
-) -> AppResult<Json<Vec<DetectionRule>>> {
+async fn get_rules(State(state): State<Arc<AppState>>) -> AppResult<Json<Vec<DetectionRule>>> {
     let rules = sqlx::query_as::<_, DetectionRule>(
-        "SELECT * FROM detection_rules ORDER BY created_at DESC"
+        "SELECT * FROM detection_rules ORDER BY created_at DESC",
     )
     .fetch_all(&state.db)
     .await
-    .map_err(|e| AppError::internal("Failed to fetch rules")
-        .with_context(e.to_string()))?;
+    .map_err(|e| AppError::internal("Failed to fetch rules").with_context(e.to_string()))?;
 
     Ok(Json(rules))
 }
@@ -312,8 +316,7 @@ async fn delete_rule(
         .bind(rule_id)
         .execute(&state.db)
         .await
-        .map_err(|e| AppError::internal("Failed to delete rule")
-            .with_context(e.to_string()))?;
+        .map_err(|e| AppError::internal("Failed to delete rule").with_context(e.to_string()))?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::not_found("Rule not found"));

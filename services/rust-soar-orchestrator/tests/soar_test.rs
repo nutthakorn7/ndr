@@ -1,5 +1,5 @@
-use rust_soar_orchestrator::models::{Alert, Source};
 use rust_soar_orchestrator::engine::PlaybookEngine;
+use rust_soar_orchestrator::models::{Alert, Source};
 use serde_json::json;
 
 #[tokio::test]

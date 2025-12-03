@@ -1,9 +1,9 @@
+use anyhow::{Context, Result};
+use chrono::Local;
+use ndr_telemetry::{error, info, warn};
 use pcap::{Capture, Device};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use ndr_telemetry::{info, warn, error};
-use anyhow::{Result, Context};
-use chrono::Local;
 
 pub fn start_capture(interface_name: &str, output_dir: &str) -> Result<()> {
     info!("Initializing capture on interface: {}", interface_name);
@@ -59,7 +59,7 @@ fn create_savefile(cap: &mut Capture<pcap::Active>, output_dir: &str) -> Result<
     let timestamp = Local::now().format("%Y%m%d-%H%M%S");
     let filename = format!("{}/capture-{}.pcap", output_dir, timestamp);
     let path = Path::new(&filename);
-    
+
     info!("Creating new PCAP file: {}", filename);
     let savefile = cap.savefile(path)?;
     Ok(savefile)

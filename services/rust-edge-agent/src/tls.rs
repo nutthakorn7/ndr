@@ -31,12 +31,10 @@ pub fn is_tls_enabled() -> bool {
 
 /// Get TLS certificate path from environment
 pub fn get_cert_path() -> String {
-    std::env::var("TLS_CERT_PATH")
-        .unwrap_or_else(|_| "/etc/edge-agent/tls/cert.pem".to_string())
+    std::env::var("TLS_CERT_PATH").unwrap_or_else(|_| "/etc/edge-agent/tls/cert.pem".to_string())
 }
 
 /// Get TLS key path from environment
 pub fn get_key_path() -> String {
-    std::env::var("TLS_KEY_PATH")
-        .unwrap_or_else(|_| "/etc/edge-agent/tls/key.pem".to_string())
+    std::env::var("TLS_KEY_PATH").unwrap_or_else(|_| "/etc/edge-agent/tls/key.pem".to_string())
 }

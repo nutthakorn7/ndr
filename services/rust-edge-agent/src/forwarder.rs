@@ -1,16 +1,16 @@
+use anyhow::{Context, Result};
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use ndr_telemetry::{error, info};
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::util::Timeout;
-use anyhow::{Result, Context};
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use std::io::Write;
 use std::time::Duration;
-use ndr_telemetry::{info, error};
 
 use crate::buffer::{Buffer, BufferedEvent};
-use crate::config::{Config, ForwardingPolicy};
 use crate::circuit_breaker::CircuitBreaker;
+use crate::config::{Config, ForwardingPolicy};
 
 pub struct Forwarder {
     producer: FutureProducer,
@@ -24,7 +24,14 @@ impl Forwarder {
         let producer: FutureProducer = ClientConfig::new()
             .set("bootstrap.servers", &config.kafka_brokers)
             .set("message.timeout.ms", "5000")
-            .set("compression.type", if config.forwarding_policy.compression_enabled { "gzip" } else { "none" })
+            .set(
+                "compression.type",
+                if config.forwarding_policy.compression_enabled {
+                    "gzip"
+                } else {
+                    "none"
+                },
+            )
             .create()
             .context("Failed to create Kafka producer")?;
 
@@ -50,7 +57,7 @@ impl Forwarder {
 
     pub async fn forward_buffered(&self, buffer: &Buffer) -> Result<usize> {
         let events = buffer.pop_batch(self.policy.batch_size).await?;
-        
+
         if events.is_empty() {
             return Ok(0);
         }
@@ -58,7 +65,8 @@ impl Forwarder {
         let mut forwarded_ids = Vec::new();
 
         for event in &events {
-            match self.forward(&event.event_data).await { // Changed to call new `forward` method
+            match self.forward(&event.event_data).await {
+                // Changed to call new `forward` method
                 Ok(_) => {
                     forwarded_ids.push(event.id);
                 }
@@ -94,7 +102,11 @@ impl Forwarder {
             .payload(&payload)
             .key("edge-event"); // Changed key generation
 
-        match self.producer.send(record, std::time::Duration::from_secs(5)).await {
+        match self
+            .producer
+            .send(record, std::time::Duration::from_secs(5))
+            .await
+        {
             Ok(_) => {
                 self.circuit_breaker.record_success().await;
                 metrics::counter!("edge_agent_kafka_success").increment(1);
@@ -121,7 +133,7 @@ impl Forwarder {
         if self.policy.sampling_rate <= 0.0 {
             return false;
         }
-        
+
         use rand::Rng;
         let mut rng = rand::thread_rng();
         rng.gen::<f32>() < self.policy.sampling_rate

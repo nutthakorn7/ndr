@@ -51,11 +51,11 @@ async fn main() -> anyhow::Result<()> {
 
     let start_time = Instant::now();
     let end_time = start_time + Duration::from_secs(args.duration);
-    
+
     let latencies = Arc::new(Mutex::new(Histogram::<u64>::new(3).unwrap()));
     let success_count = Arc::new(std::sync::atomic::AtomicU64::new(0));
     let error_count = Arc::new(std::sync::atomic::AtomicU64::new(0));
-    
+
     let semaphore = Arc::new(Semaphore::new(args.concurrency));
     let mut tasks = Vec::new();
 
@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
         let task = tokio::spawn(async move {
             let _permit = permit; // Hold permit until task completes
             let request_start = Instant::now();
-            
+
             match client.post(&url).json(&payload).send().await {
                 Ok(resp) => {
                     let elapsed = request_start.elapsed().as_micros() as u64;
@@ -89,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
             }
         });
         tasks.push(task);
-        
+
         // Small yield to prevent loop from hogging CPU entirely
         if tasks.len() % 100 == 0 {
             tokio::task::yield_now().await;

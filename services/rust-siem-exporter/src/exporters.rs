@@ -1,8 +1,8 @@
-use async_trait::async_trait;
-use serde_json::Value;
 use anyhow::Result;
+use async_trait::async_trait;
+use ndr_telemetry::{error, info};
 use reqwest::Client;
-use ndr_telemetry::{info, error};
+use serde_json::Value;
 
 #[async_trait]
 pub trait Exporter {
@@ -36,7 +36,9 @@ impl Exporter for SplunkExporter {
             "source": "ndr"
         });
 
-        let res = self.client.post(&self.url)
+        let res = self
+            .client
+            .post(&self.url)
             .header("Authorization", format!("Splunk {}", self.token))
             .json(&payload)
             .send()
@@ -74,7 +76,9 @@ impl ElasticExporter {
 impl Exporter for ElasticExporter {
     async fn send(&self, alert: &Value) -> Result<()> {
         let url = format!("{}/{}/_doc", self.url, self.index);
-        let res = self.client.post(&url)
+        let res = self
+            .client
+            .post(&url)
             .header("Authorization", format!("ApiKey {}", self.api_key))
             .json(alert)
             .send()
@@ -105,10 +109,7 @@ impl WebhookExporter {
 #[async_trait]
 impl Exporter for WebhookExporter {
     async fn send(&self, alert: &Value) -> Result<()> {
-        let res = self.client.post(&self.url)
-            .json(alert)
-            .send()
-            .await?;
+        let res = self.client.post(&self.url).json(alert).send().await?;
 
         if !res.status().is_success() {
             anyhow::bail!("Webhook export failed: {}", res.status());

@@ -1,13 +1,13 @@
+use crate::engine::CorrelationEngine;
+use anyhow::Result;
+use ndr_core::domain::Alert; // Use shared Alert type
+use ndr_telemetry::{error, info, warn}; // Use ndr_telemetry
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::message::Message;
-use ndr_telemetry::{info, warn, error};  // Use ndr_telemetry
-use ndr_core::domain::Alert;  // Use shared Alert type
-use crate::engine::CorrelationEngine;
+use rdkafka::producer::{FutureProducer, FutureRecord};
 use std::sync::Arc;
 use std::time::Duration;
-use anyhow::Result;
 
 pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
     let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
@@ -70,7 +70,7 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
                                         continue;
                                     }
                                 };
-                                
+
                                 // Send to correlated-alerts
                                 match producer
                                     .send(
@@ -79,7 +79,7 @@ pub async fn start_consumer(engine: Arc<CorrelationEngine>) -> Result<()> {
                                             .key("default"),
                                         Duration::from_secs(0),
                                     )
-                                    .await 
+                                    .await
                                 {
                                     Ok(_) => producer_cb.record_success().await,
                                     Err((e, _)) => {

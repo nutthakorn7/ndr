@@ -5,5 +5,5 @@ mod event_store;
 mod notification;
 
 pub use alert_repository::AlertRepository;
-pub use event_store::{EventStore, EventFilters};
+pub use event_store::{EventFilters, EventStore};
 pub use notification::NotificationService;

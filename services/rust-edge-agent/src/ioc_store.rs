@@ -1,6 +1,6 @@
+use ndr_telemetry::{error, info};
 use std::collections::HashSet;
 use std::sync::RwLock;
-use ndr_telemetry::{info, error};
 
 pub struct IocStore {
     iocs: RwLock<HashSet<String>>,

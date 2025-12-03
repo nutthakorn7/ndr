@@ -19,7 +19,12 @@ export default function Alerts() {
     title: i % 4 === 0 ? 'Ransomware Activity Detected' : i % 3 === 0 ? 'Suspicious PowerShell Execution' : 'Port Scan Detected',
     host: `WKSTN-FIN-0${i}`,
     time: `${i * 12}m ago`,
-    status: i < 5 ? "NEW" : "IN PROGRESS"
+    status: i < 5 ? "NEW" : "IN PROGRESS",
+    mitre: i % 4 === 0 
+      ? [{ id: 'T1486', name: 'Data Encrypted for Impact', url: 'https://attack.mitre.org/techniques/T1486/' }]
+      : i % 3 === 0 
+        ? [{ id: 'T1059.001', name: 'PowerShell', url: 'https://attack.mitre.org/techniques/T1059/001/' }]
+        : [{ id: 'T1046', name: 'Network Service Scanning', url: 'https://attack.mitre.org/techniques/T1046/' }]
   }));
 
   const selectedAlert = alerts.find(a => a.id === selectedAlertId);
@@ -126,6 +131,27 @@ export default function Alerts() {
                       <div className="text-xs text-[var(--text-secondary)] uppercase mb-1">Host</div>
                       <div className="text-sm font-mono text-[var(--text-primary)]">{selectedAlert.host}</div>
                     </div>
+
+                  {/* MITRE ATT&CK Context */}
+                  {selectedAlert.mitre && (
+                    <div>
+                      <h4 className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3">MITRE ATT&CK TTPs</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedAlert.mitre.map((technique: any) => (
+                          <a 
+                            key={technique.id}
+                            href={technique.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-xs font-mono text-[var(--text-primary)] hover:border-[var(--sev-info)] hover:text-[var(--sev-info)] transition-colors flex items-center gap-2"
+                          >
+                            <span className="font-bold text-[var(--sev-info)]">{technique.id}</span>
+                            <span>{technique.name}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                     <div className="p-3 bg-[var(--bg-app)] rounded border border-[var(--border-subtle)]">
                       <div className="text-xs text-[var(--text-secondary)] uppercase mb-1">Time</div>
                       <div className="text-sm font-mono text-[var(--text-primary)]">{selectedAlert.time}</div>

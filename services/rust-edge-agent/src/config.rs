@@ -45,14 +45,12 @@ impl Config {
             .unwrap_or_else(|| "unknown".to_string());
 
         // Hash API key if provided
-        let api_key_hash = std::env::var("API_KEY")
-            .ok()
-            .map(|key| {
-                use sha2::{Sha256, Digest};
-                let mut hasher = Sha256::new();
-                hasher.update(key.as_bytes());
-                hex::encode(hasher.finalize())
-            });
+        let api_key_hash = std::env::var("API_KEY").ok().map(|key| {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(key.as_bytes());
+            hex::encode(hasher.finalize())
+        });
 
         Ok(Config {
             agent_id: env::var("EDGE_AGENT_ID")
@@ -62,8 +60,7 @@ impl Config {
                 .unwrap_or_else(|_| "http://localhost:8085".to_string()),
             kafka_brokers: env::var("KAFKA_BROKERS")
                 .unwrap_or_else(|_| "localhost:9092".to_string()),
-            kafka_topic: env::var("KAFKA_TOPIC")
-                .unwrap_or_else(|_| "edge-events".to_string()),
+            kafka_topic: env::var("KAFKA_TOPIC").unwrap_or_else(|_| "edge-events".to_string()),
             buffer_db_path: env::var("BUFFER_DB_PATH")
                 .unwrap_or_else(|_| "/var/lib/edge-agent/buffer.db".to_string()),
             max_buffer_size_mb: env::var("MAX_BUFFER_SIZE_MB")

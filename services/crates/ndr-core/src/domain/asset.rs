@@ -71,7 +71,7 @@ impl Asset {
             metadata: AssetMetadata::default(),
         }
     }
-    
+
     pub fn update_last_seen(&mut self) {
         self.last_seen = Utc::now();
     }

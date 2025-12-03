@@ -5,34 +5,17 @@ import {
 } from 'lucide-react';
 import './LogViewer.css';
 
-// Mock log data generator
-const generateMockLogs = (count = 100) => {
-  const eventTypes = ['dns_query', 'http_request', 'ssh_login', 'smb_access', 'tls_handshake'];
-  const severities = ['info', 'low', 'medium', 'high', 'critical'];
-  const protocols = ['TCP', 'UDP', 'ICMP'];
-  const ips = ['192.168.1.10', '192.168.1.15', '10.0.0.50', '172.16.0.5', '8.8.8.8'];
-  
-  return Array.from({ length: count }, (_, i) => ({
-    id: `log-${i}`,
-    timestamp: new Date(Date.now() - i * 60000).toISOString(),
-    event_type: eventTypes[Math.floor(Math.random() * eventTypes.length)],
-    severity: severities[Math.floor(Math.random() * severities.length)],
-    src_ip: ips[Math.floor(Math.random() * ips.length)],
-    dst_ip: ips[Math.floor(Math.random() * ips.length)],
-    dst_port: Math.floor(Math.random() * 65535),
-    protocol: protocols[Math.floor(Math.random() * protocols.length)],
-    user: ['alice', 'bob', 'admin', 'root'][Math.floor(Math.random() * 4)],
-    details: `Event details for ${eventTypes[Math.floor(Math.random() * eventTypes.length)]}`,
-  }));
-};
+import { api } from '../utils/api';
+import { ThreatEvent } from '../schemas';
 
 export default function LogViewer() {
-  const [logs, setLogs] = useState([]);
-  const [filteredLogs, setFilteredLogs] = useState([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedLog, setExpandedLog] = useState(null);
+  const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [selectedLogs, setSelectedLogs] = useState(new Set());
   const [showFilters, setShowFilters] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -45,12 +28,59 @@ export default function LogViewer() {
     port: '',
   });
 
-  // Load mock data on mount
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      // Map filters to API query
+      const query: Record<string, any> = {
+        limit: 100,
+        time_range: filters.timeRange
+      };
+
+      if (searchQuery) query.q = searchQuery;
+      if (filters.severity !== 'all') query.severity = filters.severity;
+      if (filters.eventType !== 'all') query.type = filters.eventType;
+      if (filters.protocol !== 'all') query.protocol = filters.protocol;
+      if (filters.srcIp) query.source = filters.srcIp;
+      if (filters.dstIp) query.destination = filters.dstIp;
+
+      const response = await api.searchEvents(query);
+      
+      // Map API response to LogViewer format
+      const mappedLogs = response.events.map((event: ThreatEvent) => ({
+        id: event.id.toString(),
+        timestamp: event.timestamp,
+        event_type: event.type,
+        severity: event.severity.toLowerCase(),
+        src_ip: event.source,
+        dst_ip: event.destination.split(':')[0] || event.destination,
+        dst_port: parseInt(event.destination.split(':')[1] || '0'),
+        protocol: event.protocol || 'TCP',
+        user: 'system', // Default as not in schema
+        details: event.description,
+        raw: event // Keep raw event for details view
+      }));
+
+      setLogs(mappedLogs);
+      setFilteredLogs(mappedLogs);
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+      // Fallback to empty or show error toast
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount and when filters change
   useEffect(() => {
-    const mockData = generateMockLogs(5000);
-    setLogs(mockData);
-    setFilteredLogs(mockData);
-  }, []);
+    fetchLogs();
+  }, [filters.timeRange]); // Only auto-refresh on time range change, others via search button or debounce? 
+  // Actually, let's keep it simple and just fetch on mount for now, and rely on client-side filtering for speed 
+  // OR switch to server-side filtering. 
+  // The original code did client-side filtering on `logs`. 
+  // Let's fetch ALL recent logs (limit 1000) and keep client-side filtering for responsiveness, 
+  // but allow "Refresh" to pull new data.
+
 
   // Apply filters
   useEffect(() => {
@@ -156,8 +186,8 @@ export default function LogViewer() {
       <div className="log-viewer-header">
         <h1>Log Viewer</h1>
         <div className="header-actions">
-          <button className="btn-secondary" onClick={() => setLogs(generateMockLogs(5000))}>
-            <RefreshCw className="w-4 h-4" />
+          <button className="btn-secondary" onClick={fetchLogs} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>

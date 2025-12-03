@@ -1,8 +1,8 @@
-use crate::db::DB;
 use crate::cache::Cache;
+use crate::db::DB;
 use crate::models::ChainEvent;
-use ndr_core::domain::Alert;
 use anyhow::Result;
+use ndr_core::domain::Alert;
 use ndr_telemetry::info;
 use uuid::Uuid;
 
@@ -36,14 +36,17 @@ impl CorrelationEngine {
             if id_str != "pending" {
                 // Aggregate into existing meta-alert
                 let meta_uuid = Uuid::parse_str(&id_str)?;
-                let alert_id = alert.id.to_string();  // id is Uuid
-                
+                let alert_id = alert.id.to_string(); // id is Uuid
+
                 let (count, score) = self.db.update_meta_alert(meta_uuid, alert_id).await?;
-                
+
                 // Recalculate severity if needed (simplified here)
                 // In a real implementation, we might want to re-evaluate the score based on the new count
-                
-                info!("Aggregated duplicate alert into {}: count={}", meta_uuid, count);
+
+                info!(
+                    "Aggregated duplicate alert into {}: count={}",
+                    meta_uuid, count
+                );
                 meta_uuid
             } else {
                 // It's pending, meaning another instance is processing the first one.
@@ -60,36 +63,41 @@ impl CorrelationEngine {
 
         // Enrich alert with meta info
         let meta = self.db.get_meta_alert(meta_id).await?;
-        
+
         // Note: ndr_core::Alert doesn't have .correlation field
         // We return the alert as-is, correlation data is stored in DB
         // If needed, create a wrapper type for enriched alerts
-        
+
         Ok(Some(alert))
     }
 
     async fn create_new_meta_alert(&self, alert: &Alert, key: &str) -> Result<Uuid> {
         // Set pending in cache
-        self.cache.set_pending_alert(key, self.aggregation_window as u64).await?;
+        self.cache
+            .set_pending_alert(key, self.aggregation_window as u64)
+            .await?;
 
         let severity_score = Self::calculate_severity_score(alert);
         let attack_chain = self.detect_attack_chain(alert).await?;
-        
+
         let alert_id = alert.id.to_string(); // id is now Uuid, convert to String
         let alert_json = serde_json::to_value(alert)?;
         let chain_json = serde_json::to_value(&attack_chain)?;
 
-        let meta_id = self.db.create_meta_alert(
-            vec![alert_id],
-            severity_score,
-            chain_json,
-            alert_json
-        ).await?;
+        let meta_id = self
+            .db
+            .create_meta_alert(vec![alert_id], severity_score, chain_json, alert_json)
+            .await?;
 
         // Update cache with real ID
-        self.cache.set_meta_alert(key, &meta_id.to_string(), self.aggregation_window as u64).await?;
+        self.cache
+            .set_meta_alert(key, &meta_id.to_string(), self.aggregation_window as u64)
+            .await?;
 
-        info!("Created new meta-alert {}: score={}", meta_id, severity_score);
+        info!(
+            "Created new meta-alert {}: score={}",
+            meta_id, severity_score
+        );
         Ok(meta_id)
     }
 
@@ -101,7 +109,7 @@ impl CorrelationEngine {
 
         let raw = format!("{}|{}|{}|{}", rule_id, src_ip, dst_ip, title);
         // Use md-5 crate
-        use md5::{Md5, Digest};
+        use md5::{Digest, Md5};
         let hash = Md5::digest(raw.as_bytes());
         format!("{:x}", hash)
     }
@@ -139,17 +147,25 @@ impl CorrelationEngine {
 
     async fn detect_attack_chain(&self, alert: &Alert) -> Result<Vec<ChainEvent>> {
         let src_ip = alert.source_ip();
-        
+
         if let Some(ip) = src_ip {
             let exclude_id = &alert.id.to_string();
             let related = self.db.find_related_alerts(ip, exclude_id).await?;
-            
+
             let mut chain = Vec::new();
             for (id, data, ts) in related {
                 chain.push(ChainEvent {
                     id: id.to_string(),
-                    title: data.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    severity: data.get("severity").and_then(|v| v.as_str()).unwrap_or("medium").to_string(),
+                    title: data
+                        .get("title")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    severity: data
+                        .get("severity")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("medium")
+                        .to_string(),
                     timestamp: Some(ts.to_rfc3339()),
                 });
             }
@@ -163,7 +179,7 @@ impl CorrelationEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndr_core::domain::{Alert, Severity, EventSource};
+    use ndr_core::domain::{Alert, EventSource, Severity};
 
     #[test]
     fn test_severity_calculation() {
@@ -174,12 +190,8 @@ mod tests {
             event_type: "test".to_string(),
         };
 
-        let alert = Alert::new(
-            Severity::High,
-            "Test Alert".to_string(),
-            source,
-        );
-        
+        let alert = Alert::new(Severity::High, "Test Alert".to_string(), source);
+
         let score = CorrelationEngine::calculate_severity_score(&alert);
         // High = 75 * 0.4 = 30
         // Freq = 10 * 0.1 = 1
@@ -196,12 +208,8 @@ mod tests {
             event_type: "test".to_string(),
         };
 
-        let alert = Alert::new(
-            Severity::Critical,
-            "Test Alert".to_string(),
-            source,
-        );
-        
+        let alert = Alert::new(Severity::Critical, "Test Alert".to_string(), source);
+
         let score = CorrelationEngine::calculate_severity_score(&alert);
         // Critical = 100 * 0.4 = 40
         // Asset (10.0.0.x) = 100 * 0.2 = 20
@@ -219,15 +227,11 @@ mod tests {
             event_type: "test".to_string(),
         };
 
-        let alert = Alert::new(
-            Severity::High,
-            "Test Alert".to_string(),
-            source,
-        );
+        let alert = Alert::new(Severity::High, "Test Alert".to_string(), source);
 
         let key1 = CorrelationEngine::generate_alert_key(&alert);
         let key2 = CorrelationEngine::generate_alert_key(&alert);
-        
+
         assert_eq!(key1, key2);
         assert!(!key1.is_empty());
     }

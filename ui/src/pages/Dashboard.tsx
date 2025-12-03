@@ -28,6 +28,7 @@ const EdgeManagement = lazy(() => import('../components/EdgeManagement'));
 const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
 const ShortcutsHelp = lazy(() => import('../components/ShortcutsHelp'));
 const EventTicker = lazy(() => import('../components/EventTicker'));
+const WorldMap = lazy(() => import('../components/WorldMap'));
 import { api, DashboardAnalytics } from '../services/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { generateAllRules } from '../utils/mockRules';
@@ -49,6 +50,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
     assets_count: 0
   });
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [networkView, setNetworkView] = useState<'topology' | 'map'>('topology');
 
   // Sync URL with activeTab
   useEffect(() => {
@@ -205,17 +207,52 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
 
       {activeTab === 'network' && (
         <div className="h-full flex flex-col gap-4">
-          <div className="h-1/2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4">
-            <div className="text-xs uppercase text-[var(--text-secondary)] font-semibold mb-4 tracking-wider">Traffic Analysis</div>
-            <Suspense fallback={<div className="h-full animate-pulse bg-[var(--bg-hover)] rounded" />}>
-              <NetworkAnalytics />
-            </Suspense>
+          <div className="flex justify-end">
+            <div className="flex bg-[var(--bg-panel)] rounded border border-[var(--border-subtle)] p-1">
+              <button
+                onClick={() => setNetworkView('topology')}
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                  networkView === 'topology' 
+                    ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]' 
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Topology
+              </button>
+              <button
+                onClick={() => setNetworkView('map')}
+                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                  networkView === 'map' 
+                    ? 'bg-[var(--bg-hover)] text-[var(--text-primary)]' 
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                Geo Map
+              </button>
+            </div>
           </div>
-          <div className="h-1/2">
-            <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
-              <NetworkTopology />
-            </Suspense>
-          </div>
+
+          {networkView === 'topology' ? (
+            <>
+              <div className="h-1/2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4">
+                <div className="text-xs uppercase text-[var(--text-secondary)] font-semibold mb-4 tracking-wider">Traffic Analysis</div>
+                <Suspense fallback={<div className="h-full animate-pulse bg-[var(--bg-hover)] rounded" />}>
+                  <NetworkAnalytics />
+                </Suspense>
+              </div>
+              <div className="h-1/2">
+                <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
+                  <NetworkTopology />
+                </Suspense>
+              </div>
+            </>
+          ) : (
+            <div className="h-full">
+              <Suspense fallback={<div className="h-full bg-[var(--bg-panel)] animate-pulse rounded" />}>
+                <WorldMap />
+              </Suspense>
+            </div>
+          )}
         </div>
       )}
 

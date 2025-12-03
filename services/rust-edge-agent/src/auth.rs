@@ -1,12 +1,12 @@
 use axum::{
     extract::{Request, State},
-    http::{StatusCode, HeaderMap},
+    http::{HeaderMap, StatusCode},
     middleware::Next,
     response::Response,
 };
-use sha2::{Sha256, Digest};
-use std::sync::Arc;
 use ndr_telemetry::warn;
+use sha2::{Digest, Sha256};
+use std::sync::Arc;
 
 /// API key authentication middleware
 pub async fn api_key_auth(
@@ -28,9 +28,7 @@ pub async fn api_key_auth(
         .and_then(|v| v.strip_prefix("Bearer "))
         .or_else(|| {
             // Also support X-API-Key header
-            headers
-                .get("X-API-Key")
-                .and_then(|v| v.to_str().ok())
+            headers.get("X-API-Key").and_then(|v| v.to_str().ok())
         });
 
     let Some(key) = api_key else {
@@ -69,10 +67,10 @@ mod tests {
     fn test_api_key_hashing() {
         let key = "test-api-key-12345";
         let hash = hash_api_key(key);
-        
+
         // Hash should be consistent
         assert_eq!(hash, hash_api_key(key));
-        
+
         // Different keys should have different hashes
         assert_ne!(hash, hash_api_key("different-key"));
     }

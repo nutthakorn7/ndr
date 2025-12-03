@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
+use anyhow::Result;
+use ndr_telemetry::{error, info, warn};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::ClientConfig;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use ndr_telemetry::{info, warn, error};
-use anyhow::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThreatIndicator {

@@ -9,6 +9,11 @@ export interface Alert {
   host: string;
   time: string;
   status: string;
+  mitre?: {
+    id: string;
+    name: string;
+    url: string;
+  }[];
 }
 
 interface AlertTableProps {

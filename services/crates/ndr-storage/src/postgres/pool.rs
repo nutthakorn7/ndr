@@ -1,7 +1,7 @@
 //! PostgreSQL connection pool
 
-use sqlx::postgres::{PgPool, PgPoolOptions};
 use anyhow::Result;
+use sqlx::postgres::{PgPool, PgPoolOptions};
 
 /// Create a PostgreSQL connection pool
 pub async fn create_pool(database_url: &str) -> Result<PgPool> {
@@ -10,7 +10,7 @@ pub async fn create_pool(database_url: &str) -> Result<PgPool> {
         .acquire_timeout(std::time::Duration::from_secs(5)) // 5s connection timeout
         .connect(database_url)
         .await?;
-    
+
     Ok(pool)
 }
 

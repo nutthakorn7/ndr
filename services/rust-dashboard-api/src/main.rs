@@ -1,25 +1,25 @@
 use axum::{
+    http::Method,
     routing::{get, post},
     Router,
-    http::Method,
 };
-use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::TraceLayer;
+use ndr_storage::postgres::create_pool;
+use ndr_telemetry::{error, info, init_telemetry};
+use opensearch::http::transport::Transport;
+use opensearch::OpenSearch;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use opensearch::OpenSearch;
-use opensearch::http::transport::Transport;
-use ndr_telemetry::{init_telemetry, info, error};
-use ndr_storage::postgres::create_pool;
 use tokio::sync::broadcast;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
 
 mod handlers;
+mod kafka;
 mod models;
 mod state;
-mod kafka;
 
-use state::AppState;
 use kafka::KafkaConsumer;
+use state::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -28,7 +28,7 @@ async fn main() -> anyhow::Result<()> {
         eprintln!("Failed to initialize telemetry: {}", e);
         std::process::exit(1);
     }
-    
+
     info!("Starting Rust Dashboard API...");
 
     // Database Connection using shared pool
@@ -43,7 +43,8 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // OpenSearch Connection
-    let opensearch_url = std::env::var("OPENSEARCH_URL").unwrap_or_else(|_| "http://opensearch:9200".to_string());
+    let opensearch_url =
+        std::env::var("OPENSEARCH_URL").unwrap_or_else(|_| "http://opensearch:9200".to_string());
     let transport = Transport::single_node(&opensearch_url)
         .map_err(|e| anyhow::anyhow!("Failed to create OpenSearch transport: {}", e))?;
     let os_client = OpenSearch::new(transport);
@@ -70,14 +71,23 @@ async fn main() -> anyhow::Result<()> {
 
     // CORS
     let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_origin(Any)
         .allow_headers(Any);
 
     // Routes
     let app = Router::new()
         .route("/health", get(handlers::health_check))
-        .route("/analytics/dashboard", get(handlers::get_dashboard_analytics))
+        .route(
+            "/analytics/dashboard",
+            get(handlers::get_dashboard_analytics),
+        )
         .route("/stats/traffic", get(handlers::get_traffic_stats))
         .route("/events", post(handlers::search_events))
         .route("/alerts", get(handlers::get_alerts))
@@ -93,15 +103,15 @@ async fn main() -> anyhow::Result<()> {
     let addr: SocketAddr = format!("0.0.0.0:{}", port)
         .parse()
         .map_err(|e| anyhow::anyhow!("Invalid socket address: {}", e))?;
-    
+
     info!("Dashboard API listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
-    
+
     axum::serve(listener, app)
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
-    
+
     Ok(())
 }

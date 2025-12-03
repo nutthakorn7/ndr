@@ -1,6 +1,6 @@
-use sqlx::postgres::PgPool;
 use opensearch::OpenSearch;
 use reqwest::Client;
+use sqlx::postgres::PgPool;
 
 #[derive(Clone)]
 pub struct AppState {

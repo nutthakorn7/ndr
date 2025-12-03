@@ -1,22 +1,22 @@
 use axum::{
     extract::State,
-    response::{IntoResponse, Json},
-    routing::{get, post, delete},
-    Router,
     http::{Method, StatusCode},
+    response::{IntoResponse, Json},
+    routing::{delete, get, post},
+    Router,
 };
+use ndr_storage::postgres::create_pool;
+use ndr_telemetry::{error, info, init_telemetry, warn};
 use serde_json::json;
-use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::TraceLayer;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use ndr_telemetry::{init_telemetry, info, error, warn};
-use ndr_storage::postgres::create_pool;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::TraceLayer;
 
-mod handlers;
-mod models;
 mod auth;
 mod db;
+mod handlers;
+mod models;
 mod state;
 
 use db::DB;
@@ -43,7 +43,7 @@ async fn main() {
     };
 
     let db = DB::new(pool);
-    
+
     // Initialize DB Schema
     if let Err(e) = db.init_schema().await {
         error!(error = %e, "Failed to initialize database schema");
@@ -51,7 +51,10 @@ async fn main() {
     }
 
     // Create default admin
-    if let (Ok(email), Ok(password)) = (std::env::var("ADMIN_EMAIL"), std::env::var("ADMIN_PASSWORD")) {
+    if let (Ok(email), Ok(password)) = (
+        std::env::var("ADMIN_EMAIL"),
+        std::env::var("ADMIN_PASSWORD"),
+    ) {
         if let Err(e) = db.create_user(&email, &password, "Admin", "default").await {
             warn!(error = ?e, "Failed to create default admin (might exist)");
         } else {
@@ -59,12 +62,10 @@ async fn main() {
         }
     }
 
-    let jwt_secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "ndr-super-secret-key".to_string());
+    let jwt_secret =
+        std::env::var("JWT_SECRET").unwrap_or_else(|_| "ndr-super-secret-key".to_string());
 
-    let state = Arc::new(AppState {
-        db,
-        jwt_secret,
-    });
+    let state = Arc::new(AppState { db, jwt_secret });
 
     // CORS
     let cors = CorsLayer::new()
@@ -79,7 +80,10 @@ async fn main() {
         .route("/auth/login", post(handlers::login))
         .route("/auth/refresh", post(handlers::refresh))
         .route("/auth/verify", post(handlers::verify))
-        .route("/auth/api-keys", post(handlers::create_api_key).get(handlers::list_api_keys))
+        .route(
+            "/auth/api-keys",
+            post(handlers::create_api_key).get(handlers::list_api_keys),
+        )
         .route("/auth/api-keys/:id", delete(handlers::revoke_api_key))
         .route("/auth/validate-api-key", post(handlers::validate_api_key))
         .layer(TraceLayer::new_for_http())
@@ -89,7 +93,7 @@ async fn main() {
     // Run
     let port = std::env::var("PORT").unwrap_or_else(|_| "8087".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
-    
+
     info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

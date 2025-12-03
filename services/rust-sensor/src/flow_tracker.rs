@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use hashbrown::HashMap;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::time::Duration;
 

@@ -1,6 +1,6 @@
+use evalexpr::*;
 pub use serde::{Deserialize, Serialize};
 pub use serde_json::Value;
-use evalexpr::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DetectionRule {
@@ -44,7 +44,11 @@ impl LocalDetector {
         ]
     }
 
-    pub fn analyze(&self, event: &Value, ioc_store: &crate::ioc_store::IocStore) -> Option<DetectionResult> {
+    pub fn analyze(
+        &self,
+        event: &Value,
+        ioc_store: &crate::ioc_store::IocStore,
+    ) -> Option<DetectionResult> {
         for rule in &self.rules {
             if !rule.enabled {
                 continue;
@@ -62,10 +66,16 @@ impl LocalDetector {
         None
     }
 
-    fn matches_rule(&self, event: &Value, rule: &DetectionRule, ioc_store: &crate::ioc_store::IocStore) -> bool {
+    fn matches_rule(
+        &self,
+        event: &Value,
+        rule: &DetectionRule,
+        ioc_store: &crate::ioc_store::IocStore,
+    ) -> bool {
         let mut context = HashMapContext::new();
-        
-        let mut threat_match = event.get("threat_intel_match")
+
+        let mut threat_match = event
+            .get("threat_intel_match")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
@@ -79,24 +89,33 @@ impl LocalDetector {
                         } else if let Some(f) = n.as_f64() {
                             context.set_value(k.clone(), evalexpr::Value::Float(f)).ok();
                         }
-                    },
+                    }
                     Value::String(s) => {
-                        context.set_value(k.clone(), evalexpr::Value::String(s.clone())).ok();
+                        context
+                            .set_value(k.clone(), evalexpr::Value::String(s.clone()))
+                            .ok();
                         // Check IOC
                         if ioc_store.contains(s) {
                             threat_match = true;
                         }
-                    },
+                    }
                     Value::Bool(b) => {
-                        context.set_value(k.clone(), evalexpr::Value::Boolean(*b)).ok();
-                    },
+                        context
+                            .set_value(k.clone(), evalexpr::Value::Boolean(*b))
+                            .ok();
+                    }
                     _ => {} // Ignore arrays/objects for simple rules for now
                 }
             }
         }
 
         // Inject threat_intel_match
-        context.set_value("threat_intel_match".to_string(), evalexpr::Value::Boolean(threat_match)).ok();
+        context
+            .set_value(
+                "threat_intel_match".to_string(),
+                evalexpr::Value::Boolean(threat_match),
+            )
+            .ok();
 
         match eval_boolean_with_context(&rule.pattern, &context) {
             Ok(result) => result,

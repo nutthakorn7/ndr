@@ -1,8 +1,8 @@
 //! Redis cache implementation
 
+use crate::error::Result;
 use redis::{Client, Commands, Connection};
 use serde::{Deserialize, Serialize};
-use crate::error::Result;
 
 /// Redis cache client
 pub struct RedisCache {
@@ -22,12 +22,7 @@ impl RedisCache {
     }
 
     /// Set a value with expiration
-    pub fn set_ex<T: Serialize>(
-        &self,
-        key: &str,
-        value: &T,
-        ttl_seconds: u64,
-    ) -> Result<()> {
+    pub fn set_ex<T: Serialize>(&self, key: &str, value: &T, ttl_seconds: u64) -> Result<()> {
         let mut conn = self.get_connection()?;
         let serialized = serde_json::to_string(value)
             .map_err(|e| crate::error::StorageError::Serialization(e.to_string()))?;
@@ -39,7 +34,7 @@ impl RedisCache {
     pub fn get<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Result<Option<T>> {
         let mut conn = self.get_connection()?;
         let value: Option<String> = conn.get(key)?;
-        
+
         match value {
             Some(v) => {
                 let deserialized = serde_json::from_str(&v)

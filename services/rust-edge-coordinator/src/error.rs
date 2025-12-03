@@ -87,24 +87,20 @@ impl IntoResponse for AppError {
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
         match &err {
-            sqlx::Error::RowNotFound => {
-                AppError::not_found("Resource not found")
-                    .with_context("The requested resource does not exist in the database")
-            }
+            sqlx::Error::RowNotFound => AppError::not_found("Resource not found")
+                .with_context("The requested resource does not exist in the database"),
             sqlx::Error::Database(db_err) => {
                 AppError::internal(format!("Database error: {}", db_err.message()))
                     .with_context(format!("Code: {:?}", db_err.code()))
             }
-            _ => AppError::internal("Database operation failed")
-                .with_context(err.to_string())
+            _ => AppError::internal("Database operation failed").with_context(err.to_string()),
         }
     }
 }
 
 impl From<serde_json::Error> for AppError {
     fn from(err: serde_json::Error) -> Self {
-        AppError::bad_request("Invalid JSON format")
-            .with_context(err.to_string())
+        AppError::bad_request("Invalid JSON format").with_context(err.to_string())
     }
 }
 

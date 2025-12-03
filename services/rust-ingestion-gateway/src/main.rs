@@ -1,16 +1,16 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     http::StatusCode,
     routing::{get, post},
     Router,
 };
+use chrono::Utc;
+use ndr_telemetry::{error, info, init_telemetry};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use ndr_telemetry::{init_telemetry, info, error};
 use tower_http::trace::TraceLayer;
-use chrono::Utc;
 
 mod kafka;
 mod threat_feed;
@@ -60,9 +60,10 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState { kafka });
 
     // Initialize Threat Feed Fetcher
-    let feed_url = std::env::var("THREAT_FEED_URL").unwrap_or("http://mock-feed/v1/indicators".to_string());
+    let feed_url =
+        std::env::var("THREAT_FEED_URL").unwrap_or("http://mock-feed/v1/indicators".to_string());
     let kafka_brokers = std::env::var("KAFKA_BROKERS").unwrap_or("kafka:9092".to_string());
-    
+
     match crate::threat_feed::ThreatFeedFetcher::new(&kafka_brokers, "threat-intel", &feed_url) {
         Ok(fetcher) => {
             let fetcher = Arc::new(fetcher);
@@ -76,13 +77,14 @@ async fn main() -> anyhow::Result<()> {
                 }
             });
             info!("Threat feed fetcher started");
-        },
+        }
         Err(e) => error!("Failed to initialize threat feed fetcher: {}", e),
     }
 
     // Initialize Metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
-    let handle = builder.install_recorder()
+    let handle = builder
+        .install_recorder()
         .map_err(|e| anyhow::anyhow!("Failed to install Prometheus recorder: {}", e))?;
 
     // Build our application with routes
@@ -99,16 +101,16 @@ async fn main() -> anyhow::Result<()> {
     let addr: SocketAddr = format!("0.0.0.0:{}", port)
         .parse()
         .map_err(|e| anyhow::anyhow!("Invalid socket address: {}", e))?;
-    
+
     info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind to {}: {}", addr, e))?;
-    
+
     axum::serve(listener, app)
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
-    
+
     Ok(())
 }
 
@@ -121,16 +123,22 @@ async fn ingest_log(
     Json(mut log): Json<LogEntry>,
 ) -> Result<(StatusCode, Json<Value>), StatusCode> {
     enrich_log(&mut log);
-    
+
     let payload = serde_json::to_string(&log).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    state.kafka.send(&log.tenant_id, &payload).await
+
+    state
+        .kafka
+        .send(&log.tenant_id, &payload)
+        .await
         .map_err(|e| {
             error!(error = %e, "Failed to send log");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok((StatusCode::ACCEPTED, Json(serde_json::json!({ "status": "accepted" }))))
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({ "status": "accepted" })),
+    ))
 }
 
 async fn ingest_batch(
@@ -146,7 +154,7 @@ async fn ingest_batch(
     for mut log in batch.logs {
         enrich_log(&mut log);
         let payload = serde_json::to_string(&log).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        
+
         // In a real high-perf scenario, we might want to parallelize this or use send_batch
         // But rdkafka is async and buffers internally, so this is already quite fast.
         if let Err(e) = state.kafka.send(&log.tenant_id, &payload).await {
@@ -155,15 +163,23 @@ async fn ingest_batch(
         }
     }
 
-    Ok((StatusCode::ACCEPTED, Json(serde_json::json!({ 
-        "status": "accepted",
-        "count": count 
-    }))))
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({
+            "status": "accepted",
+            "count": count
+        })),
+    ))
 }
 
 fn enrich_log(log: &mut LogEntry) {
     let now = Utc::now().to_rfc3339();
-    log.extra.insert("@timestamp".to_string(), Value::String(now.clone()));
-    log.extra.insert("ingestion_timestamp".to_string(), Value::String(now));
-    log.extra.insert("source_service".to_string(), Value::String("ingestion-gateway".to_string()));
+    log.extra
+        .insert("@timestamp".to_string(), Value::String(now.clone()));
+    log.extra
+        .insert("ingestion_timestamp".to_string(), Value::String(now));
+    log.extra.insert(
+        "source_service".to_string(),
+        Value::String("ingestion-gateway".to_string()),
+    );
 }

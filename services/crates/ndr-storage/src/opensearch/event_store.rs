@@ -5,10 +5,9 @@ use chrono::{DateTime, Utc};
 use opensearch::OpenSearch;
 use uuid::Uuid;
 
-
 use ndr_core::{
     domain::Event,
-    ports::{EventStore, EventFilters},
+    ports::{EventFilters, EventStore},
 };
 
 ///Open Search implementation of EventStore
@@ -65,4 +64,3 @@ impl EventStore for OpenSearchEventStore {
         Ok(Vec::new())
     }
 }
-

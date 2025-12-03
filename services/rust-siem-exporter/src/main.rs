@@ -1,17 +1,17 @@
+use dotenvy::dotenv;
+use ndr_telemetry::{error, info, init_telemetry, warn};
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
-use ndr_telemetry::{init_telemetry, info, error, warn};
-use dotenvy::dotenv;
 use std::sync::Arc;
 
 mod exporters;
-use exporters::{Exporter, SplunkExporter, WebhookExporter, ElasticExporter};
+use exporters::{ElasticExporter, Exporter, SplunkExporter, WebhookExporter};
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    
+
     // Initialize telemetry
     if let Err(e) = init_telemetry("siem-exporter") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -35,7 +35,7 @@ async fn main() {
         exporters.push(Box::new(ElasticExporter::new()));
         info!("Elastic Exporter enabled");
     }
-    
+
     // Webhook support (simplified for now)
     if std::env::var("WEBHOOK_1_ENABLED").unwrap_or_default() == "true" {
         exporters.push(Box::new(WebhookExporter::new()));
@@ -80,7 +80,7 @@ async fn main() {
                     Ok(alert) => {
                         let exporters_clone = exporters.clone();
                         let alert_clone = alert.clone();
-                        
+
                         // Spawn a task to export to all destinations concurrently
                         tokio::spawn(async move {
                             for exporter in exporters_clone.iter() {

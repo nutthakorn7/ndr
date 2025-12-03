@@ -1,9 +1,12 @@
 use clap::Parser;
-use kube::{Client, Api, api::{ListParams, DeleteParams}};
 use k8s_openapi::api::core::v1::Pod;
+use kube::{
+    api::{DeleteParams, ListParams},
+    Api, Client,
+};
+use ndr_telemetry::{error, info, init_telemetry, warn};
 use rand::seq::SliceRandom;
 use std::time::Duration;
-use ndr_telemetry::{init_telemetry, info, warn, error};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -28,7 +31,7 @@ struct Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     init_telemetry("chaos-monkey")?;
-    
+
     let args = Args::parse();
     info!("🐒 Starting Chaos Monkey");
     info!("Target Namespace: {}", args.namespace);
@@ -50,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
         tokio::time::sleep(Duration::from_secs(args.interval)).await;
 
         match kill_random_pod(&pods, &args).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => error!("Failed to kill pod: {}", e),
         }
     }
@@ -60,11 +63,15 @@ async fn kill_random_pod(api: &Api<Pod>, args: &Args) -> anyhow::Result<()> {
     // List all pods
     let list_params = ListParams::default(); // In real usage, might want to filter by label
     let pod_list = api.list(&list_params).await?;
-    
+
     // Filter pods that have the target label key
-    let candidates: Vec<_> = pod_list.items.iter()
+    let candidates: Vec<_> = pod_list
+        .items
+        .iter()
         .filter(|p| {
-            p.metadata.labels.as_ref()
+            p.metadata
+                .labels
+                .as_ref()
                 .map(|l| l.contains_key(&args.selector))
                 .unwrap_or(false)
         })

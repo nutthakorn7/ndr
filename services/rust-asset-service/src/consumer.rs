@@ -1,10 +1,10 @@
-use rdkafka::config::ClientConfig;
-use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::message::Message;
-use tracing::{info, warn, error, debug};
 use crate::db::DB;
 use crate::extractor::AssetExtractor;
 use anyhow::Result;
+use rdkafka::config::ClientConfig;
+use rdkafka::consumer::{Consumer, StreamConsumer};
+use rdkafka::message::Message;
+use tracing::{debug, error, info, warn};
 
 pub async fn start_consumer(db: DB) -> Result<()> {
     let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());

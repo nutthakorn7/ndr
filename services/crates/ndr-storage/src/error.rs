@@ -8,16 +8,16 @@ pub type Result<T> = std::result::Result<T, StorageError>;
 pub enum StorageError {
     #[error("Database error: {0}")]
     Database(String),
-    
+
     #[error("Connection error: {0}")]
     Connection(String),
-    
+
     #[error("Serialization error: {0}")]
     Serialization(String),
-    
+
     #[error("Not found: {0}")]
     NotFound(String),
-    
+
     #[error("Core error: {0}")]
     Core(#[from] ndr_core::error::CoreError),
 }

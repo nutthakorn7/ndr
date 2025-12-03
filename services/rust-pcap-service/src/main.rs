@@ -1,20 +1,20 @@
 use axum::{
     extract::State,
+    http::{Method, StatusCode},
     response::{IntoResponse, Json},
     routing::{get, get_service},
     Router,
-    http::{Method, StatusCode},
 };
+use ndr_telemetry::{error, info, init_telemetry};
 use serde_json::json;
-use tower_http::cors::{Any, CorsLayer};
-use tower_http::trace::TraceLayer;
-use tower_http::services::ServeDir;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use ndr_telemetry::{init_telemetry, info, error};
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
+use tower_http::trace::TraceLayer;
 
-mod capture;
 mod api;
+mod capture;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -31,7 +31,7 @@ async fn health_check() -> impl IntoResponse {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-    
+
     // Initialize telemetry
     if let Err(e) = init_telemetry("pcap-service") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
 
     let pcap_dir = std::env::var("PCAP_DIR").unwrap_or_else(|_| "/data/pcap".to_string());
     let interface = std::env::var("CAPTURE_INTERFACE").unwrap_or_else(|_| "eth0".to_string());
-    
+
     // Ensure PCAP directory exists
     std::fs::create_dir_all(&pcap_dir)?;
 
@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
     // Run
     let port = std::env::var("PORT").unwrap_or_else(|_| "8088".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
-    
+
     info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

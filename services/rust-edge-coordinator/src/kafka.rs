@@ -1,11 +1,11 @@
+use anyhow::Result;
+use ndr_telemetry::{error, info};
 use rdkafka::config::ClientConfig;
-use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::message::OwnedHeaders;
+use rdkafka::producer::{FutureProducer, FutureRecord};
+use serde::Serialize;
 use std::env;
 use std::time::Duration;
-use anyhow::Result;
-use serde::Serialize;
-use ndr_telemetry::{info, error};
 
 #[derive(Clone)]
 pub struct KafkaService {
@@ -28,13 +28,21 @@ impl KafkaService {
 
     pub async fn publish_rule_update<T: Serialize>(&self, update: &T) -> Result<()> {
         let payload = serde_json::to_string(update)?;
-        
+
         let record = FutureRecord::to(&self.topic)
             .payload(&payload)
             .key("rule-update")
-            .headers(OwnedHeaders::new()
-                .insert(rdkafka::message::Header { key: "source", value: Some("edge-coordinator") })
-                .insert(rdkafka::message::Header { key: "type", value: Some("rule_update") }));
+            .headers(
+                OwnedHeaders::new()
+                    .insert(rdkafka::message::Header {
+                        key: "source",
+                        value: Some("edge-coordinator"),
+                    })
+                    .insert(rdkafka::message::Header {
+                        key: "type",
+                        value: Some("rule_update"),
+                    }),
+            );
 
         match self.producer.send(record, Duration::from_secs(5)).await {
             Ok(_) => {

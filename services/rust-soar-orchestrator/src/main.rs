@@ -1,18 +1,18 @@
-mod engine;
 mod actions;
+mod engine;
 mod models;
 
+use crate::engine::PlaybookEngine;
+use ndr_telemetry::{error, info, init_telemetry, warn};
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
-use ndr_telemetry::{init_telemetry, info, warn, error};
 use std::sync::Arc;
-use crate::engine::PlaybookEngine;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-    
+
     // Initialize telemetry
     if let Err(e) = init_telemetry("soar-orchestrator") {
         eprintln!("Failed to initialize telemetry: {}", e);

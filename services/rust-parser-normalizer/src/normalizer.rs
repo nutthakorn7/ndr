@@ -1,5 +1,5 @@
-use serde_json::{json, Value};
 use chrono::{DateTime, Utc};
+use serde_json::{json, Value};
 
 pub struct LogNormalizer;
 
@@ -26,18 +26,21 @@ impl LogNormalizer {
         });
 
         self.map_fields(&parsed_log, &mut normalized);
-        
+
         if parsed_log.get("log_type").and_then(|s| s.as_str()) == Some("zeek") {
             self.apply_zeek_mappings(&parsed_log, &mut normalized);
         }
-        
+
         if parsed_log.get("log_type").and_then(|s| s.as_str()) == Some("suricata") {
             self.apply_suricata_mappings(&parsed_log, &mut normalized);
         }
 
         // Add normalized timestamp
         if let Some(obj) = normalized.as_object_mut() {
-            obj.insert("normalized_timestamp".to_string(), json!(Utc::now().to_rfc3339()));
+            obj.insert(
+                "normalized_timestamp".to_string(),
+                json!(Utc::now().to_rfc3339()),
+            );
             obj.insert("original".to_string(), parsed_log);
         }
 
@@ -64,7 +67,10 @@ impl LogNormalizer {
 
         // Simple categorization logic
         let type_str = event["type"].as_str().unwrap_or("").to_lowercase();
-        if type_str.contains("connection") || type_str.contains("network") || type_str.contains("dns") {
+        if type_str.contains("connection")
+            || type_str.contains("network")
+            || type_str.contains("dns")
+        {
             event["category"] = json!("network");
         } else if type_str.contains("process") {
             event["category"] = json!("process");
@@ -99,7 +105,7 @@ impl LogNormalizer {
 
     fn apply_zeek_mappings(&self, source: &Value, target: &mut Value) {
         let zeek = source.get("zeek").unwrap_or(source);
-        
+
         if let Some(orig_h) = zeek.get("id.orig_h") {
             self.set_nested(target, "source.ip", orig_h.clone());
         }
@@ -123,7 +129,7 @@ impl LogNormalizer {
         if let Some(dest_ip) = eve.get("dest_ip") {
             self.set_nested(target, "destination.ip", dest_ip.clone());
         }
-        
+
         if let Some(alert) = eve.get("alert") {
             self.set_nested(target, "event.kind", json!("signal"));
             self.set_nested(target, "event.category", json!("network"));
@@ -137,7 +143,7 @@ impl LogNormalizer {
     fn set_nested(&self, obj: &mut Value, path: &str, value: Value) {
         let parts: Vec<&str> = path.split('.').collect();
         let mut current = obj;
-        
+
         for (i, part) in parts.iter().enumerate() {
             if i == parts.len() - 1 {
                 if let Some(o) = current.as_object_mut() {
@@ -145,7 +151,7 @@ impl LogNormalizer {
                 }
                 break;
             }
-            
+
             if !current.get(*part).is_some() {
                 if let Some(o) = current.as_object_mut() {
                     o.insert(part.to_string(), json!({}));

@@ -1,20 +1,20 @@
 use axum::{
-    routing::{get, post},
-    Router,
-    extract::{State, Path},
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Json},
+    routing::{get, post},
+    Router,
 };
+use chrono::{DateTime, Utc};
+use ndr_storage::postgres::create_pool;
+use ndr_telemetry::{error, info, init_telemetry};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::postgres::PgPool;
 use sqlx::Row;
 use std::env;
 use std::net::SocketAddr;
-use ndr_telemetry::{init_telemetry, info, error};
-use ndr_storage::postgres::create_pool;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 use ndr_core::circuit_breaker::CircuitBreaker;
 
@@ -79,14 +79,17 @@ async fn main() {
     }
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    
+
     // Create database pool
     let pool = create_pool(&database_url)
         .await
         .expect("Failed to connect to database");
 
     let circuit_breaker = CircuitBreaker::new("postgres", 5, 30);
-    let state = AppState { db: pool, circuit_breaker };
+    let state = AppState {
+        db: pool,
+        circuit_breaker,
+    };
 
     // Build our application with routes matching Node.js API
     let app = Router::new()
@@ -100,7 +103,7 @@ async fn main() {
     let port = env::var("PORT").unwrap_or_else(|_| "8084".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
     info!("Rust Sensor Controller listening on {}", addr);
-    
+
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
@@ -127,10 +130,11 @@ async fn list_sensors(
             created_at, updated_at 
         FROM sensors 
         ORDER BY updated_at DESC
-        "#
+        "#,
     )
     .fetch_all(&state.db)
-    .await {
+    .await
+    {
         Ok(s) => {
             state.circuit_breaker.record_success().await;
             s
@@ -223,14 +227,15 @@ async fn heartbeat(
         id, name, location, tenant_id, status, 
         last_heartbeat, last_metrics, config, metadata, 
         created_at, updated_at
-        "#
+        "#,
     )
     .bind(&id)
     .bind(&now)
     .bind(&status)
     .bind(&metrics)
     .fetch_optional(&state.db)
-    .await {
+    .await
+    {
         Ok(s) => {
             state.circuit_breaker.record_success().await;
             s

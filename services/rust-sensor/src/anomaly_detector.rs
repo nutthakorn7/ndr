@@ -1,8 +1,8 @@
 use crate::flow_tracker::Flow;
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Severity {
@@ -78,14 +78,16 @@ impl AnomalyDetector {
 
         // Rule 3: Unusual Ports (basic check)
         let common_ports = [80, 443, 22, 53, 25, 110, 143, 3306, 5432];
-        if !common_ports.contains(&flow.five_tuple.dst_port) 
-            && flow.five_tuple.dst_port < 1024 {
+        if !common_ports.contains(&flow.five_tuple.dst_port) && flow.five_tuple.dst_port < 1024 {
             alerts.push(Alert {
                 alert_id: Uuid::new_v4().to_string(),
                 timestamp: Utc::now(),
                 severity: Severity::Low,
                 rule_name: "Unusual Port".to_string(),
-                description: format!("Traffic on uncommon privileged port: {}", flow.five_tuple.dst_port),
+                description: format!(
+                    "Traffic on uncommon privileged port: {}",
+                    flow.five_tuple.dst_port
+                ),
                 source_ip: flow.five_tuple.src_ip.to_string(),
                 dest_ip: Some(flow.five_tuple.dst_ip.to_string()),
                 evidence: serde_json::json!({

@@ -1,4 +1,4 @@
-use rust_edge_agent::detector::{LocalDetector, DetectionRule};
+use rust_edge_agent::detector::{DetectionRule, LocalDetector};
 use rust_edge_agent::ioc_store::IocStore;
 use serde_json::json;
 
@@ -70,14 +70,12 @@ fn test_dynamic_rule_evaluation() {
 fn test_missing_fields() {
     let mut detector = LocalDetector::new();
     let ioc_store = IocStore::new();
-    let rules = vec![
-        DetectionRule {
-            name: "Field Check".to_string(),
-            severity: "low".to_string(),
-            pattern: "missing_field > 10".to_string(),
-            enabled: true,
-        },
-    ];
+    let rules = vec![DetectionRule {
+        name: "Field Check".to_string(),
+        severity: "low".to_string(),
+        pattern: "missing_field > 10".to_string(),
+        enabled: true,
+    }];
     detector.update_rules(rules);
 
     let event = json!({ "other_field": 100 });

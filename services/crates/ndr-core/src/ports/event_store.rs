@@ -12,13 +12,13 @@ use crate::error::Result;
 pub trait EventStore: Send + Sync {
     /// Store a new event
     async fn store(&self, event: Event) -> Result<()>;
-    
+
     /// Store multiple events in bulk
     async fn store_bulk(&self, events: Vec<Event>) -> Result<()>;
-    
+
     /// Find event by ID
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Event>>;
-    
+
     /// Search events with filters
     async fn search(
         &self,
@@ -26,10 +26,10 @@ pub trait EventStore: Send + Sync {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<Event>>;
-    
+
     /// Count events matching filters
     async fn count(&self, filters: EventFilters) -> Result<u64>;
-    
+
     /// Get events in time range
     async fn get_time_range(
         &self,

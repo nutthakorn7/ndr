@@ -1,7 +1,7 @@
+use chrono::Utc;
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use chrono::Utc;
 
 pub struct LogParser {
     syslog_regex: Regex,
@@ -16,7 +16,7 @@ impl LogParser {
         // Grok patterns translated to Regex
         // SYSLOG: %{SYSLOGTIMESTAMP:timestamp} %{IPORHOST:host} %{PROG:program}(?:\[%{POSINT:pid}\])?: %{GREEDYDATA:message}
         let syslog_regex = Regex::new(r"^(?P<timestamp>\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(?P<host>[\w\.\-]+)\s+(?P<program>[\w\.\-]+)(?:\[(?P<pid>\d+)\])?:\s+(?P<message>.*)$").expect("Invalid syslog regex");
-        
+
         // APACHE: %{COMBINEDAPACHELOG} (Simplified)
         let apache_regex = Regex::new(r"^(?P<clientip>[\d\.]+)\s+\-\s+\-\s+\[(?P<timestamp>[^\]]+)\]\s+.(?P<verb>\w+)\s+(?P<request>[^\s]+)\s+HTTP/(?P<httpversion>[\d\.]+).\s+(?P<response>\d+)\s+(?P<bytes>\d+)\s+.(?P<referrer>[^.]*).\s+.(?P<agent>[^.]*).$").expect("Invalid apache regex");
 
@@ -94,21 +94,25 @@ impl LogParser {
 
         // Add parsed timestamp
         if let Some(obj) = raw_log.as_object_mut() {
-            obj.insert("parsed_timestamp".to_string(), json!(Utc::now().to_rfc3339()));
+            obj.insert(
+                "parsed_timestamp".to_string(),
+                json!(Utc::now().to_rfc3339()),
+            );
         }
 
         raw_log
     }
 
     fn is_zeek_log(&self, log: &Value) -> bool {
-        log.get("zeek_log_type").is_some() || 
-        log.get("_path").is_some() || 
-        log.get("id.orig_h").is_some() ||
-        log.get("source_service").and_then(|s| s.as_str()) == Some("zeek")
+        log.get("zeek_log_type").is_some()
+            || log.get("_path").is_some()
+            || log.get("id.orig_h").is_some()
+            || log.get("source_service").and_then(|s| s.as_str()) == Some("zeek")
     }
 
     fn parse_zeek(&self, mut log: Value) -> Value {
-        let log_type = log.get("zeek_log_type")
+        let log_type = log
+            .get("zeek_log_type")
             .or_else(|| log.get("_path"))
             .and_then(|v| v.as_str())
             .unwrap_or("zeek")
@@ -123,13 +127,14 @@ impl LogParser {
     }
 
     fn is_suricata_log(&self, log: &Value) -> bool {
-        log.get("source_service").and_then(|s| s.as_str()) == Some("suricata") ||
-        log.get("event_type").is_some() ||
-        log.get("alert").is_some()
+        log.get("source_service").and_then(|s| s.as_str()) == Some("suricata")
+            || log.get("event_type").is_some()
+            || log.get("alert").is_some()
     }
 
     fn parse_suricata(&self, mut log: Value) -> Value {
-        let event_type = log.get("event_type")
+        let event_type = log
+            .get("event_type")
             .and_then(|v| v.as_str())
             .unwrap_or("alert")
             .to_string();

@@ -1,6 +1,6 @@
-use sqlx::{Pool, Postgres};
 use crate::models::{Asset, AssetFilter};
 use anyhow::Result;
+use sqlx::{Pool, Postgres};
 
 #[derive(Clone)]
 pub struct DB {
@@ -29,7 +29,7 @@ impl DB {
             );
             CREATE INDEX IF NOT EXISTS idx_assets_ip ON assets(ip);
             CREATE INDEX IF NOT EXISTS idx_assets_hostname ON assets(hostname);
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await?;
@@ -134,7 +134,7 @@ impl DB {
         .await?;
 
         let by_criticality = sqlx::query_as::<_, CountStat>(
-            "SELECT criticality as name, COUNT(*) as count FROM assets GROUP BY criticality"
+            "SELECT criticality as name, COUNT(*) as count FROM assets GROUP BY criticality",
         )
         .fetch_all(&self.pool)
         .await?;

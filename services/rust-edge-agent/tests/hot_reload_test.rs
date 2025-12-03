@@ -1,4 +1,4 @@
-use rust_edge_agent::detector::{LocalDetector, DetectionRule};
+use rust_edge_agent::detector::{DetectionRule, LocalDetector};
 use rust_edge_agent::ioc_store::IocStore;
 use serde_json::json;
 

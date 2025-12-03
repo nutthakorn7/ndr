@@ -1,9 +1,9 @@
-use sqlx::{sqlite::SqlitePool, Row};
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use anyhow::Result;
-use std::sync::Arc;
+use chrono::{DateTime, Utc};
 use ndr_telemetry::warn;
+use serde::{Deserialize, Serialize};
+use sqlx::{sqlite::SqlitePool, Row};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BufferedEvent {
@@ -47,9 +47,9 @@ impl Buffer {
             .execute(&pool)
             .await?;
 
-        Ok(Self { 
-            pool: Arc::new(pool), 
-            max_size_mb 
+        Ok(Self {
+            pool: Arc::new(pool),
+            max_size_mb,
         })
     }
 
@@ -114,21 +114,22 @@ impl Buffer {
     }
 
     pub async fn size_mb(&self) -> Result<f64> {
-        let row = sqlx::query("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()")
-            .fetch_one(&*self.pool)
-            .await?;
+        let row = sqlx::query(
+            "SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()",
+        )
+        .fetch_one(&*self.pool)
+        .await?;
         let size_bytes: i64 = row.get("size");
         Ok(size_bytes as f64 / 1024.0 / 1024.0)
     }
 
     async fn cleanup_if_full(&self) -> Result<()> {
         let current_size = self.size_mb().await?;
-        
+
         if current_size > self.max_size_mb as f64 {
             warn!(
                 "Buffer size ({:.2} MB) exceeds limit ({} MB), removing oldest events",
-                current_size,
-                self.max_size_mb
+                current_size, self.max_size_mb
             );
 
             // Remove oldest 10% of events
@@ -137,7 +138,7 @@ impl Buffer {
                     SELECT id FROM buffered_events ORDER BY created_at ASC LIMIT (
                         SELECT COUNT(*) / 10 FROM buffered_events
                     )
-                )"
+                )",
             )
             .execute(&*self.pool)
             .await?;

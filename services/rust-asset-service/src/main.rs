@@ -1,20 +1,16 @@
-use axum::{
-    routing::get,
-    Router,
-    http::Method,
-};
+use axum::{http::Method, routing::get, Router};
+use dotenvy::dotenv;
+use ndr_storage::postgres::create_pool;
+use ndr_telemetry::{error, info, init_telemetry};
+use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use std::net::SocketAddr;
-use ndr_telemetry::{init_telemetry, info, error};
-use ndr_storage::postgres::create_pool;
-use dotenvy::dotenv;
 
-mod handlers;
-mod db;
-mod models;
 mod consumer;
+mod db;
 mod extractor;
+mod handlers;
+mod models;
 
 use db::DB;
 
@@ -44,7 +40,7 @@ async fn main() {
     };
 
     let db = DB::new(pool.clone());
-    
+
     // Initialize DB Schema
     if let Err(e) = db.init_schema().await {
         error!(error = %e, "Failed to initialize database schema");
@@ -80,7 +76,7 @@ async fn main() {
     // Run
     let port = std::env::var("PORT").unwrap_or_else(|_| "8088".to_string());
     let addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
-    
+
     info!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

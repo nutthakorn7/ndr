@@ -2,21 +2,22 @@ mod config;
 mod ioc_store;
 use ioc_store::IocStore;
 
-mod buffer;
-mod forwarder;
-mod detector;
 mod auth;
-mod error;
-mod tls;
+mod buffer;
 mod circuit_breaker;
+mod detector;
+mod error;
+mod forwarder;
+mod tls;
 
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     http::StatusCode,
+    middleware,
     routing::{get, post},
     Router,
-    middleware,
 };
+use ndr_telemetry::{debug, error, info, init_telemetry, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::net::SocketAddr;
@@ -24,13 +25,12 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
 use tower_http::trace::TraceLayer;
-use ndr_telemetry::{init_telemetry, info, warn, error, debug};
 
-use config::Config;
 use buffer::Buffer;
-use forwarder::Forwarder;
+use config::Config;
 use detector::LocalDetector;
 use error::{AppError, Result as AppResult};
+use forwarder::Forwarder;
 
 #[derive(Clone)]
 struct AppState {
@@ -42,8 +42,6 @@ struct AppState {
     coordinator_client: Arc<reqwest::Client>,
     is_online: Arc<RwLock<bool>>,
 }
-
-
 
 #[derive(Deserialize, Debug)]
 struct IngestRequest {
@@ -86,7 +84,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Load configuration
     let config = Config::from_env()?;
-    info!("Agent ID: {}, Location: {}", config.agent_id, config.location);
+    info!(
+        "Agent ID: {}, Location: {}",
+        config.agent_id, config.location
+    );
 
     // Initialize buffer
     let buffer = Buffer::new(&config.buffer_db_path, config.max_buffer_size_mb).await?;
@@ -108,9 +109,9 @@ async fn main() -> anyhow::Result<()> {
     // HTTP client for coordinator communication with timeouts
     let coordinator_client = Arc::new(
         reqwest::Client::builder()
-            .timeout(Duration::from_secs(10))        // Overall request timeout
+            .timeout(Duration::from_secs(10)) // Overall request timeout
             .connect_timeout(Duration::from_secs(5)) // Connection timeout
-            .build()?
+            .build()?,
     );
 
     let is_online = Arc::new(RwLock::new(false));
@@ -153,29 +154,63 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize Metrics
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
-    let handle = builder.install_recorder()
+    let handle = builder
+        .install_recorder()
         .map_err(|e| anyhow::anyhow!("Failed to install Prometheus recorder: {}", e))?;
 
     // Register custom metrics with descriptions
-    metrics::describe_counter!("edge_agent_events_ingested", "Total number of events ingested");
-    metrics::describe_counter!("edge_agent_events_forwarded", "Total number of events forwarded to Kafka");
-    metrics::describe_counter!("edge_agent_events_buffered", "Total number of events buffered locally");
-    metrics::describe_counter!("edge_agent_events_dropped", "Total number of events dropped");
+    metrics::describe_counter!(
+        "edge_agent_events_ingested",
+        "Total number of events ingested"
+    );
+    metrics::describe_counter!(
+        "edge_agent_events_forwarded",
+        "Total number of events forwarded to Kafka"
+    );
+    metrics::describe_counter!(
+        "edge_agent_events_buffered",
+        "Total number of events buffered locally"
+    );
+    metrics::describe_counter!(
+        "edge_agent_events_dropped",
+        "Total number of events dropped"
+    );
     metrics::describe_counter!("edge_agent_auth_success", "Successful API authentications");
     metrics::describe_counter!("edge_agent_auth_failed", "Failed API authentications");
-    
-    metrics::describe_histogram!("edge_agent_ingest_duration_ms", "Duration of ingest operations in milliseconds");
-    metrics::describe_histogram!("edge_agent_forward_duration_ms", "Duration of forward operations in milliseconds");
-    metrics::describe_histogram!("edge_agent_buffer_operation_ms", "Duration of buffer operations in milliseconds");
-    metrics::describe_histogram!("edge_agent_event_size_bytes", "Size of ingested events in bytes");
-    
-    metrics::describe_gauge!("edge_agent_buffer_size_bytes", "Current buffer size in bytes");
-    metrics::describe_gauge!("edge_agent_buffer_count", "Current number of buffered events");
-    metrics::describe_gauge!("edge_agent_is_online", "Agent connection status (1=online, 0=offline)");
+
+    metrics::describe_histogram!(
+        "edge_agent_ingest_duration_ms",
+        "Duration of ingest operations in milliseconds"
+    );
+    metrics::describe_histogram!(
+        "edge_agent_forward_duration_ms",
+        "Duration of forward operations in milliseconds"
+    );
+    metrics::describe_histogram!(
+        "edge_agent_buffer_operation_ms",
+        "Duration of buffer operations in milliseconds"
+    );
+    metrics::describe_histogram!(
+        "edge_agent_event_size_bytes",
+        "Size of ingested events in bytes"
+    );
+
+    metrics::describe_gauge!(
+        "edge_agent_buffer_size_bytes",
+        "Current buffer size in bytes"
+    );
+    metrics::describe_gauge!(
+        "edge_agent_buffer_count",
+        "Current number of buffered events"
+    );
+    metrics::describe_gauge!(
+        "edge_agent_is_online",
+        "Agent connection status (1=online, 0=offline)"
+    );
 
     // API key for authentication
     let api_key_hash = Arc::new(config.api_key_hash.clone());
-    
+
     if api_key_hash.is_some() {
         info!("API key authentication enabled");
     } else {
@@ -189,7 +224,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/ingest", post(ingest_event))
         .route_layer(middleware::from_fn_with_state(
             api_key_hash.clone(),
-            auth::api_key_auth
+            auth::api_key_auth,
         ))
         .route("/config", post(update_config))
         .layer(TraceLayer::new_for_http())
@@ -198,12 +233,12 @@ async fn main() -> anyhow::Result<()> {
     // Run server
     let addr: SocketAddr = format!("0.0.0.0:{}", config.port).parse()?;
     info!("Edge Agent listening on {}", addr);
-    
+
     // Check if TLS is enabled
     if tls::is_tls_enabled() {
         let cert_path = tls::get_cert_path();
         let key_path = tls::get_key_path();
-        
+
         match tls::load_tls_config(&cert_path, &key_path).await {
             Ok(tls_config) => {
                 info!("Starting Edge Agent with TLS/HTTPS on https://{}", addr);
@@ -258,13 +293,11 @@ async fn shutdown_signal() {
     info!("Signal received, starting graceful shutdown...");
 }
 
-
-
 async fn health_check(State(state): State<AppState>) -> AppResult<Json<HealthResponse>> {
     let config = state.config.read().await;
-    let buffered_events = state.buffer.count().await
-        .map_err(|e| AppError::internal("Failed to get buffer count")
-            .with_context(e.to_string()))?;
+    let buffered_events = state.buffer.count().await.map_err(|e| {
+        AppError::internal("Failed to get buffer count").with_context(e.to_string())
+    })?;
     let is_online = *state.is_online.read().await;
 
     Ok(Json(HealthResponse {
@@ -282,16 +315,15 @@ async fn ingest_event(
 ) -> AppResult<(StatusCode, Json<Value>)> {
     let start = std::time::Instant::now();
     let is_online = *state.is_online.read().await;
-    
+
     // Analyze event for priority
     let detector = state.detector.read().await;
     let priority = detector.get_priority(&req.event, &state.ioc_store);
     drop(detector);
 
     let event_json = serde_json::to_string(&req.event)
-        .map_err(|e| AppError::bad_request("Invalid event JSON")
-            .with_context(e.to_string()))?;
-    
+        .map_err(|e| AppError::bad_request("Invalid event JSON").with_context(e.to_string()))?;
+
     // Track event size
     metrics::histogram!("edge_agent_event_size_bytes").record(event_json.len() as f64);
     metrics::counter!("edge_agent_events_ingested").increment(1);
@@ -307,11 +339,14 @@ async fn ingest_event(
                 metrics::counter!("edge_agent_events_forwarded").increment(1);
                 metrics::histogram!("edge_agent_ingest_duration_ms")
                     .record(start.elapsed().as_millis() as f64);
-                
-                return Ok((StatusCode::ACCEPTED, Json(serde_json::json!({
-                    "status": "forwarded",
-                    "buffered": false,
-                }))));
+
+                return Ok((
+                    StatusCode::ACCEPTED,
+                    Json(serde_json::json!({
+                        "status": "forwarded",
+                        "buffered": false,
+                    })),
+                ));
             }
             Err(e) => {
                 warn!("Failed to forward event, will buffer: {}", e);
@@ -321,20 +356,24 @@ async fn ingest_event(
 
     // Buffer event (offline or forward failed)
     let buffer_start = std::time::Instant::now();
-    state.buffer.push(&event_json, priority).await
-        .map_err(|e| AppError::internal("Failed to buffer event")
-            .with_context(e.to_string()))?;
-    
+    state
+        .buffer
+        .push(&event_json, priority)
+        .await
+        .map_err(|e| AppError::internal("Failed to buffer event").with_context(e.to_string()))?;
+
     metrics::histogram!("edge_agent_buffer_operation_ms")
         .record(buffer_start.elapsed().as_millis() as f64);
     metrics::counter!("edge_agent_events_buffered").increment(1);
-    metrics::histogram!("edge_agent_ingest_duration_ms")
-        .record(start.elapsed().as_millis() as f64);
+    metrics::histogram!("edge_agent_ingest_duration_ms").record(start.elapsed().as_millis() as f64);
 
-    Ok((StatusCode::ACCEPTED, Json(serde_json::json!({
-        "status": "buffered",
-        "buffered": true,
-    }))))
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(serde_json::json!({
+            "status": "buffered",
+            "buffered": true,
+        })),
+    ))
 }
 
 async fn update_config(
@@ -342,7 +381,7 @@ async fn update_config(
     Json(new_config): Json<Value>,
 ) -> AppResult<StatusCode> {
     info!("Received configuration update");
-    
+
     // Update forwarding policy if provided
     if let Some(policy) = new_config.get("forwarding_policy") {
         if let Ok(policy) = serde_json::from_value(policy.clone()) {
@@ -377,7 +416,8 @@ async fn register_with_coordinator(state: &AppState) -> anyhow::Result<()> {
         ],
     };
 
-    let response = state.coordinator_client
+    let response = state
+        .coordinator_client
         .post(&url)
         .json(&registration)
         .timeout(Duration::from_secs(10))
@@ -402,7 +442,10 @@ async fn heartbeat_task(state: AppState) {
         interval.tick().await;
 
         let config = state.config.read().await;
-        let url = format!("{}/edge/agents/{}/heartbeat", config.coordinator_url, config.agent_id);
+        let url = format!(
+            "{}/edge/agents/{}/heartbeat",
+            config.coordinator_url, config.agent_id
+        );
         drop(config);
 
         let buffered_count = state.buffer.count().await.unwrap_or(0);
@@ -413,7 +456,8 @@ async fn heartbeat_task(state: AppState) {
             "buffer_size_mb": buffer_size,
         });
 
-        match state.coordinator_client
+        match state
+            .coordinator_client
             .post(&url)
             .json(&serde_json::json!({
                 "status": "online",
@@ -476,7 +520,7 @@ async fn metrics_updater_task(state: AppState) {
 
     loop {
         interval.tick().await;
-        
+
         // Update buffer metrics
         if let Ok(count) = state.buffer.count().await {
             metrics::gauge!("edge_agent_buffer_count").set(count as f64);
@@ -484,7 +528,7 @@ async fn metrics_updater_task(state: AppState) {
         if let Ok(size_mb) = state.buffer.size_mb().await {
             metrics::gauge!("edge_agent_buffer_size_bytes").set(size_mb * 1024.0 * 1024.0);
         }
-        
+
         // Update connection status
         let is_online = *state.is_online.read().await;
         metrics::gauge!("edge_agent_is_online").set(if is_online { 1.0 } else { 0.0 });
@@ -509,8 +553,8 @@ struct RuleUpdate {
 }
 
 async fn rule_updater_task(state: AppState) {
-    use rdkafka::consumer::{StreamConsumer, Consumer};
     use rdkafka::config::ClientConfig;
+    use rdkafka::consumer::{Consumer, StreamConsumer};
     use rdkafka::message::Message;
 
     let config = state.config.read().await;
@@ -523,20 +567,20 @@ async fn rule_updater_task(state: AppState) {
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
-        .set("socket.timeout.ms", "30000")      // Socket timeout 30s
-        .set("request.timeout.ms", "30000")     // Request timeout 30s
+        .set("socket.timeout.ms", "30000") // Socket timeout 30s
+        .set("request.timeout.ms", "30000") // Request timeout 30s
         .create()
     {
         Ok(c) => c,
         Err(e) => {
             error!("Failed to create Kafka consumer for rule updates: {}", e);
-            return;  // Exit the task gracefully
+            return; // Exit the task gracefully
         }
     };
 
     if let Err(e) = consumer.subscribe(&["edge-rules"]) {
         error!("Failed to subscribe to edge-rules topic: {}", e);
-        return;  // Exit the task gracefully
+        return; // Exit the task gracefully
     }
 
     info!("Started rule updater task, listening on edge-rules");

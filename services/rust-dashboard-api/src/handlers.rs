@@ -1,15 +1,18 @@
+use crate::models::*;
+use crate::state::AppState;
 use axum::{
-    extract::{State, Query, Path, ws::{WebSocketUpgrade, WebSocket, Message}},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Path, Query, State,
+    },
+    http::StatusCode,
     response::IntoResponse,
     Json,
-    http::StatusCode,
 };
-use std::sync::Arc;
-use serde_json::{json, Value};
-use ndr_telemetry::{info, error};
 use futures::{sink::SinkExt, stream::StreamExt};
-use crate::state::AppState;
-use crate::models::*;
+use ndr_telemetry::{error, info};
+use serde_json::{json, Value};
+use std::sync::Arc;
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
@@ -35,9 +38,7 @@ pub async fn health_check() -> &'static str {
     "OK"
 }
 
-pub async fn get_dashboard_analytics(
-    State(_state): State<Arc<AppState>>,
-) -> Json<Value> {
+pub async fn get_dashboard_analytics(State(_state): State<Arc<AppState>>) -> Json<Value> {
     // Mock for initial migration - replace with real OpenSearch aggregation later
     Json(json!({
         "summary": {
@@ -53,9 +54,7 @@ pub async fn get_dashboard_analytics(
     }))
 }
 
-pub async fn get_traffic_stats(
-    State(_state): State<Arc<AppState>>,
-) -> Json<Vec<TrafficStat>> {
+pub async fn get_traffic_stats(State(_state): State<Arc<AppState>>) -> Json<Vec<TrafficStat>> {
     // Mock for initial migration
     Json(vec![])
 }
@@ -74,9 +73,7 @@ pub async fn search_events(
     }))
 }
 
-pub async fn get_alerts(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<Value>, StatusCode> {
+pub async fn get_alerts(State(state): State<Arc<AppState>>) -> Result<Json<Value>, StatusCode> {
     let alerts = sqlx::query("SELECT id, title, severity, status, timestamp, description FROM alerts ORDER BY timestamp DESC LIMIT 50")
         .fetch_all(&state.db)
         .await
@@ -106,12 +103,21 @@ pub async fn get_alerts(
 }
 
 // Proxy Handlers
-pub async fn proxy_sensors(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<Value>, StatusCode> {
-    let url = format!("{}/edge/agents", std::env::var("EDGE_COORDINATOR_URL").unwrap_or("http://edge-coordinator:8085".to_string()));
-    let resp = state.http_client.get(&url).send().await.map_err(|_| StatusCode::BAD_GATEWAY)?;
-    let json: Value = resp.json().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+pub async fn proxy_sensors(State(state): State<Arc<AppState>>) -> Result<Json<Value>, StatusCode> {
+    let url = format!(
+        "{}/edge/agents",
+        std::env::var("EDGE_COORDINATOR_URL").unwrap_or("http://edge-coordinator:8085".to_string())
+    );
+    let resp = state
+        .http_client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let json: Value = resp
+        .json()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(json))
 }
 
@@ -119,8 +125,20 @@ pub async fn proxy_ai_chat(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, StatusCode> {
-    let url = format!("{}/ai/chat", std::env::var("AI_SERVICE_URL").unwrap_or("http://ai-service:8090".to_string()));
-    let resp = state.http_client.post(&url).json(&payload).send().await.map_err(|_| StatusCode::BAD_GATEWAY)?;
-    let json: Value = resp.json().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let url = format!(
+        "{}/ai/chat",
+        std::env::var("AI_SERVICE_URL").unwrap_or("http://ai-service:8090".to_string())
+    );
+    let resp = state
+        .http_client
+        .post(&url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let json: Value = resp
+        .json()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(json))
 }

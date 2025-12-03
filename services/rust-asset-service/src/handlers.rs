@@ -1,11 +1,11 @@
+use crate::models::AssetFilter;
+use crate::AppState;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Json,
 };
-use crate::models::AssetFilter;
-use crate::AppState;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -25,7 +25,8 @@ pub async fn list_assets(
         Ok(assets) => Json(json!({
             "assets": assets,
             "total": assets.len() // In a real app, we'd want a separate count query for pagination
-        })).into_response(),
+        }))
+        .into_response(),
         Err(e) => {
             tracing::error!("Failed to fetch assets: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch assets").into_response()
@@ -33,10 +34,7 @@ pub async fn list_assets(
     }
 }
 
-pub async fn get_asset(
-    State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> impl IntoResponse {
+pub async fn get_asset(State(state): State<AppState>, Path(id): Path<Uuid>) -> impl IntoResponse {
     match state.db.get_asset_by_id(id).await {
         Ok(Some(asset)) => Json(asset).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Asset not found").into_response(),
@@ -47,9 +45,7 @@ pub async fn get_asset(
     }
 }
 
-pub async fn get_stats(
-    State(state): State<AppState>,
-) -> impl IntoResponse {
+pub async fn get_stats(State(state): State<AppState>) -> impl IntoResponse {
     match state.db.get_stats().await {
         Ok(stats) => Json::<crate::models::AssetStats>(stats).into_response(),
         Err(e) => {

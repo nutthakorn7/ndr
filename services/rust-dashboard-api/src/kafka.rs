@@ -1,9 +1,9 @@
+use anyhow::Result;
+use ndr_telemetry::{error, info, warn};
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
 use std::env;
-use anyhow::Result;
-use ndr_telemetry::{info, error, warn};
 use tokio::sync::broadcast;
 
 pub struct KafkaConsumer {

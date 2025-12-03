@@ -1,11 +1,8 @@
-use axum::{
-    extract::State,
-    Json,
-};
-use std::sync::Arc;
 use crate::AppState;
+use axum::{extract::State, Json};
 use serde::Serialize;
 use std::fs;
+use std::sync::Arc;
 
 #[derive(Serialize)]
 pub struct PcapFile {
@@ -23,7 +20,8 @@ pub async fn list_pcaps(State(state): State<Arc<AppState>>) -> Json<Vec<PcapFile
                 if metadata.is_file() {
                     let name = entry.file_name().to_string_lossy().to_string();
                     if name.ends_with(".pcap") {
-                        let created = metadata.created()
+                        let created = metadata
+                            .created()
                             .unwrap_or(std::time::SystemTime::now())
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()

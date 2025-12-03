@@ -1,8 +1,8 @@
-use sqlx::{Pool, Postgres, Row};
 use crate::models::AlertMeta;
 use anyhow::Result;
-use uuid::Uuid;
 use serde_json::Value;
+use sqlx::{Pool, Postgres, Row};
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct DB {
@@ -36,7 +36,7 @@ impl DB {
             CREATE INDEX IF NOT EXISTS idx_correlation_id ON alert_meta(correlation_id);
             CREATE INDEX IF NOT EXISTS idx_status ON alert_meta(status);
             CREATE INDEX IF NOT EXISTS idx_severity ON alert_meta(severity_score DESC);
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await?;
@@ -58,7 +58,7 @@ impl DB {
             )
             VALUES ($1, 1, $2, $3, $4)
             RETURNING id
-            "#
+            "#,
         )
         .bind(original_ids)
         .bind(severity_score)
@@ -74,7 +74,8 @@ impl DB {
         &self,
         meta_id: Uuid,
         new_alert_id: String,
-    ) -> Result<(i32, i32)> { // Returns (aggregation_count, severity_score)
+    ) -> Result<(i32, i32)> {
+        // Returns (aggregation_count, severity_score)
         // First update count and ids
         let rec = sqlx::query(
             r#"
@@ -85,7 +86,7 @@ impl DB {
                 updated_at = NOW()
             WHERE id = $2
             RETURNING aggregation_count, severity_score
-            "#
+            "#,
         )
         .bind(new_alert_id)
         .bind(meta_id)
@@ -116,7 +117,11 @@ impl DB {
         Ok(alert)
     }
 
-    pub async fn find_related_alerts(&self, source_ip: &str, exclude_id: &str) -> Result<Vec<(Uuid, Value, chrono::DateTime<chrono::Utc>)>> {
+    pub async fn find_related_alerts(
+        &self,
+        source_ip: &str,
+        exclude_id: &str,
+    ) -> Result<Vec<(Uuid, Value, chrono::DateTime<chrono::Utc>)>> {
         let rows = sqlx::query_as::<_, (Uuid, Value, chrono::DateTime<chrono::Utc>)>(
             r#"
             SELECT id, alert_data, first_seen
@@ -125,7 +130,7 @@ impl DB {
             AND first_seen > NOW() - INTERVAL '1 hour'
             AND id != $2
             ORDER BY first_seen ASC
-            "#
+            "#,
         )
         .bind(source_ip)
         .bind(Uuid::parse_str(exclude_id).unwrap_or_default()) // Handle invalid UUID gracefully

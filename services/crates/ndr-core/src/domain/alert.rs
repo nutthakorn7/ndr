@@ -66,7 +66,7 @@ impl Alert {
             updated_at: now,
         }
     }
-    
+
     /// Assign alert to an analyst
     pub fn assign(&mut self, analyst: String) -> Result<()> {
         match self.status {
@@ -74,8 +74,8 @@ impl Alert {
                 Err(CoreError::invalid_state("Cannot assign closed alert"))
             }
             _ => {
-                self.status = AlertStatus::Investigating { 
-                    analyst: analyst.clone() 
+                self.status = AlertStatus::Investigating {
+                    analyst: analyst.clone(),
                 };
                 self.assigned_to = Some(analyst);
                 self.updated_at = Utc::now();
@@ -83,25 +83,25 @@ impl Alert {
             }
         }
     }
-    
+
     /// Resolve the alert
     pub fn resolve(&mut self, resolution: String) -> Result<()> {
         if self.status == AlertStatus::Closed {
             return Err(CoreError::invalid_state("Alert is already closed"));
         }
-        
+
         self.status = AlertStatus::Resolved { resolution };
         self.updated_at = Utc::now();
         Ok(())
     }
-    
+
     /// Close the alert
     pub fn close(&mut self) -> Result<()> {
         self.status = AlertStatus::Closed;
         self.updated_at = Utc::now();
         Ok(())
     }
-    
+
     /// Check if alert is still active
     pub fn is_active(&self) -> bool {
         !matches!(
@@ -109,17 +109,17 @@ impl Alert {
             AlertStatus::Closed | AlertStatus::Resolved { .. } | AlertStatus::FalsePositive
         )
     }
-    
+
     /// Get source IP (compatibility helper)
     pub fn source_ip(&self) -> Option<&str> {
         Some(&self.source.source_ip)
     }
-    
+
     /// Get destination IP (compatibility helper)
     pub fn dest_ip(&self) -> Option<&str> {
         self.source.dest_ip.as_deref()
     }
-    
+
     /// Get rule name (compatibility helper)
     pub fn rule_name(&self) -> &str {
         &self.title // Use title as rule name for now
@@ -129,7 +129,7 @@ impl Alert {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_alert_creation() {
         let source = EventSource {
@@ -138,18 +138,18 @@ mod tests {
             protocol: Some("TCP".to_string()),
             event_type: "intrusion_attempt".to_string(),
         };
-        
+
         let alert = Alert::new(
             Severity::High,
             "Suspicious network activity detected".to_string(),
             source,
         );
-        
+
         assert_eq!(alert.severity, Severity::High);
         assert_eq!(alert.status, AlertStatus::Open);
         assert!(alert.is_active());
     }
-    
+
     #[test]
     fn test_alert_assignment() {
         let source = EventSource {
@@ -158,14 +158,14 @@ mod tests {
             protocol: None,
             event_type: "test".to_string(),
         };
-        
+
         let mut alert = Alert::new(Severity::Medium, "Test".to_string(), source);
-        
+
         assert!(alert.assign("analyst@example.com".to_string()).is_ok());
         assert_eq!(alert.assigned_to, Some("analyst@example.com".to_string()));
         assert!(alert.is_active());
     }
-    
+
     #[test]
     fn test_cannot_assign_closed_alert() {
         let source = EventSource {
@@ -174,10 +174,10 @@ mod tests {
             protocol: None,
             event_type: "test".to_string(),
         };
-        
+
         let mut alert = Alert::new(Severity::Low, "Test".to_string(), source);
         alert.close().unwrap();
-        
+
         assert!(alert.assign("analyst@example.com".to_string()).is_err());
     }
 }

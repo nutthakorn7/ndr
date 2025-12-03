@@ -1,9 +1,9 @@
+use anyhow::Result;
 use rdkafka::config::ClientConfig;
-use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::message::OwnedHeaders;
+use rdkafka::producer::{FutureProducer, FutureRecord};
 use std::env;
 use std::time::Duration;
-use anyhow::Result;
 
 #[derive(Clone)]
 pub struct KafkaService {
@@ -30,9 +30,17 @@ impl KafkaService {
         let record = FutureRecord::to(&self.topic)
             .payload(payload)
             .key(key)
-            .headers(OwnedHeaders::new()
-                .insert(rdkafka::message::Header { key: "source", value: Some("ingestion-gateway") })
-                .insert(rdkafka::message::Header { key: "content-type", value: Some("application/json") }));
+            .headers(
+                OwnedHeaders::new()
+                    .insert(rdkafka::message::Header {
+                        key: "source",
+                        value: Some("ingestion-gateway"),
+                    })
+                    .insert(rdkafka::message::Header {
+                        key: "content-type",
+                        value: Some("application/json"),
+                    }),
+            );
 
         self.producer
             .send(record, Duration::from_secs(0))

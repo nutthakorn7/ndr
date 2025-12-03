@@ -9,16 +9,16 @@ pub type ApiResult<T> = std::result::Result<T, ApiError>;
 pub enum ApiError {
     #[error("Bad request: {0}")]
     BadRequest(String),
-    
+
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
-    
+
     #[error("Forbidden: {0}")]
     Forbidden(String),
-    
+
     #[error("Not found: {0}")]
     NotFound(String),
-    
+
     #[error("Internal server error: {0}")]
     InternalError(String),
 }

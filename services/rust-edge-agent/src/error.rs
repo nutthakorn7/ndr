@@ -86,8 +86,7 @@ impl IntoResponse for AppError {
 // Convenient conversions from common error types
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
-        AppError::internal(format!("Database error: {}", err))
-            .with_context(format!("{:?}", err))
+        AppError::internal(format!("Database error: {}", err)).with_context(format!("{:?}", err))
     }
 }
 
@@ -100,8 +99,7 @@ impl From<serde_json::Error> for AppError {
 
 impl From<anyhow::Error> for AppError {
     fn from(err: anyhow::Error) -> Self {
-        AppError::internal(format!("Internal error: {}", err))
-            .with_context(format!("{:?}", err))
+        AppError::internal(format!("Internal error: {}", err)).with_context(format!("{:?}", err))
     }
 }
 

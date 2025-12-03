@@ -5,12 +5,11 @@
 
 // Re-export shared domain types
 
-
-use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sqlx::FromRow;
+use uuid::Uuid;
 
 /// Correlation-specific metadata (service-specific, not in ndr-core)
 #[derive(Debug, Serialize, Deserialize, Clone)]

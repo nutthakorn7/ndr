@@ -3,10 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct  PaginationParams {
+pub struct PaginationParams {
     #[serde(default = "default_page")]
     pub page: u32,
-    
+
     #[serde(default = "default_page_size")]
     pub page_size: u32,
 }

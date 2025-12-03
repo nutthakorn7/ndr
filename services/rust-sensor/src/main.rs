@@ -1,23 +1,23 @@
+mod anomaly_detector;
 mod flow_tracker;
 mod protocol_parser;
-mod anomaly_detector;
 
-use pcap::{Device, Capture, Savefile};
-use serde::{Serialize, Deserialize};
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use std::env;
-use std::path::Path;
-use std::fs;
+use ndr_telemetry::{error, info, init_telemetry, warn};
+use pcap::{Capture, Device, Savefile};
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord};
+use serde::{Deserialize, Serialize};
+use std::env;
+use std::fs;
+use std::path::Path;
 use std::time::{Duration, SystemTime};
 use uuid::Uuid;
-use anyhow::{Result, Context};
-use ndr_telemetry::{init_telemetry, info, error, warn};
 
+use anomaly_detector::AnomalyDetector;
 use flow_tracker::FlowTracker;
 use protocol_parser::parse_packet;
-use anomaly_detector::AnomalyDetector;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PacketMetadata {
@@ -50,8 +50,11 @@ impl PcapRotator {
 
     fn rotate_if_needed(&mut self, capture: &Capture<pcap::Active>) -> Result<()> {
         let now = SystemTime::now();
-        let should_rotate = self.current_savefile.is_none() || 
-                           now.duration_since(self.file_start_time).unwrap_or(Duration::ZERO) >= self.rotation_interval;
+        let should_rotate = self.current_savefile.is_none()
+            || now
+                .duration_since(self.file_start_time)
+                .unwrap_or(Duration::ZERO)
+                >= self.rotation_interval;
 
         if should_rotate {
             if let Some(_) = self.current_savefile.take() {
@@ -62,7 +65,7 @@ impl PcapRotator {
             let filename = format!("capture-{}-{}.pcap", timestamp, Uuid::new_v4());
             let file_path = Path::new(&self.pcap_dir).join(&filename);
             self.current_file_path = file_path.to_string_lossy().to_string();
-            
+
             self.current_savefile = Some(capture.savefile(&self.current_file_path)?);
             self.file_start_time = now;
             info!("Started new pcap file: {}", self.current_file_path);
@@ -92,7 +95,7 @@ async fn main() -> Result<()> {
     let kafka_topic = "network-events";
     let kafka_flow_topic = "network-flows";
     let kafka_alert_topic = "security-alerts";
-    
+
     let pcap_dir = env::var("PCAP_DIR").unwrap_or_else(|_| "/var/lib/pcap".to_string());
     let rotation_secs = env::var("PCAP_ROTATION_SECONDS")
         .unwrap_or_else(|_| "3600".to_string())
@@ -111,7 +114,10 @@ async fn main() -> Result<()> {
 
     info!("Connecting to Kafka at: {}", kafka_brokers);
     info!("PCAP Directory: {}, Rotation: {}s", pcap_dir, rotation_secs);
-    info!("Flow Timeout: {}s, Anomaly Detection: {}", flow_timeout, enable_anomaly_detection);
+    info!(
+        "Flow Timeout: {}s, Anomaly Detection: {}",
+        flow_timeout, enable_anomaly_detection
+    );
 
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", &kafka_brokers)
@@ -126,7 +132,7 @@ async fn main() -> Result<()> {
         .find(|d| d.name == device_name)
         .or_else(|| Device::lookup().ok().flatten())
         .context("No suitable network device found")?;
-    
+
     info!("Capturing on device: {:?}", device.name);
 
     let mut cap = Capture::from_device(device)?
@@ -139,8 +145,10 @@ async fn main() -> Result<()> {
     let mut flow_tracker = FlowTracker::new(flow_timeout);
     let anomaly_detector = AnomalyDetector::new(10, 100);
 
-    info!("Capture started. Streaming to topics: {}, {}, {}", 
-             kafka_topic, kafka_flow_topic, kafka_alert_topic);
+    info!(
+        "Capture started. Streaming to topics: {}, {}, {}",
+        kafka_topic, kafka_flow_topic, kafka_alert_topic
+    );
 
     let mut packet_count = 0u64;
     let mut flow_export_timer = SystemTime::now();
@@ -155,7 +163,7 @@ async fn main() -> Result<()> {
         // Export flows periodically
         if flow_export_timer.elapsed().unwrap_or(Duration::ZERO) >= flow_export_interval {
             let expired_flows = flow_tracker.expire_flows();
-            
+
             for flow in expired_flows {
                 // Send flow to Kafka
                 if let Ok(json) = serde_json::to_string(&flow) {
@@ -185,17 +193,20 @@ async fn main() -> Result<()> {
             }
 
             flow_export_timer = SystemTime::now();
-            
+
             if packet_count % 10000 == 0 {
-                info!("Processed {} packets, {} active flows", 
-                         packet_count, flow_tracker.active_flow_count());
+                info!(
+                    "Processed {} packets, {} active flows",
+                    packet_count,
+                    flow_tracker.active_flow_count()
+                );
             }
         }
 
         match cap.next_packet() {
             Ok(packet) => {
                 packet_count += 1;
-                
+
                 // 1. Write to PCAP
                 rotator.write(&packet);
 
@@ -211,16 +222,22 @@ async fn main() -> Result<()> {
                     }
 
                     // 3. Optionally send packet metadata (legacy compatibility)
-                    if env::var("SEND_PACKET_METADATA").unwrap_or_else(|_| "false".to_string()) == "true" {
+                    if env::var("SEND_PACKET_METADATA").unwrap_or_else(|_| "false".to_string())
+                        == "true"
+                    {
                         let ts = Utc::now();
                         let len = packet.header.len;
                         let data = packet.data;
 
                         if data.len() >= 14 {
-                            let dst_mac = format!("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", 
-                                data[0], data[1], data[2], data[3], data[4], data[5]);
-                            let src_mac = format!("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", 
-                                data[6], data[7], data[8], data[9], data[10], data[11]);
+                            let dst_mac = format!(
+                                "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+                                data[0], data[1], data[2], data[3], data[4], data[5]
+                            );
+                            let src_mac = format!(
+                                "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+                                data[6], data[7], data[8], data[9], data[10], data[11]
+                            );
 
                             let metadata = PacketMetadata {
                                 timestamp: ts,
@@ -232,25 +249,20 @@ async fn main() -> Result<()> {
 
                             if let Ok(json) = serde_json::to_string(&metadata) {
                                 let _ = producer.send(
-                                    FutureRecord::to(kafka_topic)
-                                        .payload(&json)
-                                        .key("sensor-1"),
+                                    FutureRecord::to(kafka_topic).payload(&json).key("sensor-1"),
                                     Duration::from_secs(0),
                                 );
                             }
                         }
                     }
                 }
-            },
+            }
             Err(pcap::Error::TimeoutExpired) => {
                 continue;
-            },
+            }
             Err(e) => {
                 error!("Error capturing packet: {:?}", e);
             }
         }
     }
 }
-
-
-

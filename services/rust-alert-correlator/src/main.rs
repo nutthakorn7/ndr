@@ -1,5 +1,5 @@
 //! Alert Correlator - Uses shared NDR crates
-//! 
+//!
 //! This service has been migrated to use the shared crate ecosystem.
 
 use dotenvy::dotenv;
@@ -7,17 +7,17 @@ use std::sync::Arc;
 
 // Shared crates
 use ndr_core::{domain::Alert, ports::AlertRepository};
-use ndr_telemetry::{init_telemetry, info, error};
 use ndr_storage::postgres::create_pool;
+use ndr_telemetry::{error, info, init_telemetry};
 
-mod models;  // Declare models module
-mod db;
 mod cache;
+mod db;
 mod engine;
 mod kafka;
+mod models; // Declare models module
 
-use db::DB;
 use cache::Cache;
+use db::DB;
 use engine::CorrelationEngine;
 
 async fn health_check() -> impl axum::response::IntoResponse {
@@ -30,7 +30,7 @@ async fn health_check() -> impl axum::response::IntoResponse {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
-    
+
     // Initialize telemetry (replaces tracing_subscriber::fmt::init())
     if let Err(e) = init_telemetry("alert-correlator") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     // Database using shared pool creation
     let database_url = std::env::var("DATABASE_URL")
         .map_err(|_| anyhow::anyhow!("DATABASE_URL environment variable must be set"))?;
-    
+
     let pool = match create_pool(&database_url).await {
         Ok(p) => p,
         Err(e) => {
@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             std::process::exit(1);
         }
     };
-    
+
     let db = DB::new(pool);
     if let Err(e) = db.init_schema().await {
         error!(error = %e, "Failed to initialize DB schema");
@@ -58,12 +58,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Redis
-    let redis_host = std::env::var("REDIS_HOST")
-        .unwrap_or_else(|_| "redis".to_string());
-    let redis_port = std::env::var("REDIS_PORT")
-        .unwrap_or_else(|_| "6379".to_string());
+    let redis_host = std::env::var("REDIS_HOST").unwrap_or_else(|_| "redis".to_string());
+    let redis_port = std::env::var("REDIS_PORT").unwrap_or_else(|_| "6379".to_string());
     let redis_url = format!("redis://{}:{}/2", redis_host, redis_port);
-    
+
     let cache = match Cache::new(&redis_url).await {
         Ok(c) => c,
         Err(e) => {
@@ -92,6 +90,6 @@ async fn main() -> anyhow::Result<()> {
         error!(error = %e, "Kafka consumer failed");
         std::process::exit(1);
     }
-    
+
     Ok(())
 }

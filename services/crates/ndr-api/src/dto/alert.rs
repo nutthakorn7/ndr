@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use ndr_core::domain::{Alert, Severity, AlertStatus};
+use ndr_core::domain::{Alert, AlertStatus, Severity};
 
 /// Alert DTO for API responses
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,10 +55,10 @@ mod tests {
             protocol: None,
             event_type: "test".to_string(),
         };
-        
+
         let alert = Alert::new(Severity::High, "Test".to_string(), source);
         let dto: AlertDto = alert.into();
-        
+
         assert_eq!(dto.severity, "high");
         assert_eq!(dto.title, "Test");
     }

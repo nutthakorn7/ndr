@@ -1,11 +1,14 @@
-use axum::{extract::{State, Json}, http::StatusCode};
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use chrono::{DateTime, Utc};
 use std::sync::Arc;
 
-use crate::AppState;
 use crate::error::{AppError, Result as AppResult};
+use crate::AppState;
 
 #[derive(Deserialize, Debug)]
 pub struct RegistrationRequest {
@@ -48,7 +51,8 @@ pub async fn register_agent(
     State(state): State<Arc<AppState>>,
     Json(req): Json<RegistrationRequest>,
 ) -> AppResult<(StatusCode, Json<RegistrationResponse>)> {
-    let capabilities_json = req.capabilities
+    let capabilities_json = req
+        .capabilities
         .map(|c| serde_json::to_value(c).ok())
         .flatten()
         .unwrap_or(Value::Null);
@@ -78,7 +82,11 @@ pub async fn register_agent(
         .with_context(format!("Agent ID: {}, Error: {}", req.agent_id, e)))?;
 
     metrics::counter!("edge_coordinator_agents_registered").increment(1);
-    ndr_telemetry::info!("Agent registered: {} at {}", req.agent_id, req.location.as_deref().unwrap_or("unknown"));
+    ndr_telemetry::info!(
+        "Agent registered: {} at {}",
+        req.agent_id,
+        req.location.as_deref().unwrap_or("unknown")
+    );
 
     Ok((
         StatusCode::CREATED,
@@ -89,16 +97,14 @@ pub async fn register_agent(
     ))
 }
 
-pub async fn get_agents(
-    State(state): State<Arc<AppState>>,
-) -> AppResult<Json<AgentsListResponse>> {
-    let agents = sqlx::query_as::<_, EdgeAgent>(
-        "SELECT * FROM edge_agents ORDER BY updated_at DESC"
-    )
-    .fetch_all(&state.db)
-    .await
-    .map_err(|e| AppError::internal("Failed to retrieve agent list")
-        .with_context(e.to_string()))?;
+pub async fn get_agents(State(state): State<Arc<AppState>>) -> AppResult<Json<AgentsListResponse>> {
+    let agents =
+        sqlx::query_as::<_, EdgeAgent>("SELECT * FROM edge_agents ORDER BY updated_at DESC")
+            .fetch_all(&state.db)
+            .await
+            .map_err(|e| {
+                AppError::internal("Failed to retrieve agent list").with_context(e.to_string())
+            })?;
 
     let total = agents.len() as i64;
 
@@ -109,16 +115,18 @@ pub async fn get_agent(
     State(state): State<Arc<AppState>>,
     axum::extract::Path(agent_id): axum::extract::Path<String>,
 ) -> AppResult<Json<EdgeAgent>> {
-    let agent = sqlx::query_as::<_, EdgeAgent>(
-        "SELECT * FROM edge_agents WHERE agent_id = $1"
-    )
-    .bind(&agent_id)
-    .fetch_optional(&state.db)
-    .await
-    .map_err(|e| AppError::internal("Database query failed")
-        .with_context(format!("Agent ID: {}, Error: {}", agent_id, e)))?
-    .ok_or_else(|| AppError::not_found(format!("Edge agent '{}' not found", agent_id))
-        .with_context("The agent may have been removed"))?;
+    let agent = sqlx::query_as::<_, EdgeAgent>("SELECT * FROM edge_agents WHERE agent_id = $1")
+        .bind(&agent_id)
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| {
+            AppError::internal("Database query failed")
+                .with_context(format!("Agent ID: {}, Error: {}", agent_id, e))
+        })?
+        .ok_or_else(|| {
+            AppError::not_found(format!("Edge agent '{}' not found", agent_id))
+                .with_context("The agent may have been removed")
+        })?;
 
     Ok(Json(agent))
 }

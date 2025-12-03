@@ -1,7 +1,7 @@
 use anyhow::Result;
-use tokio_retry::{strategy::ExponentialBackoff, Retry};
+use ndr_telemetry::{debug, info, warn};
 use std::time::Duration;
-use ndr_telemetry::{info, warn, debug};
+use tokio_retry::{strategy::ExponentialBackoff, Retry};
 
 /// Circuit breaker state for external connections
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl CircuitBreaker {
                 // Reset circuit breaker
                 let mut count_guard = self.failure_count.write().await;
                 let mut last_fail_guard = self.last_failure.write().await;
-                
+
                 *count_guard = 0;
                 *last_fail_guard = None;
                 info!(name = %self.name, "Circuit breaker reset after timeout");
@@ -55,7 +55,7 @@ impl CircuitBreaker {
         if should_reset {
             let mut count_guard = self.failure_count.write().await;
             let mut last_fail_guard = self.last_failure.write().await;
-            
+
             *count_guard = 0;
             *last_fail_guard = None;
             debug!(name = %self.name, "Circuit breaker failure count reset");
@@ -67,11 +67,11 @@ impl CircuitBreaker {
         let mut count_guard = self.failure_count.write().await;
         *count_guard += 1;
         let current_count = *count_guard;
-        
+
         // We hold failure_count lock while acquiring last_failure lock.
         // This is consistent with other methods (failure_count -> last_failure).
         *self.last_failure.write().await = Some(std::time::Instant::now());
-        
+
         if current_count >= self.max_failures {
             warn!(
                 name = %self.name,
@@ -90,10 +90,7 @@ impl CircuitBreaker {
 }
 
 /// Execute operation with retry and exponential backoff
-pub async fn with_retry<F, Fut, T>(
-    operation: F,
-    max_retries: usize,
-) -> Result<T>
+pub async fn with_retry<F, Fut, T>(operation: F, max_retries: usize) -> Result<T>
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T>>,
@@ -125,10 +122,10 @@ mod tests {
     #[tokio::test]
     async fn test_circuit_breaker_opens_after_failures() {
         let cb = CircuitBreaker::new("test", 2, 10);
-        
+
         cb.record_failure().await;
         assert!(!cb.is_open().await);
-        
+
         cb.record_failure().await;
         assert!(cb.is_open().await);
     }
@@ -136,11 +133,11 @@ mod tests {
     #[tokio::test]
     async fn test_circuit_breaker_resets_after_success() {
         let cb = CircuitBreaker::new("test", 3, 10);
-        
+
         cb.record_failure().await;
         cb.record_failure().await;
         assert_eq!(cb.failure_count().await, 2);
-        
+
         cb.record_success().await;
         assert_eq!(cb.failure_count().await, 0);
         assert!(!cb.is_open().await);
@@ -150,13 +147,13 @@ mod tests {
     async fn test_circuit_breaker_timeout_reset() {
         // Use small timeout for test
         let cb = CircuitBreaker::new("test", 1, 1); // 1 second timeout
-        
+
         cb.record_failure().await;
         assert!(cb.is_open().await);
-        
+
         // Wait for timeout (1.1s)
         tokio::time::sleep(Duration::from_millis(1100)).await;
-        
+
         // Should be closed (reset) now
         assert!(!cb.is_open().await);
         assert_eq!(cb.failure_count().await, 0);

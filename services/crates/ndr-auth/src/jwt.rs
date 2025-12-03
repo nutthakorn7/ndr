@@ -9,11 +9,11 @@ use crate::error::{AuthError, Result};
 /// JWT claims
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,  // Subject (user ID)
+    pub sub: String, // Subject (user ID)
     pub email: String,
     pub roles: Vec<String>,
-    pub exp: i64,     // Expiration time
-    pub iat: i64,     // Issued at
+    pub exp: i64, // Expiration time
+    pub iat: i64, // Issued at
 }
 
 /// JWT validator
@@ -30,7 +30,7 @@ impl JwtValidator {
     pub fn validate(&self, token: &str) -> Result<Claims> {
         let decoding_key = DecodingKey::from_secret(self.secret.as_bytes());
         let validation = Validation::default();
-        
+
         let token_data = decode::<Claims>(token, &decoding_key, &validation)?;
         Ok(token_data.claims)
     }
@@ -45,7 +45,7 @@ impl JwtValidator {
     ) -> Result<String> {
         let now = Utc::now();
         let exp = (now + chrono::Duration::hours(expires_in_hours)).timestamp();
-        
+
         let claims = Claims {
             sub: user_id,
             email,
@@ -57,7 +57,7 @@ impl JwtValidator {
         let encoding_key = EncodingKey::from_secret(self.secret.as_bytes());
         let token = encode(&Header::default(), &claims, &encoding_key)
             .map_err(|e| AuthError::InvalidToken(e.to_string()))?;
-        
+
         Ok(token)
     }
 
@@ -75,14 +75,16 @@ mod tests {
     fn test_jwt_creation_and_validation() {
         let secret = "test_secret_key".to_string();
         let validator = JwtValidator::new(secret);
-        
-        let token = validator.create_token(
-            "user123".to_string(),
-            "user@example.com".to_string(),
-            vec!["analyst".to_string()],
-            24,
-        ).unwrap();
-        
+
+        let token = validator
+            .create_token(
+                "user123".to_string(),
+                "user@example.com".to_string(),
+                vec!["analyst".to_string()],
+                24,
+            )
+            .unwrap();
+
         let claims = validator.validate(&token).unwrap();
         assert_eq!(claims.sub, "user123");
         assert_eq!(claims.email, "user@example.com");

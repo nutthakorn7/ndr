@@ -1,21 +1,21 @@
+use dotenvy::dotenv;
+use ndr_telemetry::{error, info, init_telemetry, warn};
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::message::Message;
+use rdkafka::producer::{FutureProducer, FutureRecord};
 use std::time::Duration;
-use ndr_telemetry::{init_telemetry, info, error, warn};
-use dotenvy::dotenv;
 
-mod parser;
 mod normalizer;
+mod parser;
 
-use parser::LogParser;
 use normalizer::LogNormalizer;
+use parser::LogParser;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
-    
+
     // Initialize telemetry
     if let Err(e) = init_telemetry("parser-normalizer") {
         eprintln!("Failed to initialize telemetry: {}", e);
@@ -27,7 +27,8 @@ async fn main() -> anyhow::Result<()> {
     let brokers = std::env::var("KAFKA_BROKERS").unwrap_or_else(|_| "localhost:9092".to_string());
     let group_id = "rust-parser-normalizer-group";
     let zeek_topic = std::env::var("ZEEK_TOPIC").unwrap_or_else(|_| "zeek-logs".to_string());
-    let suricata_topic = std::env::var("SURICATA_TOPIC").unwrap_or_else(|_| "suricata-logs".to_string());
+    let suricata_topic =
+        std::env::var("SURICATA_TOPIC").unwrap_or_else(|_| "suricata-logs".to_string());
 
     let consumer: StreamConsumer = ClientConfig::new()
         .set("group.id", group_id)
@@ -71,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
                 }
 
                 let topic = m.topic();
-                
+
                 // Process message
                 match serde_json::from_str::<serde_json::Value>(payload) {
                     Ok(raw_log) => {
@@ -85,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
                                 continue;
                             }
                         };
-                        
+
                         let _ = producer
                             .send(
                                 FutureRecord::to("normalized-logs")

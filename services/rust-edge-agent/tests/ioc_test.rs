@@ -1,4 +1,4 @@
-use rust_edge_agent::detector::{LocalDetector, DetectionRule};
+use rust_edge_agent::detector::{DetectionRule, LocalDetector};
 use rust_edge_agent::ioc_store::IocStore;
 use serde_json::json;
 
@@ -24,7 +24,7 @@ fn test_ioc_matching() {
         "src_ip": "192.168.1.200",
         "dest_port": 80
     });
-    
+
     let result = detector.analyze(&event_match, &ioc_store);
     assert!(result.is_some());
     let result = result.unwrap();

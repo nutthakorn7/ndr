@@ -4,11 +4,11 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::error::Result;
 use ndr_core::{
     domain::{Alert, AlertStatus, Severity},
     ports::AlertRepository,
 };
-use crate::error::Result;
 
 /// PostgreSQL implementation of AlertRepository
 pub struct PostgresAlertRepository {

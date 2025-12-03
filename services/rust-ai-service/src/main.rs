@@ -1,22 +1,22 @@
 use axum::{
-    extract::{State, Json},
-    routing::{get, post},
-    Router,
+    extract::{Json, State},
     http::StatusCode,
     response::IntoResponse,
+    routing::{get, post},
+    Router,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
-use tower_http::trace::TraceLayer;
-use ndr_telemetry::{init_telemetry, info, error, warn};
 use linfa::prelude::*;
 use linfa_clustering::KMeans;
 use ndarray::{Array2, ArrayView1};
 use ndr_storage::postgres::create_pool;
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use ndr_telemetry::{error, info, init_telemetry, warn};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tower_http::trace::TraceLayer;
 
 mod repository;
-use repository::{Repository, ModelArtifacts};
+use repository::{ModelArtifacts, Repository};
 
 #[derive(Clone)]
 struct AppState {
@@ -44,7 +44,7 @@ impl AnomalyModel {
 
     fn train(&mut self, data: Vec<repository::TrainingData>) -> Result<ModelArtifacts, String> {
         info!("Starting model training with {} records...", data.len());
-        
+
         if data.is_empty() {
             return Err("No training data available".to_string());
         }
@@ -53,7 +53,7 @@ impl AnomalyModel {
         // Features: log1p(bytes_sent), log1p(bytes_recv), log1p(pkts_sent), log1p(pkts_recv), log1p(duration)
         let n_samples = data.len();
         let mut features = Vec::with_capacity(n_samples * 5);
-        
+
         for d in &data {
             features.push(d.bytes_sent.ln_1p());
             features.push(d.bytes_received.ln_1p());
@@ -62,8 +62,8 @@ impl AnomalyModel {
             features.push(d.duration.ln_1p());
         }
 
-        let dataset_array = Array2::from_shape_vec((n_samples, 5), features)
-            .map_err(|e| e.to_string())?;
+        let dataset_array =
+            Array2::from_shape_vec((n_samples, 5), features).map_err(|e| e.to_string())?;
         let dataset = Dataset::from(dataset_array);
 
         // Train K-Means with 2 clusters (Normal vs Anomalous? Or just clustering normal behavior)
@@ -75,7 +75,7 @@ impl AnomalyModel {
             .map_err(|e| e.to_string())?;
 
         let centroids = model.centroids().clone();
-        
+
         // Calculate threshold (99th percentile distance)
         let mut distances = Vec::new();
         for i in 0..n_samples {
@@ -89,14 +89,14 @@ impl AnomalyModel {
             }
             distances.push(min_dist);
         }
-        
+
         distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let threshold_idx = (distances.len() as f64 * 0.99) as usize;
         let threshold = distances[threshold_idx.min(distances.len() - 1)];
 
         self.centroids = Some(centroids.clone());
         self.threshold = threshold;
-        
+
         info!("Model trained. Threshold: {}", threshold);
 
         Ok(ModelArtifacts {
@@ -164,7 +164,7 @@ async fn main() -> anyhow::Result<()> {
     let repository = Arc::new(Repository::new(pool));
 
     let model = Arc::new(Mutex::new(AnomalyModel::new()));
-    
+
     // Load existing model
     match repository.load_active_model().await {
         Ok(Some(artifacts)) => {
@@ -186,10 +186,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let state = AppState { 
-        model,
-        repository 
-    };
+    let state = AppState { model, repository };
 
     let app = Router::new()
         .route("/health", get(health_check))
@@ -200,7 +197,7 @@ async fn main() -> anyhow::Result<()> {
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8090".into());
     let addr = format!("0.0.0.0:{}", port);
-    
+
     info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr.clone())
         .await
@@ -208,7 +205,7 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app)
         .await
         .map_err(|e| anyhow::anyhow!("Server error: {}", e))?;
-    
+
     Ok(())
 }
 
@@ -237,9 +234,12 @@ async fn analyze_flow(
             poisoned.into_inner()
         }
     };
-    
+
     if model.centroids.is_none() {
-        return Err((StatusCode::SERVICE_UNAVAILABLE, "Model not loaded".to_string()));
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Model not loaded".to_string(),
+        ));
     }
 
     // Preprocessing: Log scaling (log1p)
@@ -260,13 +260,26 @@ async fn analyze_flow(
     }))
 }
 
-async fn train_model(State(state): State<AppState>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+async fn train_model(
+    State(state): State<AppState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     // 1. Fetch data
-    let data = state.repository.fetch_training_data(10000).await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("DB Error: {}", e)))?;
+    let data = state
+        .repository
+        .fetch_training_data(10000)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("DB Error: {}", e),
+            )
+        })?;
 
     if data.len() < 10 {
-        return Err((StatusCode::BAD_REQUEST, "Not enough data to train (need at least 10 records)".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Not enough data to train (need at least 10 records)".to_string(),
+        ));
     }
 
     // 2. Train model
@@ -278,7 +291,9 @@ async fn train_model(State(state): State<AppState>) -> Result<Json<serde_json::V
                 poisoned.into_inner()
             }
         };
-        model.train(data).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?
+        model
+            .train(data)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?
     };
 
     // 3. Save model
@@ -287,10 +302,18 @@ async fn train_model(State(state): State<AppState>) -> Result<Json<serde_json::V
         .unwrap_or_else(|_| Duration::from_secs(0))
         .as_secs()
         .to_string();
-    state.repository.save_model(&version, &artifacts).await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Save Error: {}", e)))?;
+    state
+        .repository
+        .save_model(&version, &artifacts)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Save Error: {}", e),
+            )
+        })?;
 
-    Ok(Json(serde_json::json!({ 
+    Ok(Json(serde_json::json!({
         "status": "Model retrained and saved successfully",
         "version": version,
         "threshold": artifacts.threshold

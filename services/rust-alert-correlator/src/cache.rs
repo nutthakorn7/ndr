@@ -1,6 +1,6 @@
-use redis::AsyncCommands;
 use anyhow::Result;
 use ndr_core::circuit_breaker::CircuitBreaker;
+use redis::AsyncCommands;
 
 #[derive(Clone)]
 pub struct Cache {
@@ -12,7 +12,10 @@ impl Cache {
     pub async fn new(url: &str) -> Result<Self> {
         let client = redis::Client::open(url)?;
         let circuit_breaker = CircuitBreaker::new("redis", 5, 30);
-        Ok(Self { client, circuit_breaker })
+        Ok(Self {
+            client,
+            circuit_breaker,
+        })
     }
 
     pub async fn get_duplicate_alert(&self, key: &str) -> Result<Option<String>> {
@@ -55,7 +58,10 @@ impl Cache {
         };
 
         let redis_key = format!("alert:{}", key);
-        match conn.set_ex::<_, _, ()>(redis_key, "pending", ttl_seconds).await {
+        match conn
+            .set_ex::<_, _, ()>(redis_key, "pending", ttl_seconds)
+            .await
+        {
             Ok(_) => {
                 self.circuit_breaker.record_success().await;
                 Ok(())
@@ -81,7 +87,10 @@ impl Cache {
         };
 
         let redis_key = format!("alert:{}", key);
-        match conn.set_ex::<_, _, ()>(redis_key, meta_id, ttl_seconds).await {
+        match conn
+            .set_ex::<_, _, ()>(redis_key, meta_id, ttl_seconds)
+            .await
+        {
             Ok(_) => {
                 self.circuit_breaker.record_success().await;
                 Ok(())
