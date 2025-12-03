@@ -28,9 +28,7 @@ pub struct Flow {
 pub enum FlowState {
     Active,
     Closed,
-    Timed
-
-Out,
+    TimedOut,
 }
 
 impl Flow {
