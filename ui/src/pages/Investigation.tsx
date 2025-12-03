@@ -5,6 +5,9 @@ import {
 import { format } from 'date-fns';
 import { api } from '../utils/api';
 import { ThreatEvent } from '../schemas';
+import BulkActionBar from '../components/BulkActionBar';
+import SkeletonLoader from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
 
 interface LogEntry {
   id: string;
@@ -355,27 +358,38 @@ export default function Investigation() {
         </div>
       )}
 
-      {/* Results Stats */}
-      <div className="flex justify-between items-center px-4 py-2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded">
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-[var(--text-secondary)]">
-            Showing <strong className="text-[var(--text-primary)]">{filteredLogs.length}</strong> of <strong className="text-[var(--text-primary)]">{logs.length}</strong> events
-          </span>
-          {selectedLogs.size > 0 && (
-            <span className="text-sm text-[var(--sev-info)]">
-              {selectedLogs.size} selected
+      {/* Results Stats & BulkActionBar */}
+      {selectedLogs.size > 0 ? (
+        <BulkActionBar
+          selectedCount={selectedLogs.size}
+          totalCount={filteredLogs.length}
+          onExport={() => handleExport('json')}
+          onClear={() => setSelectedLogs(new Set())}
+          actions={[
+            {
+              label: 'Export CSV',
+              icon: <Download className="w-4 h-4" />,
+              onClick: () => handleExport('csv')
+            }
+          ]}
+        />
+      ) : (
+        <div className="flex justify-between items-center px-4 py-2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-[var(--text-secondary)]">
+              Showing <strong className="text-[var(--text-primary)]">{filteredLogs.length}</strong> of <strong className="text-[var(--text-primary)]">{logs.length}</strong> events
             </span>
+          </div>
+          {filteredLogs.length > 0 && (
+            <button
+              onClick={toggleSelectAll}
+              className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              {selectedLogs.size === filteredLogs.length ? 'Deselect All' : 'Select All'}
+            </button>
           )}
         </div>
-        {filteredLogs.length > 0 && (
-          <button
-            onClick={toggleSelectAll}
-            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            {selectedLogs.size === filteredLogs.length ? 'Deselect All' : 'Select All'}
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Results Table */}
       <div className="flex-1 overflow-auto bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded">
@@ -395,16 +409,22 @@ export default function Investigation() {
           <tbody className="divide-y divide-[var(--border-subtle)]">
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-[var(--text-secondary)]">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
-                  Loading events...
+                <td colSpan={8} className="p-0">
+                  <SkeletonLoader variant="table" rows={10} columns={8} />
                 </td>
               </tr>
             ) : filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-[var(--text-secondary)]">
-                  <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
-                  No events found
+                <td colSpan={8} className="p-0">
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="No events found"
+                    description="Try adjusting your search query or filters to find matching events."
+                    action={{
+                      label: "Clear Filters",
+                      onClick: clearFilters
+                    }}
+                  />
                 </td>
               </tr>
             ) : (
