@@ -124,7 +124,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[600px]">
           {/* Traffic Chart (2/3 width) */}
           <div className="lg:col-span-2 h-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4">
-            <div className="text-xs uppercase text-[var(--text-secondary)] font-semibold mb-4 tracking-wider">Threat Activity</div>
+            <div className="label-text mb-4">Threat Activity</div>
             <Suspense fallback={<div className="h-full animate-pulse bg-[var(--bg-hover)] rounded" />}>
               <NetworkAnalytics />
             </Suspense>
@@ -133,7 +133,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
           {/* Recent Alerts (1/3 width) */}
           <div className="h-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded flex flex-col">
             <div className="p-3 border-b border-[var(--border-subtle)] flex justify-between items-center">
-               <div className="text-xs uppercase text-[var(--text-secondary)] font-semibold tracking-wider">Recent Detections</div>
+               <div className="label-text">Recent Detections</div>
                <button className="text-xs text-[var(--sev-info)] hover:underline" onClick={() => handleTabChange('alerts')}>View All</button>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -235,7 +235,7 @@ function Dashboard({ initialSearch = false }: DashboardProps) {
           {networkView === 'topology' ? (
             <>
               <div className="h-1/2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4">
-                <div className="text-xs uppercase text-[var(--text-secondary)] font-semibold mb-4 tracking-wider">Traffic Analysis</div>
+                <div className="label-text mb-4">Traffic Analysis</div>
                 <Suspense fallback={<div className="h-full animate-pulse bg-[var(--bg-hover)] rounded" />}>
                   <NetworkAnalytics />
                 </Suspense>
